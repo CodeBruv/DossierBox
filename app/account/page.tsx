@@ -40,6 +40,10 @@ export default async function AccountPage() {
             </div>
           </dl>
 
+          <Link className={styles.profileLink} href="/profile">
+            Edit your career profile
+          </Link>
+
           <form action={signOutAction}>
             <button className={styles.signOutButton} type="submit">
               Sign out
