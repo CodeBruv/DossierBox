@@ -1,0 +1,103 @@
+/* =============================================================================
+   SiteHeader — fixed top navigation.
+   Professional, restrained: high-contrast text on a clean white surface
+   with a single accent for interactive states.
+============================================================================ */
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background-color: var(--ds-paper);
+  border-bottom: 1px solid var(--ds-rule);
+  backdrop-filter: saturate(180%) blur(4px);
+}
+
+.inner {
+  width: 100%;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 4rem; /* 64px */
+  gap: var(--ds-space-sm);
+}
+
+.logo {
+  font-weight: 700;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+  color: var(--ds-ink-strong);
+  text-decoration: none;
+}
+.logo:hover { color: var(--ds-accent); }
+
+.desktopNav {
+  display: none;
+}
+
+.menuButton {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 2rem;
+  height: 1.5rem;
+  gap: 3px;
+  border-radius: var(--ds-border-radius-sm);
+  background: transparent;
+  cursor: pointer;
+  padding: 0.25rem;
+  transition: background-color var(--ds-motion-duration) var(--ds-motion-ease);
+}
+.menuButton:hover { background-color: var(--ds-paper-alt); }
+
+.menuIcon {
+  display: block;
+  width: 100%;
+  height: 2px;
+  background-color: var(--ds-ink);
+  border-radius: 2px;
+  transition:
+    background-color var(--ds-motion-duration) var(--ds-motion-ease),
+    transform var(--ds-motion-duration) var(--ds-motion-ease);
+}
+
+/* Desktop: show nav, hide mobile toggle */
+@media (min-width: 48.0625rem) {
+  .desktopNav {
+    display: block;
+  }
+  .desktopNav nav ul {
+    flex-direction: row;
+    gap: var(--ds-space-xs);
+  }
+  .menuButton { display: none; }
+}
+
+/* Mobile drawer */
+.mobileDrawer {
+  position: fixed;
+  top: 4rem;
+  left: 0;
+  right: 0;
+  background-color: var(--ds-paper);
+  border-bottom: 1px solid var(--ds-rule);
+  box-shadow: var(--ds-shadow-card);
+  padding-top: var(--ds-space-sm);
+  padding-bottom: var(--ds-space-lg);
+}
+.mobileNav ul {
+  flex-direction: column;
+  gap: var(--ds-space-2xs);
+}
+.mobileNav .link {
+  padding: 0.75rem 1rem;
+}
+.mobileAuth {
+  margin-top: var(--ds-space-md);
+  display: flex;
+  justify-content: center;
+  gap: var(--ds-space-2xs);
+}

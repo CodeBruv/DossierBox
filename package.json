@@ -1,0 +1,44 @@
+{
+  "name": "dossierbox",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DossierBox — a global career-document platform. Build professional documents from your real career information, purpose-first.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "lint:strict": "next lint && tsc --noEmit"
+  },
+  "keywords": [
+    "nextjs",
+    "career-documents",
+    "cv",
+    "resume",
+    "typescript"
+  ],
+  "author": "DossierBox",
+  "license": "SEE LICENSE IN https://dossierbox.com/license",
+  "dependencies": {
+    "@auth/drizzle-adapter": "^1.11.3",
+    "drizzle-orm": "^0.45.2",
+    "next": "^16.3.1",
+    "next-auth": "^5.0.0-beta.32",
+    "postgres": "^3.4.9",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.4"
+  }
+}

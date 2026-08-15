@@ -1,0 +1,1517 @@
+﻿
+===== package.json =====
+{
+  "name": "dossierbox",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DossierBox â€” a global career-document platform. Build professional documents from your real career information, purpose-first.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --no-emit",
+    "lint:strict": "next lint && tsc --no-emit"
+  },
+  "keywords": [
+    "nextjs",
+    "career-documents",
+    "cv",
+    "resume",
+    "typescript"
+  ],
+  "author": "DossierBox",
+  "license": "SEE LICENSE IN https://dossierbox.com/license",
+  "dependencies": {
+    "next": "^16.3.1",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5.9.0"
+  }
+}
+
+
+===== tsconfig.json =====
+{
+  "compilerOptions": {
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "es2022"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "incremental": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./*"
+      ],
+      "@/ui/*": [
+        "./src/ui/*"
+      ],
+      "@/ui": [
+        "./src/ui"
+      ],
+      "@/lib/*": [
+        "./src/lib/*"
+      ],
+      "@/lib": [
+        "./src/lib"
+      ],
+      "@/config/*": [
+        "./src/config/*"
+      ]
+    },
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "target": "ES2017"
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
+
+
+===== next.config.js =====
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: "standalone",
+  reactStrictMode: true,
+  // Image optimization is not used in the MVP shell; keep defaults.
+  // No remotePatterns configured â€” only local assets are allowed.
+};
+
+module.exports = nextConfig;
+
+===== app\layout.tsx =====
+/**
+ * DossierBox â€” Root Layout
+ *
+ * Composes the global CSS, site header, and site footer into a
+ * consistent shell.
+ *
+ * Auth is NOT implemented in this block. The AuthEntry component renders
+ * visible placeholder links only.
+ */
+import "./globals.css";
+import "@/styles/print.css";
+import { SiteHeader } from "@/ui";
+import { SiteFooter } from "@/ui";
+import { Viewport, type Metadata } from "next";
+import type { ReactNode } from "react";
+
+export const metadata: Metadata = {
+  title: {
+    default: "DossierBox â€” Professional career documents from your real information",
+    template: "%s | DossierBox",
+  },
+  description:
+    "DossierBox turns your real career information into professional documents suited to a specific purpose. Start from your reusable profile, choose a document purpose, and preview, share, and download a polished PDF.",
+  robots: {
+    index: true,
+    follow: true,
+  },
+  openGraph: {
+    title: "DossierBox â€” Professional career documents",
+    description:
+      "Turn your real career information into purpose-built professional documents. Preview, share, and download as PDF â€” from a reusable profile you control.",
+    url: "https://dossierbox.com",
+    siteName: "DossierBox",
+    locale: "en-US",
+    type: "website",
+  },
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f172a" },
+  ],
+};
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <SiteHeader />
+        <main id="main-content">{children}</main>
+        <SiteFooter />
+      </body>
+    </html>
+  );
+}
+
+
+===== app\page.tsx =====
+/**
+ * Placeholder landing page â€” Block 1 only establishes the shell,
+ * not the marketing content. This file exists so the app routes
+ * without error. The real landing page is the next implementation
+ * step and will replace this minimal page.
+ */
+import { Container } from "@/ui";
+
+export default function LandingPage() {
+  return (
+    <div className="margin-top-lg">
+      <Container>
+        <h1>DossierBox</h1>
+        <p>Professional career documents from your real information.</p>
+        <p>The full landing page and product shell will be built next.</p>
+      </Container>
+    </div>
+  );
+}
+
+
+===== app\templates\page.tsx =====
+/**
+ * Placeholder pages â€” Block 1 only builds the shell.
+ * This stub ensures the route resolves. The real Templates page
+ * (document-family vs. visual-presentation distinction) is the
+ * next implementation step.
+ */
+import { Container } from "@/ui";
+
+export default function TemplatesPlaceholder() {
+  return (
+    <div className="margin-top-lg">
+      <Container>
+        <h1>Templates</h1>
+        <p>Professional document families for every purpose. Placeholder page.</p>
+      </Container>
+    </div>
+  );
+}
+
+
+===== app\how-it-works\page.tsx =====
+import { Container } from "@/ui";
+
+export default function HowItWorksPlaceholder() {
+  return (
+    <div className="margin-top-lg">
+      <Container>
+        <h1>How it works</h1>
+        <p>Real career information â†’ purpose â†’ document â†’ preview â†’ PDF. Placeholder.</p>
+      </Container>
+    </div>
+  );
+}
+
+
+===== app\pricing\page.tsx =====
+import { Container } from "@/ui";
+
+export default function PricingPlaceholder() {
+  return (
+    <div className="margin-top-lg">
+      <Container>
+        <h1>Pricing</h1>
+        <p>Free / Starter / Pro â€” configurable, not yet finalized. Placeholder.</p>
+      </Container>
+    </div>
+  );
+}
+
+
+===== app\auth\sign-in\page.tsx =====
+/**
+ * Sign-in route â€” NOT IMPLEMENTED in Block 1.
+ *
+ * This page exists only so the visible auth entry-point link has a
+ * destination that communicates clearly: authentication is not yet
+ * wired up. Do NOT add Google OAuth, sessions, or mock logins here.
+ */
+import { Container, Button } from "@/ui";
+
+export default function SignInPage() {
+  return (
+    <div className="margin-top-xl">
+      <Container>
+        <h1>Sign in</h1>
+        <p>
+          Authentication is not yet available in this preview. Sign in will be
+          enabled with Google authentication in an upcoming release.
+        </p>
+        <Button variant="secondary" asChild>
+          <a href="/">Back to DossierBox</a>
+        </Button>
+      </Container>
+    </div>
+  );
+}
+
+
+===== app\auth\sign-up\page.tsx =====
+/**
+ * Sign-up route â€” NOT IMPLEMENTED in Block 1.
+ *
+ * Placeholder only. Real Google OAuth authentication is deferred to
+ * Block 2. No mock login or session logic here.
+ */
+import { Container, Button } from "@/ui";
+
+export default function SignUpPage() {
+  return (
+    <div className="margin-top-xl">
+      <Container>
+        <h1>Get started</h1>
+        <p>
+          Account creation with Google is coming soon. When enabled, you will
+          create a reusable career profile and generate documents for a chosen
+          purpose.
+        </p>
+        <Button variant="secondary" asChild>
+          <a href="/">Back to DossierBox</a>
+        </Button>
+      </Container>
+    </div>
+  );
+}
+
+
+===== src\ui\index.ts =====
+/**
+ * DossierBox UI barrel.
+ *
+ * Re-exports presentational, framework-agnostic primitives used by the
+ * application shell. Business logic is deliberately kept out of these
+ * components â€” they receive data via props and emit events via callbacks.
+ */
+
+export { SiteHeader } from "./site-header";
+export { SiteFooter } from "./site-footer";
+export { Container } from "./container";
+export { Button } from "./button";
+export { NavMenu } from "./nav-menu";
+export { AuthEntry } from "./auth-entry";
+export { SkipLink } from "./skip-link";
+export type { ButtonProps, ButtonVariant } from "./button";
+
+
+===== src\ui\button.tsx =====
+/**
+ * Button â€” presentational primitive.
+ *
+ * Variants:
+ *   - primary:   filled accent (main CTA / entry points)
+ *   - secondary: outlined neutral
+ *   - tertiary:  text-only
+ *
+ * `asChild` allows rendering the button styles on another element
+ * (e.g. an <a> used as a styled link). This is purely presentational;
+ * no business logic lives here.
+ */
+import {
+  cloneElement,
+  isValidElement,
+  type ReactElement,
+  type ButtonHTMLAttributes,
+  type ReactNode,
+} from "react";
+import styles from "@/styles/ui/button.module.css";
+import { cx } from "@/lib/cx";
+
+export type ButtonVariant = "primary" | "secondary" | "tertiary";
+export type ButtonSize = "sm" | "md" | "lg";
+
+export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  asChild?: boolean;
+  children?: ReactNode;
+}
+
+type AsChildProps = {
+  className?: string;
+  disabled?: boolean;
+};
+
+export function Button({
+  children,
+  variant = "primary",
+  size = "md",
+  className,
+  disabled,
+  asChild = false,
+  ...rest
+}: ButtonProps): ReactElement {
+  const sharedClassName = cx(
+    styles.btn,
+    styles[`variant-${variant}`],
+    styles[`size-${size}`],
+    { [styles.disabled]: Boolean(disabled) },
+    className
+  );
+
+  if (asChild && isValidElement<AsChildProps>(children)) {
+    return cloneElement(children, {
+      className: cx(sharedClassName, children.props.className),
+      disabled,
+      ...rest,
+    });
+  }
+
+  return (
+    <button className={sharedClassName} disabled={disabled} {...rest}>
+      {children}
+    </button>
+  );
+}
+
+===== src\ui\container.tsx =====
+/**
+ * Container â€” centered page-width wrapper.
+ *
+ * A thin layout primitive. `wide` opts into the larger max-width for
+ * pages that need fuller horizontal spread (e.g. a document preview).
+ */
+import styles from "@/styles/ui/container.module.css";
+import { cx } from "@/lib/cx";
+import type { ReactNode } from "react";
+
+export interface ContainerProps {
+  children: ReactNode;
+  className?: string;
+  wide?: boolean;
+}
+
+export function Container({ children, className, wide = false }: ContainerProps) {
+  return (
+    <div
+      className={cx(styles.container, { [styles.wide]: wide }, className)}
+    >
+      {children}
+    </div>
+  );
+}
+
+
+===== src\ui\site-header.tsx =====
+/**
+ * SiteHeader â€” top navigation bar rendered on every page.
+ *
+ * Composes: SkipLink â†’ logo â†’ NavMenu (desktop) â†’ AuthEntry.
+ * On mobile, the NavMenu collapses into a hamburger-triggered drawer
+ * reusing the SAME NavMenu component so navigation stays consistent.
+ *
+ * No authentication logic. Links route to placeholder routes.
+ */
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
+import { Container } from "./container";
+import { SkipLink } from "./skip-link";
+import { NavMenu } from "./nav-menu";
+import { AuthEntry } from "./auth-entry";
+import { navLinks } from "@/config/paths";
+import styles from "@/styles/ui/site-header.module.css";
+
+export interface SiteHeaderProps {
+  /** The current pathname, used to mark the active nav link. */
+  currentPath?: string;
+}
+
+export function SiteHeader({ currentPath = "/" }: SiteHeaderProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  return (
+    <header className={styles.header}>
+      <SkipLink target="#main-content" />
+
+      <div className={styles.inner}>
+        <Container>
+          <div className={styles.bar}>
+            <Link href="/" className={styles.logo} aria-label="DossierBox â€” Home">
+              DossierBox
+            </Link>
+
+            {/* Desktop navigation */}
+            <nav className={styles.desktopNav} aria-label="Primary">
+              <NavMenu links={navLinks} currentPath={currentPath} />
+            </nav>
+
+            {/* Auth entry points (placeholder â€” not functional) */}
+            <AuthEntry />
+
+            {/* Mobile menu toggle */}
+            <button
+              type="button"
+              className={styles.menuButton}
+              aria-expanded={menuOpen}
+              aria-controls="mobile-menu"
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              onClick={() => setMenuOpen(!menuOpen)}
+            >
+              <span className={styles.menuIcon} aria-hidden="true" />
+              <span className={styles.menuIcon} aria-hidden="true" />
+              <span className={styles.menuIcon} aria-hidden="true" />
+            </button>
+          </div>
+        </Container>
+      </div>
+
+      {/* Mobile drawer â€” reuses NavMenu */}
+      {menuOpen && (
+        <div
+          id="mobile-menu"
+          className={styles.mobileDrawer}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Navigation menu"
+        >
+          <Container>
+            <nav className={styles.mobileNav} aria-label="Primary">
+              <NavMenu links={navLinks} currentPath={currentPath} />
+              <div className={styles.mobileAuth}>
+                <AuthEntry />
+              </div>
+            </nav>
+          </Container>
+        </div>
+      )}
+    </header>
+  );
+}
+
+
+===== src\ui\site-footer.tsx =====
+/**
+ * SiteFooter â€” secondary navigation and legal links rendered on every page.
+ *
+ * Contains: copyright, minimal sitemap links (Terms / Privacy / Contact),
+ * and the auth entry for mobile convenience. Purely presentational.
+ */
+import Link from "next/link";
+import { Container } from "./container";
+import { AuthEntry } from "./auth-entry";
+import styles from "@/styles/ui/site-footer.module.css";
+
+export function SiteFooter() {
+  const year = new Date().getFullYear();
+
+  const footerLinks = [
+    { label: "Templates", href: "/templates" },
+    { label: "How it works", href: "/how-it-works" },
+    { label: "Pricing", href: "/pricing" },
+    { label: "Terms", href: "/terms" },
+    { label: "Privacy", href: "/privacy" },
+    { label: "Contact", href: "/contact" },
+  ];
+
+  return (
+    <footer className={styles.footer}>
+      <Container wide>
+        <div className={styles.columns}>
+          {/* Brand + tagline */}
+          <div className={styles.branding}>
+            <Link href="/" className={styles.logo}>
+              DossierBox
+            </Link>
+            <p className={styles.tagline}>
+              Professional documents from real career information.
+            </p>
+          </div>
+
+          {/* Sitemap */}
+          <nav aria-label="Footer">
+            <ul className={styles.list}>
+              {footerLinks.map((link) => (
+                <li key={link.href}>
+                  <Link href={link.href} className={styles.link}>
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          {/* Desktop: auth hidden in footer; mobile keeps it in drawer */}
+          <div className={styles.authDesktop}>
+            <AuthEntry />
+          </div>
+        </div>
+
+        <div className={styles.bottom}>
+          <p className={styles.copyright}>
+            Â© {year} DossierBox. All rights reserved.
+          </p>
+        </div>
+      </Container>
+    </footer>
+  );
+}
+
+
+===== src\ui\nav-menu.tsx =====
+/**
+ * NavMenu â€” primary navigation.
+ *
+ * Renders the public nav links passed via props (from src/config/paths.ts).
+ * This is a purely presentational component: it receives `links` and an
+ * optional active label, and invokes `onNavigate` when a link is clicked.
+ *
+ * The same component is reused by both the desktop header and the mobile
+ * drawer, so navigation stays consistent across viewports.
+ */
+import Link from "next/link";
+import styles from "@/styles/ui/nav-menu.module.css";
+import { cx } from "@/lib/cx";
+import type { NavLink } from "@/config/paths";
+
+export interface NavMenuProps {
+  links: NavLink[];
+  currentPath?: string;
+}
+
+export function NavMenu({ links, currentPath = "/" }: NavMenuProps) {
+  return (
+    <ul className={styles.list} role="menubar">
+      {links.map((link) => {
+        const active = currentPath === link.href;
+        return (
+          <li key={link.id} role="none">
+            <Link
+              href={link.href}
+              className={cx(styles.link, { [styles.active]: active })}
+              aria-current={active ? "page" : undefined}
+            >
+              {link.label}
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+
+===== src\ui\auth-entry.tsx =====
+/**
+ * AuthEntry â€” the visible authentication entry points in the shell.
+ *
+ * This is UI ONLY. It renders Sign In / Get Started links that point to
+ * placeholder routes. No authentication, session, or backend logic is
+ * wired up in Block 1 â€” those are intentionally deferred to Block 2.
+ *
+ * The links must NOT appear to be functional yet. A disabled cursor and
+ * a clear "(coming soon)" annotation communicate this honestly.
+ */
+import Link from "next/link";
+import styles from "@/styles/ui/auth-entry.module.css";
+import { Button } from "./button";
+
+export function AuthEntry() {
+  return (
+    <nav
+      className={styles.entry}
+      aria-label="Account actions"
+      data-testid="auth-entry"
+    >
+      <Button variant="secondary" size="sm" asChild>
+        <Link href="/auth/sign-in" aria-disabled>
+          Sign in
+        </Link>
+      </Button>
+      <Button variant="primary" size="sm" asChild>
+        <Link href="/auth/sign-up" aria-disabled>
+          Get started
+        </Link>
+      </Button>
+    </nav>
+  );
+}
+
+
+===== src\config\paths.ts =====
+/**
+ * DossierBox â€” navigation & route configuration.
+ *
+ * This is the single source of truth for the primary navigation and the
+ * canonical route paths used by the shell. Keeping it in one place means
+ * later blocks (auth, dashboard, document editor) can extend it without
+ * hunting through page files.
+ */
+
+/** A primary navigation item shown in the header. */
+export interface NavLink {
+  /** Stable key, not displayed. */
+  id: string;
+  /** Display label shown in the navigation. International, plain English. */
+  label: string;
+  /** Absolute route path beginning with /. */
+  href: string;
+}
+
+/**
+ * Primary navigation, in display order.
+ * Landing, Templates, How It Works, Pricing are all public.
+ * Sign In and the (future) Get Started route are entry points for
+ * authenticated flows â€” they are placeholders, not functional auth.
+ */
+export const navLinks: NavLink[] = [
+  { id: "landing",  label: "Home",       href: "/" },
+  { id: "templates", label: "Templates",  href: "/templates" },
+  { id: "how",       label: "How it works", href: "/how-it-works" },
+  { id: "pricing",   label: "Pricing",    href: "/pricing" },
+] as const;
+
+/**
+ * Auth-related links live separately so the header can render them in a
+ * distinct region (top-right) from the primary nav. These are visible
+ * entry points only â€” no authentication is implemented in Block 1.
+ */
+export const authLinks: NavLink[] = [
+  { id: "signin",  label: "Sign in",    href: "/auth/sign-in"  },
+  { id: "signup",  label: "Get started", href: "/auth/sign-up" },
+] as const;
+
+/** Canonical public routes (extends as the shell grows). */
+export const routes = {
+  landing: "/",
+  templates: "/templates",
+  howItWorks: "/how-it-works",
+  pricing: "/pricing",
+  signIn: "/auth/sign-in",
+  signUp: "/auth/sign-up",
+} as const;
+
+
+===== src\lib\cx.ts =====
+/**
+ * cx â€” a 140-byte replacement for `clsx`/`classnames`.
+ *
+ * Concatenates class strings, filtering out null/undefined/false.
+ * This avoids an extra dependency for the one thing every UI
+ * component needs: conditional className composition.
+ */
+type ClassValue =
+  | string
+  | undefined
+  | null
+  | false
+  | { [key: string]: boolean | undefined | null }
+  | ClassValue[];
+
+export function cx(...args: ClassValue[]): string {
+  const result: string[] = [];
+
+  function walk(arg: ClassValue | undefined): void {
+    if (typeof arg === "string" || typeof arg === "number") {
+      if (arg) result.push(String(arg));
+    } else if (Array.isArray(arg)) {
+      for (const item of arg) walk(item);
+    } else if (arg && typeof arg === "object") {
+      for (const key of Object.keys(arg)) {
+        if ((arg as Record<string, unknown>)[key]) result.push(key);
+      }
+    }
+  }
+
+  for (const arg of args) walk(arg);
+
+  // Deduplicate while preserving order
+  return Array.from(new Set(result)).join(" ");
+}
+
+
+===== styles\tokens.css =====
+/* =============================================================================
+   DossierBox â€” Design Tokens
+   =============================================================================
+   Single source of truth for every visual primitive. All tokens are expressed
+   as CSS custom properties so they can be consumed by both global styles and
+   CSS Modules. No component owns a color, size or space value directly â€”
+   every component references a token.
+
+   These tokens are deliberately restrained. DossierBox is a professional
+   career-document product. The palette is ink-on-paper, the typography is
+   readable at body size and the surface system stays neutral so the generated
+   document remains the visual hero.
+============================================================================ */
+
+:root {
+  /* ---------------------------------------------------------------------------
+     Color: ink + paper, single accent (blue for trust, no gradients)
+     No decorative color â€” only functional meaning.
+  --------------------------------------------------------------------------- */
+  --ds-ink: #0f172a;                 /* primary text (near-black, legible) */
+  --ds-ink-strong: #020617;         /* headings / maximum contrast */
+  --ds-ink-weak: #475569;           /* secondary / supporting text */
+  --ds-ink-faint: #94a3b8;          /* placeholder / disabled */
+
+  --ds-paper: #ffffff;
+  --ds-paper-alt: #f8fafc;          /* card / muted surface */
+
+  --ds-rule: #e2e8f0;               /* neutral horizontal rules */
+  --ds-rule-strong: #cbd5e1;       /* stronger separation */
+
+  --ds-accent: #2563eb;            /* single brand accent â€” blue */
+  --ds-accent-hover: #1d4ed8;
+  --ds-accent-weak: #dbeafe;       /* tint for backgrounds / rings */
+
+  --ds-error: #dc2626;
+  --ds-error-bg: #fef2f2;
+  --ds-warning: #ca8a04;
+
+  /* ---------------------------------------------------------------------------
+     Typography
+     A professional, slightly condensed family for UI; a workhorse serif
+     is reserved for the eventual document preview (loaded via font CSS).
+     Scale is geometric-ish but grounded for readability.
+  --------------------------------------------------------------------------- */
+  --ds-font-ui: "Instrument Sans", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --ds-font-document: "Charter", "Sitka Text", "Times New Roman", serif;
+
+  --ds-text-xs:   clamp(0.625rem, 0.53rem + 0.45vw, 0.75rem);
+  --ds-text-sm:   clamp(0.8125rem, 0.72rem + 0.45vw, 0.9375rem);
+  --ds-text-base: clamp(1rem, 0.88rem + 0.55vw, 1.125rem);
+  --ds-text-lg:   clamp(1.1875rem, 1.04rem + 0.69vw, 1.3125rem);
+  --ds-text-xl:   clamp(1.4375rem, 1.23rem + 0.94vw, 1.625rem);
+  --ds-text-2xl:  clamp(1.75rem, 1.46rem + 1.33vw, 2rem);
+  --ds-text-3xl:  clamp(2.125rem, 1.74rem + 1.74vw, 2.5rem);
+  --ds-text-4xl:  clamp(2.625rem, 2.11rem + 2.25vw, 3.25rem);
+
+  --ds-font-weight-regular: 400;
+  --ds-font-weight-medium: 500;
+  --ds-font-weight-semibold: 600;
+  --ds-font-weight-bold: 700;
+
+  --ds-line-height-tight: 1.2;
+  --ds-line-height-normal: 1.5;
+  --ds-line-height-loose: 1.7;
+
+  --ds-font-ui: var(--ds-font-ui);
+  --ds-font-document: var(--ds-font-document);
+
+  /* Heading font sizes â€” clamped, used via utility classes */
+  --ds-heading-size-xs:  clamp(0.85rem, 0.74rem + 0.5vw, 1rem);
+  --ds-heading-size-sm:  clamp(1rem, 0.88rem + 0.55vw, 1.125rem);
+  --ds-heading-size-md:  clamp(1.25rem, 1.08rem + 0.73vw, 1.4375rem);
+  --ds-heading-size-lg:  clamp(1.5625rem, 1.33rem + 1vw, 1.875rem);
+  --ds-heading-size-xl:  clamp(2rem, 1.69rem + 1.36vw, 2.5rem);
+  --ds-heading-size-2xl: clamp(2.5rem, 2.11rem + 1.74vw, 3.25rem);
+
+  /* ---------------------------------------------------------------------------
+     Spacing â€” 4px grid, geometric scale (6, 8, 12, 16, 24, 32, 48...)
+     Real-document thinking: 1rem base = ~3.5mm printable measure.
+  --------------------------------------------------------------------------- */
+  --ds-space-3xs: 0.25rem;   /* 4px  */
+  --ds-space-2xs: 0.5rem;    /* 8px  */
+  --ds-space-xs:  0.75rem;   /* 12px */
+  --ds-space-sm:  1rem;      /* 16px */
+  --ds-space-md:  1.5rem;    /* 24px */
+  --ds-space-lg:  2rem;      /* 32px */
+  --ds-space-xl:  3rem;      /* 48px */
+  --ds-space-2xl: 4rem;      /* 64px */
+  --ds-space-3xl: 6rem;      /* 96px */
+
+  /* ---------------------------------------------------------------------------
+     Document metrics â€” real print-aware units used by later template work.
+     Defined here so Block 6 (templates) and Blocks 10/11 (preview/PDF)
+     share one source of truth.
+  --------------------------------------------------------------------------- */
+  --ds-page-a4-w: 210mm;
+  --ds-page-a4-h: 297mm;
+  --ds-page-us-letter-w: 8.5in;
+  --ds-page-us-letter-h: 11in;
+  --ds-document-margins: 24mm;   /* ~1 inch */
+  --ds-document-margins-dense: 18mm;
+
+  /* ---------------------------------------------------------------------------
+     Layout
+  --------------------------------------------------------------------------- */
+  --ds-container-max: 72rem;     /* 1152px â€” comfortable line length */
+  --ds-container-wide: 80rem;   /* 1280px */
+  --ds-grid-gutter: var(--ds-space-lg);
+
+  --ds-border-radius-sm: 0.25rem;
+  --ds-border-radius-md: 0.5rem;
+  --ds-border-radius-lg: 0.75rem;
+  --ds-border-radius-xl: 1rem;
+
+  --ds-border: 1px solid var(--ds-rule);
+
+  /* ---------------------------------------------------------------------------
+     Shadows â€” only for elevated surfaces (cards, modals). No drop shadows
+     on text. Two levels keeps the system honest.
+  --------------------------------------------------------------------------- */
+  --ds-shadow-card: 0 1px 3px rgba(16, 24, 49, 0.06),
+                     0 1px 2px rgba(16, 24, 49, 0.04);
+  --ds-shadow-floating: 0 16px 40px rgba(16, 24, 49, 0.12),
+                         0 4px 8px rgba(16, 24, 49, 0.08);
+
+  /* ---------------------------------------------------------------------------
+     Focus rings â€” accessible, visible, single accent color.
+  --------------------------------------------------------------------------- */
+  --ds-focus-ring: 0 0 0 3px var(--ds-paper), 0 0 0 6px var(--ds-accent);
+
+  /* ---------------------------------------------------------------------------
+     Responsiveness breakpoints (mobile-first).
+     Names describe a viewport, not a device.
+  --------------------------------------------------------------------------- */
+  --ds-bp-sm:  30rem;  /* 480px  â€” small phones */
+  --ds-bp-md:  48rem;  /* 768px  â€” landscape / phablet */
+  --ds-bp-lg:  64rem;  /* 1024px â€” tablet / small desk */
+  --ds-bp-xl:  80rem;  /* 1280px â€” standard desk */
+  --ds-bp-2xl: 96rem;  /* 1536px â€” wide */
+}
+
+/* =============================================================================
+   Motion
+   Deliberate, not decorative. 150ms is the threshold for a "snappy" feel
+   without perceptible lag. Respect reduced-motion.
+============================================================================ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ds-motion-duration: 0ms;
+    --ds-motion-ease: linear;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  :root {
+    --ds-motion-duration: 150ms;
+    --ds-motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  }
+}
+
+
+===== styles\base.css =====
+/* =============================================================================
+   DossierBox â€” Base / Global Styles
+   =============================================================================
+   Applied via the root layout's global CSS import. Contains the box-sizing
+   reset, base typography, and a small set of intentional element styles that
+   give semantic HTML a professional default without any framework.
+============================================================================ */
+
+/* Box-sizing reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* Remove default margins so layout primitives control spacing */
+body, h1, h2, h3, h4, h5, h6, p, ul, ol {
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 100%;           /* 16px base */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-size-adjust: 100%;
+}
+
+/*
+   Root font stack applies the UI font globally. The document font
+   (Charter/Sitka) is applied only to document-preview scopes in later
+   blocks â€” it must never leak into the surrounding UI.
+*/
+body {
+  font-family: var(--ds-font-ui);
+  font-weight: var(--ds-font-weight-regular);
+  font-size: var(--ds-text-base);
+  line-height: var(--ds-line-height-normal);
+  color: var(--ds-ink);
+  background-color: var(--ds-paper);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ===========================================================================
+   Typography â€” headings and inline elements
+   Headings use a slightly condensed scale so tall titles (like "International
+   CV") render compactly. The document font family is NOT applied here.
+=========================================================================== */
+h1, .h1 { font-size: var(--ds-heading-size-2xl); font-weight: var(--ds-font-weight-bold); line-height: var(--ds-line-height-tight); letter-spacing: -0.02em; }
+h2, .h2 { font-size: var(--ds-heading-size-xl);   font-weight: var(--ds-font-weight-semibold); line-height: var(--ds-line-height-tight); letter-spacing: -0.01em; }
+h3, .h3 { font-size: var(--ds-heading-size-lg);   font-weight: var(--ds-font-weight-semibold); line-height: var(--ds-line-height-tight); }
+h4, .h4 { font-size: var(--ds-heading-size-md);   font-weight: var(--ds-font-weight-semibold); line-height: var(--ds-line-height-tight); }
+h5, .h5 { font-size: var(--ds-heading-size-sm);   font-weight: var(--ds-font-weight-semibold); line-height: var(--ds-line-height-tight); }
+h6, .h6 { font-size: var(--ds-heading-size-xs);   font-weight: var(--ds-font-weight-semibold); line-height: var(--ds-line-height-tight); text-transform: uppercase; letter-spacing: 0.05em; font-style: normal; }
+
+a {
+  color: var(--ds-accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color var(--ds-motion-duration) var(--ds-motion-ease);
+}
+a:hover { border-color: currentColor; }
+a:focus-visible {
+  outline: var(--ds-focus-ring);
+  outline-offset: 0.125rem;
+  border-radius: var(--ds-border-radius-sm);
+}
+
+/* ===========================================================================
+   Lists â€” reset default markers; .list-bulleted / .list-numbered set them
+   so content authors control the style explicitly.
+=========================================================================== */
+ul, ol {
+  list-style-position: inside;
+  padding-left: 0;
+}
+ul { list-style: none; }
+ol { list-style: none; }
+
+.list-bulleted {
+  list-style: disc;
+  padding-left: 1.25rem;
+}
+.list-bulleted li::marker { color: var(--ds-ink-weak); }
+
+.list-numbered {
+  list-style: decimal;
+  padding-left: 1.25rem;
+}
+
+/* ===========================================================================
+   Blockquote / figures â€” minimal, professional
+=========================================================================== */
+blockquote {
+  margin: var(--ds-space-md) 0;
+  padding-left: var(--ds-space-lg);
+  border-left: 2px solid var(--ds-rule);
+  color: var(--ds-ink-weak);
+  font-style: italic;
+  line-height: var(--ds-line-height-loose);
+}
+
+figure {
+  margin: var(--ds-space-lg) 0;
+  text-align: center;
+}
+figcaption {
+  font-size: var(--ds-text-sm);
+  color: var(--ds-ink-weak);
+  margin-top: var(--ds-space-2xs);
+}
+
+/* ===========================================================================
+   Tables â€” border-collapse, zebra-free, clean rules
+=========================================================================== */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--ds-text-sm);
+}
+th, td {
+  text-align: left;
+  padding: var(--ds-space-2xs) var(--ds-space-sm);
+  border-bottom: 1px solid var(--ds-rule);
+}
+th {
+  font-weight: var(--ds-font-weight-semibold);
+  color: var(--ds-ink);
+  font-size: var(--ds-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ===========================================================================
+   Buttons â€” minimal native reset. Visual variants live in the button module.
+   Base styles ensure <button> is never visually noisy by default.
+=========================================================================== */
+button, input, select, textarea {
+  font-family: inherit;
+  font-weight: inherit;
+  font-size: inherit;
+}
+button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  -webkit-font-smoothing: antialiased;
+}
+button:disabled, [disabled] { cursor: not-allowed; opacity: 0.6; }
+
+/* ===========================================================================
+   Images â€” don't overflow containers
+=========================================================================== */
+img, svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* ===========================================================================
+   Selection color â€” subtle accent, not default blue
+=========================================================================== */
+::selection {
+  background: var(--ds-accent-weak);
+  color: var(--ds-accent-hover);
+}
+
+/* ===========================================================================
+   Inset shadows for scroll edges (used on tabbed/scrollable surfaces)
+=========================================================================== */
+.shadow-inset-top {
+  box-shadow: inset 0 4px 8px -4px rgba(16, 24, 49, 0.04);
+}
+
+
+===== styles\typography.css =====
+/* =============================================================================
+   DossierBox â€” Typography & Font Loading
+   =============================================================================
+   Loads the two font pairs DossierBox is built around:
+
+   - Instrument Sans (UI) â€” professional, slightly condensed, highly legible.
+   - Charter / Sitka Text (documents) â€” a serif with real ink-trap presence
+     suited to career documents, loaded via system + fallback stack so the
+     document preview never depends on a third-party connection failing.
+
+   The document font is intentionally scoped to a class (.document-font) so it
+   NEVER leaks into the product UI. This keeps the document as a distinct
+   visual object â€” a key DossierBox principle.
+============================================================================ */
+
+/* ---- Instrument Sans: UI ---- */
+@font-face {
+  font-family: "Instrument Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/instrument-sans-regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Instrument Sans";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/instrument-sans-italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Instrument Sans";
+  font-style: normal;
+  font-weight: 500 700;
+  font-display: swap;
+  src: url("/fonts/instrument-sans-medium.woff2") format("woff2");
+}
+
+/* ---- Document serif: Charter (primary), Sitka Text (fallback) ---- */
+@font-face {
+  font-family: "Dossier Serif";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local("Charter"), local("Sitka Text"),
+       url("/fonts/charter-regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Dossier Serif";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: local("Charter Italic"), local("Sitka Text Italic"),
+       url("/fonts/charter-italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Dossier Serif";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: local("Charter Bold"), local("Sitka Text Bold"),
+       url("/fonts/charter-bold.woff2") format("woff2");
+}
+
+/*
+   Scope the document font. Only elements carrying .document-font (or a
+   descendant of one) switch to the serif. This is used by the eventual
+   document preview component â€” keeping it isolated from UI typography.
+*/
+.document-font,
+.document-font * {
+  font-family: var(--ds-font-document);
+}
+
+/* ===========================================================================
+   Document-ready typography helpers
+   These mirror CSS classes the template renderer will apply in later blocks.
+   Defining the primitives now keeps the engine and the preview consistent.
+=========================================================================== */
+
+/* Print-style paragraph spacing: no margin-collapse, controlled gaps */
+.document-paragraph {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+.document-paragraph + .document-paragraph {
+  margin-top: 0.85em;
+}
+.document-paragraph:last-child {
+  margin-bottom: 0;
+}
+
+/* Section heading inside documents */
+.document-section-title {
+  font-family: var(--ds-font-document);
+  font-size: 11pt;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-top: 1.4em;
+  margin-bottom: 0.55em;
+  border-bottom: 0.5pt solid var(--ds-rule);
+  padding-bottom: 0.18em;
+}
+.document-section-title:first-child {
+  margin-top: 0;
+}
+
+/* Body text inside documents â€” real print metrics */
+.document-body {
+  font-family: var(--ds-font-document);
+  font-size: 10.5pt;
+  line-height: 1.35;
+  color: var(--ds-ink);
+}
+
+/* Heading levels inside documents use a tight, ink-trap serif scale */
+.document-h1 { font-size: 17pt; font-weight: 700; line-height: 1.25; letter-spacing: -0.01em; margin-top: 1.4em; margin-bottom: 0.5em; }
+.document-h2 { font-size: 13pt; font-weight: 700; line-height: 1.28; letter-spacing: -0.005em; margin-top: 1.3em; margin-bottom: 0.45em; }
+.document-h3 { font-size: 11.5pt; font-weight: 700; line-height: 1.3; letter-spacing: 0.01em; margin-top: 1.2em; margin-bottom: 0.4em; }
+.document-h4 { font-size: 10.5pt; font-weight: 700; line-height: 1.32; letter-spacing: 0.03em; margin-top: 1.1em; margin-bottom: 0.35em; }
+
+/* Bullets / numbering in documents */
+.document-list {
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-left: 0;
+  list-style: none;
+}
+.document-bullet {
+  margin-bottom: 0.25em;
+}
+.document-bullet::before {
+  content: "â€¢";
+  display: inline-block;
+  width: 1em;
+  color: var(--ds-ink);
+  font-weight: bold;
+  margin-right: 0.25em;
+  font-family: var(--ds-font-ui); /* UI font for the bullet glyph */
+}
+
+
+===== styles\utilities.css =====
+/* =============================================================================
+   DossierBox â€” Utility classes
+   =============================================================================
+   A tiny, opinionated set of single-purpose helpers. Intentionally NOT a
+   utility framework â€” these are the handful of patterns reused across the
+   shell and pages: container widths, display/spacing helpers, text styles,
+   and responsive display toggles.
+
+   Every value references a design token so consistency is enforced.
+============================================================================ */
+
+/* ---- Containers ---- */
+.container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--ds-space-sm);
+  padding-right: var(--ds-space-sm);
+  max-width: var(--ds-container-max);
+}
+.container-wide {
+  max-width: var(--ds-container-wide);
+}
+
+/* ---- Layout flow ---- */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-sm);
+}
+.inline-flex {
+  display: inline-flex;
+  align-items: center;
+}
+.flex-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-sm);
+}
+
+/* ---- Spacing utilities (token-based) ---- */
+.margin-top-xs  { margin-top: var(--ds-space-2xs); }
+.margin-top-sm  { margin-top: var(--ds-space-xs); }
+.margin-top-md  { margin-top: var(--ds-space-sm); }
+.margin-top-lg  { margin-top: var(--ds-space-md); }
+.margin-top-xl  { margin-top: var(--ds-space-lg); }
+
+.margin-bottom-xs { margin-bottom: var(--ds-space-2xs); }
+.margin-bottom-sm { margin-bottom: var(--ds-space-xs); }
+.margin-bottom-md { margin-bottom: var(--ds-space-sm); }
+.margin-bottom-lg { margin-bottom: var(--ds-space-md); }
+.margin-bottom-xl { margin-bottom: var(--ds-space-lg); }
+
+/* ---- Text ---- */
+.text-center { text-align: center; }
+.text-muted  { color: var(--ds-ink-weak); }
+.text-faint  { color: var(--ds-ink-faint); }
+.text-accent { color: var(--ds-accent); }
+
+.font-semibold { font-weight: var(--ds-font-weight-semibold); }
+.font-bold     { font-weight: var(--ds-font-weight-bold); }
+.font-medium   { font-weight: var(--ds-font-weight-medium); }
+
+/* ---- Visibility ---- */
+.hidden { display: none !important; }
+
+/* ---- Dividers ---- */
+.divider {
+  width: 100%;
+  height: 0;
+  border-top: 1px solid var(--ds-rule);
+}
+.divider-strong { border-top-color: var(--ds-rule-strong); }
+
+/* ---- Surface ---- */
+.surface-paper {
+  background-color: var(--ds-paper);
+  border: 1px solid var(--ds-rule);
+}
+.surface-alt {
+  background-color: var(--ds-paper-alt);
+}
+
+/* ---- Responsive display (mobile-first) ---- */
+@media (max-width: calc(var(--ds-bp-md) - 0.0625px)) {
+  .hide-md-down { display: none !important; }
+}
+@media (min-width: var(--ds-bp-md)) {
+  .hide-md-up { display: none !important; }
+}
+
+
+===== app\globals.css =====
+@import url("../styles/tokens.css");
+@import url("../styles/base.css");
+@import url("../styles/typography.css");
+@import url("../styles/utilities.css");
+
+===== CLAUDE.md =====
+# DossierBox â€” Claude Context
+
+## Project Identity
+
+DossierBox is a **global career-document platform** â€” not a generic CV builder, chatbot, or AI generator. The core value proposition is that the product understands what the user has done, what they are trying to accomplish, and what document is appropriate for that purpose.
+
+**Core product loop:** Profile â†’ Purpose â†’ Document â†’ Preview â†’ Share â†’ PDF â†’ Reuse
+
+The user's career profile is the **factual source of truth**; documents are derived artifacts.
+
+## Architecture
+
+- **Framework:** Next.js 15 (App Router) + TypeScript + React 19
+- **Styling:** CSS Modules + CSS custom-property design tokens (no Tailwind, no runtime CSS-in-JS)
+- **Structure:** Modular monolith â€” `app/` for routes, `src/` for domain modules (`config`, `ui`, `lib`)
+- **Server-first:** Sensitive logic stays server-side; browser handles presentation only
+
+## Block 1 â€” Foundation + Visual Product Shell
+
+### Status: Complete
+- `package.json` â€” Next.js 15, React 19, TypeScript 5
+- `tsconfig.json` â€” strict mode, path aliases (`@/*`, `@/ui/*`, `@/config/*`, `@/lib/*`)
+- `next.config.js` â€” standalone output, strict mode
+- `styles/tokens.css` â€” design token system (colors, typography scales, spacing, breakpoints, document metrics, shadows)
+- `styles/base.css` â€” box model reset, base typography, accessible element styles
+- `styles/typography.css` â€” font-face declarations, document-font scoping, document-ready typography helpers
+- `styles/utilities.css` â€” token-referenced utility classes (containers, layout, text, visibility)
+- `styles/print.css` â€” print preview baseline
+- `app/globals.css` â€” global imports
+- `app/layout.tsx` â€” root layout with SiteHeader, main, SiteFooter, metadata, viewport
+- **Reusable UI components:** SkipLink, Button (primary/secondary/tertiary + asChild), Container, NavMenu, AuthEntry, SiteHeader, SiteFooter
+- **Routes:** `/` (landing placeholder), `/templates`, `/how-it-works`, `/pricing`, `/auth/sign-in`, `/auth/sign-up`, `/terms`, `/privacy`, `/contact` (all placeholders)
+
+### Key design decisions
+- **Palette:** Near-black ink (#0f172a) on white paper, single blue accent (#2563eb). No gradients.
+- **Fonts:** Instrument Sans (UI) + Charter/Sitka Text (documents, scoped to `.document-font` class)
+- **Typography:** `clamp()`-based fluid responsive scale
+- **Breakpoints:** 30rem / 48rem / 64rem / 80rem (mobile-first)
+- **Document metrics** defined as real print units (mm, pt, in) in tokens for future PDF alignment
+
+### Environment constraint
+The sandbox cannot reach the npm registry (403 Forbidden). All verification requiring `npm install`, `tsc`, `next build`, or linting must be run on the host machine. See VERIFICATION_NOTES.md.
+
+## Locked Product Principles (do not violate)
+
+- Product name: DossierBox
+- Global audience, Tier-1 market focus
+- Reusable career profile is source of truth
+- User-selected purpose â†’ adaptive document selection
+- PDF is canonical output; live preview and sharing
+- Google authentication (real OAuth â€” Block 2, not here)
+- Free / Starter / Pro plans, configuration-driven pricing
+- Browser/locale-aware currency presentation
+- Hidden AI writing assistant (AI cannot invent facts)
+- Professional, restrained, trustworthy, premium, document-focused UI
+- Secure server-side operations; never expose secrets to client
+
+## What NOT to do in this block
+- No Google OAuth implementation
+- No database/auth persistence
+- No career profile domain
+- No document composition engine
+- No AI integration
+- No PDF generation
+- No document versions, live sharing, payments, analytics, uploads
+- Authentication entry points = visible links only, not functional auth
+- No fake product data or unsupported claims
+
+
+===== VERIFICATION_NOTES.md =====
+# Verification Notes â€” Block 1
+
+## Environment Constraint
+
+The development sandbox **cannot reach the npm registry**. All package
+installations (`npm install`, `pnpm add`) and build-tool execution
+(`tsc`, `eslint`, `next build`, `next lint`) return **E403 403 Forbidden**
+through the egress proxy.
+
+This means: TypeScript compilation, ESLint, and `next build` **cannot
+be executed inside this environment**. They must be run on the host
+machine.
+
+## What Was Verified By Inspection
+
+- All `.tsx` files use proper type annotations (no implicit `any`)
+- Path aliases in `tsconfig.json` map to real directories:
+  - `@/*` â†’ `./*`
+  - `@/ui` â†’ `./src/ui/index.ts`
+  - `@/config/*` â†’ `./src/config/*`
+  - `@/lib/*` â†’ `./src/lib/*`
+- CSS Module class names in `.module.css` files match what `styles.xxx`
+  references in components
+- No `clsx` dependency â€” replaced with local `src/lib/cx.ts` (140 bytes)
+- No React namespace issues â€” all `ReactNode` types imported explicitly
+- No secrets, mock credentials, or fake integrations committed
+- All routes that the navigation references have corresponding `page.tsx` files
+- Auth entry points route to placeholder pages only (no functional auth)
+
+## What Could NOT Be Verified Here
+
+- `npm install` â€” requires registry access
+- `tsc --no-emit` â€” requires installed dependencies
+- `next lint` â€” requires installed dependencies
+- `next build` / `next dev` â€” requires installed dependencies
+- Runtime rendering / browser behavior â€” no browser available
+
+## Required Actions On Your Machine
+
+```bash
+cd /path/to/DossierBox
+
+# 1. Install dependencies (requires npm registry access)
+npm install
+
+# 2. Type check
+npm run typecheck        # tsc --no-emit
+
+# 3. Lint
+npm run lint             # next lint
+
+# 4. Build
+npm run build            # next build
+
+# 5. Run dev server
+npm run dev              # http://localhost:3000
+
+# 6. Verify all nav links work:
+#    /, /templates, /how-it-works, /pricing, /auth/sign-in, /auth/sign-up
+#    /terms, /privacy, /contact
+```
+
+## Files Created (Block 1)
+
+```
+package.json
+tsconfig.json
+next.config.js
+.eslintrc.json
+.env.example
+.gitignore
+.next-env.d.ts
+styles/
+  tokens.css        â€” design tokens (colors, typography, spacing, breakpoints)
+  base.css          â€” reset + base element styles
+  typography.css    â€” font-face + document-font scoping + document helpers
+  utilities.css     â€” utility classes (token-referenced)
+  print.css         â€” print preview baseline
+  ui/
+    button.module.css
+    container.module.css
+    nav-menu.module.css
+    site-header.module.css
+    site-footer.module.css
+    auth-entry.module.css
+    skip-link.module.css
+src/
+  config/
+    paths.ts         â€” nav links + route config (source of truth)
+  lib/
+    cx.ts            â€” tiny className utility (replaces clsx)
+    index.ts
+  ui/
+    index.ts         â€” UI barrel
+    button.tsx       â€” Button (primary/secondary/tertiary + asChild)
+    container.tsx    â€” Container (centered wrapper)
+    nav-menu.tsx     â€” NavMenu (reused desktop + mobile)
+    skip-link.tsx    â€” SkipLink (keyboard accessibility)
+    auth-entry.tsx   â€” AuthEntry (visible placeholder links)
+    site-header.tsx  â€” SiteHeader (desktop nav + mobile drawer)
+    site-footer.tsx  â€” SiteFooter (sitemap + auth + copyright)
+app/
+  globals.css        â€” global CSS imports
+  layout.tsx         â€” root layout (SiteHeader, main, SiteFooter)
+  page.tsx           â€” landing placeholder
+  templates/page.tsx â€” placeholder
+  how-it-works/page.tsx â€” placeholder
+  pricing/page.tsx   â€” placeholder
+  auth/sign-in/page.tsx  â€” placeholder (not functional)
+  auth/sign-up/page.tsx  â€” placeholder (not functional)
+  terms/page.tsx
+  privacy/page.tsx
+  contact/page.tsx
+public/
+  favicon.ico
+```
+

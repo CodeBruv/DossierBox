@@ -1,0 +1,20 @@
+/* =============================================================================
+   AuthEntry — authentication entry-point links in the header.
+   These are visible UI only; clicking them routes to placeholder pages.
+============================================================================ */
+
+.entry {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2xs);
+}
+
+/* Honest "not yet functional" styling */
+.entry a {
+  cursor: pointer;
+}
+.entry a:focus-visible {
+  outline: 3px solid var(--ds-accent);
+  outline-offset: 2px;
+  border-radius: var(--ds-border-radius-sm);
+}

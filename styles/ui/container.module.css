@@ -1,0 +1,24 @@
+/* =============================================================================
+   Container — centered layout wrapper.
+============================================================================ */
+
+.container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--ds-space-md);
+  padding-right: var(--ds-space-md);
+  max-width: var(--ds-container-max);
+}
+
+.wide {
+  max-width: var(--ds-container-wide);
+}
+
+/* Slightly narrower gutters on the smallest screens */
+@media (max-width: 47.9375rem) {
+  .container, .wide {
+    padding-left: var(--ds-space-sm);
+    padding-right: var(--ds-space-sm);
+  }
+}

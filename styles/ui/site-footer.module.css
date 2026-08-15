@@ -1,0 +1,84 @@
+/* =============================================================================
+   SiteFooter — clean, minimal, secondary navigation.
+   Restrained: no cards, no icons-as-decoration, just typography and rules.
+============================================================================ */
+
+.footer {
+  background-color: var(--ds-paper);
+  border-top: 1px solid var(--ds-rule);
+  margin-top: var(--ds-space-3xl);
+  padding: var(--ds-space-lg) 0 var(--ds-space-2xl);
+}
+
+.columns {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--ds-space-xl);
+}
+
+.branding {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-2xs);
+}
+
+.logo {
+  font-weight: 700;
+  font-size: 1.125rem;
+  color: var(--ds-ink-strong);
+  text-decoration: none;
+}
+.logo:hover { color: var(--ds-accent); }
+
+.tagline {
+  font-size: var(--ds-text-sm);
+  color: var(--ds-ink-weak);
+  line-height: var(--ds-line-height-normal);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-2xs);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.link {
+  color: var(--ds-ink-weak);
+  font-size: var(--ds-text-sm);
+  text-decoration: none;
+  transition: color var(--ds-motion-duration) var(--ds-motion-ease);
+  white-space: nowrap;
+}
+.link:hover {
+  color: var(--ds-ink-strong);
+}
+
+.authDesktop {
+  display: none;
+}
+
+.bottom {
+  margin-top: var(--ds-space-xl);
+  padding-top: var(--ds-space-md);
+  border-top: 1px solid var(--ds-rule);
+}
+
+.copyright {
+  font-size: var(--ds-text-xs);
+  color: var(--ds-ink-faint);
+}
+
+/* Desktop footer layout */
+@media (min-width: 48.0625rem) {
+  .columns {
+    flex-wrap: nowrap;
+  }
+  .authDesktop {
+    display: block;
+  }
+}

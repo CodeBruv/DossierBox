@@ -1,0 +1,36 @@
+/* =============================================================================
+   DossierBox — Print stylesheet
+   =============================================================================
+   Ensures the browser's print preview matches the on-screen document preview
+   as closely as possible. This is a structural baseline; fine-grained
+   pagination rules will be owned by the template layer in Block 6.
+============================================================================ */
+
+@media print {
+  /* Hide interactive chrome when printing the screen UI */
+  .site-header,
+  .site-footer,
+  .nav-menu,
+  .auth-entry,
+  [data-print-skip] {
+    display: none !important;
+  }
+
+  html {
+    font-size: 12pt;
+  }
+
+  body {
+    color: var(--ds-ink);
+    background: var(--ds-paper);
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+  }
+
+  /* Let document containers size to real paper */
+  .document-frame {
+    box-shadow: none;
+    border: none;
+    page-break-after: always;
+  }
+}

@@ -1,0 +1,90 @@
+/* =============================================================================
+   DossierBox — Utility classes
+   =============================================================================
+   A tiny, opinionated set of single-purpose helpers. Intentionally NOT a
+   utility framework — these are the handful of patterns reused across the
+   shell and pages: container widths, display/spacing helpers, text styles,
+   and responsive display toggles.
+
+   Every value references a design token so consistency is enforced.
+============================================================================ */
+
+/* ---- Containers ---- */
+.container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--ds-space-sm);
+  padding-right: var(--ds-space-sm);
+  max-width: var(--ds-container-max);
+}
+.container-wide {
+  max-width: var(--ds-container-wide);
+}
+
+/* ---- Layout flow ---- */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-sm);
+}
+.inline-flex {
+  display: inline-flex;
+  align-items: center;
+}
+.flex-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-sm);
+}
+
+/* ---- Spacing utilities (token-based) ---- */
+.margin-top-xs  { margin-top: var(--ds-space-2xs); }
+.margin-top-sm  { margin-top: var(--ds-space-xs); }
+.margin-top-md  { margin-top: var(--ds-space-sm); }
+.margin-top-lg  { margin-top: var(--ds-space-md); }
+.margin-top-xl  { margin-top: var(--ds-space-lg); }
+
+.margin-bottom-xs { margin-bottom: var(--ds-space-2xs); }
+.margin-bottom-sm { margin-bottom: var(--ds-space-xs); }
+.margin-bottom-md { margin-bottom: var(--ds-space-sm); }
+.margin-bottom-lg { margin-bottom: var(--ds-space-md); }
+.margin-bottom-xl { margin-bottom: var(--ds-space-lg); }
+
+/* ---- Text ---- */
+.text-center { text-align: center; }
+.text-muted  { color: var(--ds-ink-weak); }
+.text-faint  { color: var(--ds-ink-faint); }
+.text-accent { color: var(--ds-accent); }
+
+.font-semibold { font-weight: var(--ds-font-weight-semibold); }
+.font-bold     { font-weight: var(--ds-font-weight-bold); }
+.font-medium   { font-weight: var(--ds-font-weight-medium); }
+
+/* ---- Visibility ---- */
+.hidden { display: none !important; }
+
+/* ---- Dividers ---- */
+.divider {
+  width: 100%;
+  height: 0;
+  border-top: 1px solid var(--ds-rule);
+}
+.divider-strong { border-top-color: var(--ds-rule-strong); }
+
+/* ---- Surface ---- */
+.surface-paper {
+  background-color: var(--ds-paper);
+  border: 1px solid var(--ds-rule);
+}
+.surface-alt {
+  background-color: var(--ds-paper-alt);
+}
+
+/* ---- Responsive display (mobile-first) ---- */
+@media (max-width: 47.9375rem) {
+  .hide-md-down { display: none !important; }
+}
+@media (min-width: 48rem) {
+  .hide-md-up { display: none !important; }
+}

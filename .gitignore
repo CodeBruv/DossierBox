@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+.npm/
+
+# Build output
+.next/
+out/
+build/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+*.log
+
+# OS noise
+Thumbs.db

@@ -1,0 +1,140 @@
+.page {
+  padding: var(--ds-space-xl) 0 var(--ds-space-2xl);
+}
+
+.panel {
+  width: min(100%, 30rem);
+  margin: 0 auto;
+}
+
+.eyebrow {
+  margin: 0 0 var(--ds-space-sm);
+  color: var(--ds-accent);
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0;
+}
+
+.lead {
+  max-width: 38rem;
+  margin: var(--ds-space-sm) 0 0;
+  color: var(--ds-ink-weak);
+}
+
+.authForm {
+  margin-top: var(--ds-space-lg);
+}
+
+.googleButton {
+  display: flex;
+  width: 100%;
+  min-height: 3rem;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-sm);
+  padding: 0.75rem 1rem;
+  border: var(--ds-border);
+  border-radius: var(--ds-border-radius-sm);
+  background: var(--ds-paper);
+  color: var(--ds-ink);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.googleButton:hover:not(:disabled) {
+  border-color: var(--ds-accent);
+  background: var(--ds-paper-alt);
+}
+
+.googleButton:focus-visible {
+  outline: 3px solid var(--ds-accent);
+  outline-offset: 3px;
+}
+
+.googleButton:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.googleMark {
+  display: inline-grid;
+  width: 1.5rem;
+  height: 1.5rem;
+  place-items: center;
+  border: var(--ds-border);
+  border-radius: 50%;
+  color: var(--ds-accent);
+  font-weight: 800;
+}
+
+.notice {
+  margin: var(--ds-space-md) 0 0;
+  color: var(--ds-ink-weak);
+  font-size: var(--ds-text-sm);
+}
+
+.status {
+  margin: var(--ds-space-md) 0 0;
+  padding: var(--ds-space-sm);
+  border-left: 3px solid var(--ds-accent);
+  background: var(--ds-paper-alt);
+  color: var(--ds-ink);
+}
+
+.returnLink {
+  display: inline-block;
+  margin-top: var(--ds-space-lg);
+  color: var(--ds-accent);
+  font-weight: 700;
+}
+
+.accountDetails {
+  display: grid;
+  gap: var(--ds-space-sm);
+  margin: var(--ds-space-lg) 0;
+  padding: var(--ds-space-md);
+  border: var(--ds-border);
+  border-radius: var(--ds-border-radius-sm);
+}
+
+.accountDetails dt {
+  color: var(--ds-ink-weak);
+  font-size: var(--ds-text-sm);
+}
+
+.accountDetails dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.signOutButton {
+  min-height: 3rem;
+  padding: 0.75rem 1rem;
+  border: var(--ds-border);
+  border-radius: var(--ds-border-radius-sm);
+  background: var(--ds-paper);
+  color: var(--ds-ink);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.signOutButton:hover {
+  border-color: var(--ds-accent);
+}
+
+.signOutButton:focus-visible {
+  outline: 3px solid var(--ds-accent);
+  outline-offset: 3px;
+}
+
+@media (min-width: 48rem) {
+  .page {
+    padding-top: var(--ds-space-2xl);
+  }
+}
