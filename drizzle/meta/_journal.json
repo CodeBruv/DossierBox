@@ -8,6 +8,13 @@
       "when": 1786751326918,
       "tag": "0000_volatile_spitfire",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1786785782260,
+      "tag": "0001_elite_liz_osborn",
+      "breakpoints": true
     }
   ]
 }
