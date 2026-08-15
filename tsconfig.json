@@ -39,6 +39,9 @@
       ],
       "@/auth/*": [
         "./src/auth/*"
+      ],
+      "@/profile/*": [
+        "./src/profile/*"
       ]
     },
     "plugins": [
