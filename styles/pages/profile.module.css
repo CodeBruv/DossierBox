@@ -1,0 +1,438 @@
+.page {
+  min-height: 60vh;
+  padding: var(--ds-space-lg) 0 var(--ds-space-2xl);
+  background: var(--ds-paper);
+}
+
+.narrow {
+  width: min(100%, 48rem);
+  margin: 0 auto;
+}
+
+.pageHeader,
+.sectionPageHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--ds-space-md);
+  padding-bottom: var(--ds-space-lg);
+  border-bottom: var(--ds-border);
+}
+
+.pageHeader h1,
+.sectionPageHeader h1,
+.editorHeader h1,
+.sectionHeading h2,
+.basicsBand h2,
+.emptyState h2,
+.entryCard h2 {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+.pageHeader h1,
+.sectionPageHeader h1,
+.editorHeader h1 {
+  font-size: var(--ds-heading-size-lg);
+}
+
+.eyebrow {
+  margin: 0 0 var(--ds-space-2xs);
+  color: var(--ds-accent);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-font-weight-bold);
+  text-transform: uppercase;
+}
+
+.lead,
+.pageHeader p,
+.sectionPageHeader p,
+.editorHeader p,
+.sectionHeading p,
+.basicsBand p,
+.emptyState p,
+.entryCard p {
+  margin: var(--ds-space-2xs) 0 0;
+  color: var(--ds-ink-weak);
+}
+
+.accountLink,
+.backLink {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  color: var(--ds-accent);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.backLink {
+  margin-bottom: var(--ds-space-sm);
+}
+
+.basicsBand {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--ds-space-md);
+  padding: var(--ds-space-lg) 0;
+  border-bottom: var(--ds-border);
+}
+
+.basicsBand h2,
+.sectionHeading h2 {
+  font-size: var(--ds-heading-size-md);
+}
+
+.sectionHeading {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--ds-space-md);
+  margin-top: var(--ds-space-lg);
+}
+
+.sectionList,
+.entryList {
+  display: grid;
+  gap: 0;
+  margin-top: var(--ds-space-md);
+  border-top: var(--ds-border);
+}
+
+.sectionRow {
+  display: flex;
+  min-height: 5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-sm);
+  padding: var(--ds-space-sm) 0;
+  border-bottom: var(--ds-border);
+  color: var(--ds-ink);
+  text-decoration: none;
+}
+
+.sectionRow:hover strong {
+  color: var(--ds-accent);
+}
+
+.sectionRow span:first-child {
+  display: grid;
+  gap: var(--ds-space-3xs);
+  min-width: 0;
+}
+
+.sectionRow small {
+  color: var(--ds-ink-weak);
+  font-size: var(--ds-text-sm);
+}
+
+.count {
+  flex: none;
+  color: var(--ds-ink-weak);
+  font-size: var(--ds-text-sm);
+  white-space: nowrap;
+}
+
+.emptyState {
+  margin-top: var(--ds-space-lg);
+  padding: var(--ds-space-lg) 0;
+  border-top: var(--ds-border);
+  border-bottom: var(--ds-border);
+}
+
+.emptyState h2 {
+  font-size: var(--ds-heading-size-md);
+}
+
+.emptyState .primaryButton {
+  margin-top: var(--ds-space-md);
+}
+
+.editorHeader {
+  margin-bottom: var(--ds-space-lg);
+  padding-bottom: var(--ds-space-md);
+  border-bottom: var(--ds-border);
+}
+
+.form {
+  display: grid;
+  gap: var(--ds-space-lg);
+}
+
+.formFields {
+  display: grid;
+  gap: var(--ds-space-md);
+}
+
+.field,
+.fieldWide {
+  display: grid;
+  gap: var(--ds-space-2xs);
+  min-width: 0;
+}
+
+.field label,
+.fieldWide label,
+.sectionPicker legend {
+  color: var(--ds-ink);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.field input,
+.fieldWide input,
+.field select,
+.fieldWide select,
+.field textarea,
+.fieldWide textarea {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid var(--ds-rule-strong);
+  border-radius: var(--ds-border-radius-sm);
+  background: var(--ds-paper);
+  color: var(--ds-ink);
+  font: inherit;
+}
+
+.field textarea,
+.fieldWide textarea {
+  min-height: 8rem;
+  resize: vertical;
+}
+
+.field input:focus,
+.fieldWide input:focus,
+.field select:focus,
+.fieldWide select:focus,
+.field textarea:focus,
+.fieldWide textarea:focus {
+  border-color: var(--ds-accent);
+  outline: 3px solid var(--ds-accent-weak);
+}
+
+.field input[aria-invalid="true"],
+.fieldWide input[aria-invalid="true"],
+.field select[aria-invalid="true"],
+.fieldWide select[aria-invalid="true"],
+.field textarea[aria-invalid="true"],
+.fieldWide textarea[aria-invalid="true"] {
+  border-color: var(--ds-error);
+}
+
+.fieldHint,
+.fieldError {
+  margin: 0;
+  font-size: var(--ds-text-sm);
+}
+
+.fieldHint {
+  color: var(--ds-ink-weak);
+}
+
+.fieldError {
+  color: var(--ds-error);
+}
+
+.checkboxField {
+  display: grid;
+  grid-template-columns: 3rem 1fr;
+  align-items: center;
+  min-height: 3rem;
+}
+
+.checkboxField input,
+.sectionChoice input {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  accent-color: var(--ds-accent);
+}
+
+.checkboxField .fieldError {
+  grid-column: 2;
+}
+
+.formActions,
+.entryActions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-2xs);
+}
+
+.primaryButton,
+.secondaryButton,
+.dangerButton {
+  display: inline-flex;
+  min-height: 3rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.7rem 1rem;
+  border: 1px solid transparent;
+  border-radius: var(--ds-border-radius-sm);
+  cursor: pointer;
+  font: inherit;
+  font-weight: var(--ds-font-weight-semibold);
+  text-align: center;
+  text-decoration: none;
+}
+
+.primaryButton {
+  background: var(--ds-accent);
+  color: var(--ds-paper);
+}
+
+.primaryButton:hover:not(:disabled) {
+  background: var(--ds-accent-hover);
+}
+
+.primaryButton:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.secondaryButton,
+.dangerButton {
+  border-color: var(--ds-rule-strong);
+  background: var(--ds-paper);
+  color: var(--ds-ink);
+}
+
+.secondaryButton:hover {
+  border-color: var(--ds-accent);
+  color: var(--ds-accent);
+}
+
+.dangerButton:hover {
+  border-color: var(--ds-error);
+  color: var(--ds-error);
+}
+
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.dangerButton:focus-visible,
+.sectionRow:focus-visible,
+.accountLink:focus-visible,
+.backLink:focus-visible {
+  outline: 3px solid var(--ds-accent);
+  outline-offset: 3px;
+}
+
+.successStatus,
+.errorSummary {
+  margin: var(--ds-space-md) 0 0;
+  padding: var(--ds-space-sm);
+  border-left: 3px solid var(--ds-accent);
+  background: var(--ds-paper-alt);
+}
+
+.errorSummary {
+  border-left-color: var(--ds-error);
+  background: var(--ds-error-bg);
+  color: var(--ds-error);
+}
+
+.sectionPicker {
+  display: grid;
+  gap: var(--ds-space-xs);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.sectionPicker legend {
+  margin-bottom: var(--ds-space-2xs);
+  font-size: var(--ds-heading-size-sm);
+}
+
+.sectionChoice {
+  display: grid;
+  grid-template-columns: 2rem 1fr;
+  min-height: 4.5rem;
+  align-items: center;
+  padding: var(--ds-space-sm);
+  border: var(--ds-border);
+  border-radius: var(--ds-border-radius-sm);
+  cursor: pointer;
+}
+
+.sectionChoice:has(input:checked) {
+  border-color: var(--ds-accent);
+  background: var(--ds-accent-weak);
+}
+
+.sectionChoice span {
+  display: grid;
+  gap: var(--ds-space-3xs);
+}
+
+.sectionChoice small {
+  color: var(--ds-ink-weak);
+  font-size: var(--ds-text-sm);
+}
+
+.entryCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-md);
+  padding: var(--ds-space-md) 0;
+  border-bottom: var(--ds-border);
+}
+
+.entryCard h2 {
+  font-size: var(--ds-heading-size-sm);
+}
+
+.entryActions form,
+.entryActions button {
+  width: 100%;
+}
+
+@media (min-width: 48rem) {
+  .page {
+    padding-top: var(--ds-space-xl);
+  }
+
+  .pageHeader,
+  .sectionPageHeader,
+  .basicsBand,
+  .sectionHeading,
+  .entryCard {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .pageHeader > div,
+  .sectionPageHeader > div,
+  .basicsBand > div,
+  .sectionHeading > div,
+  .entryCard > div:first-child {
+    max-width: 38rem;
+  }
+
+  .formFields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fieldWide,
+  .checkboxField {
+    grid-column: 1 / -1;
+  }
+
+  .formActions,
+  .entryActions {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .primaryButton,
+  .secondaryButton,
+  .dangerButton {
+    width: auto;
+  }
+
+  .entryActions form,
+  .entryActions button {
+    width: auto;
+  }
+}
