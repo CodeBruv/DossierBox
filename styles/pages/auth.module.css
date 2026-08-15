@@ -112,6 +112,14 @@
   overflow-wrap: anywhere;
 }
 
+.profileLink {
+  display: inline-flex;
+  min-height: 3rem;
+  align-items: center;
+  color: var(--ds-accent);
+  font-weight: 700;
+}
+
 .signOutButton {
   min-height: 3rem;
   padding: 0.75rem 1rem;
