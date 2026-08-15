@@ -2,7 +2,8 @@ import "server-only";
 
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import * as schema from "./schema";
+import * as authSchema from "./schema";
+import * as profileSchema from "@/profile/schema";
 
 const databaseUrl = process.env.DATABASE_URL ?? "postgres://invalid-auth-config@localhost:5432/dossierbox";
 
@@ -21,4 +22,6 @@ if (process.env.NODE_ENV !== "production") {
   globalForDatabase.dossierBoxSql = sql;
 }
 
-export const db = drizzle(sql, { schema });
+export const db = drizzle(sql, {
+  schema: { ...authSchema, ...profileSchema },
+});
