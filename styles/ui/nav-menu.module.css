@@ -14,9 +14,9 @@
 
 .link {
   display: block;
-  padding: 0.375rem 0.625rem;
+  padding: 0.5rem 0.75rem;
   border-radius: var(--ds-border-radius-sm);
-  color: var(--ds-ink-weak);
+  color: var(--ds-color-text-secondary);
   font-weight: var(--ds-font-weight-medium);
   font-size: var(--ds-text-sm);
   text-decoration: none;
@@ -28,20 +28,20 @@
 
 .link:hover,
 .link:focus-visible {
-  color: var(--ds-ink-strong);
-  background-color: var(--ds-paper-alt);
+  color: var(--ds-color-text-primary);
+  background-color: var(--ds-color-interaction-hover);
   outline: none;
 }
 
 .link:focus-visible {
-  outline: 3px solid var(--ds-accent);
+  outline: 3px solid var(--ds-color-focus);
   outline-offset: 1px;
 }
 
 /* Active state — the page the user is currently on */
 .active {
-  color: var(--ds-ink-strong);
-  background-color: var(--ds-paper-alt);
+  color: var(--ds-color-text-primary);
+  background-color: var(--ds-color-interaction-selected);
   font-weight: var(--ds-font-weight-semibold);
 }
 
