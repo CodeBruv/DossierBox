@@ -13,28 +13,63 @@
 ============================================================================ */
 
 :root {
-  /* ---------------------------------------------------------------------------
-     Color: ink + paper, single accent (blue for trust, no gradients)
-     No decorative color — only functional meaning.
-  --------------------------------------------------------------------------- */
-  --ds-ink: #0f172a;                 /* primary text (near-black, legible) */
-  --ds-ink-strong: #020617;         /* headings / maximum contrast */
-  --ds-ink-weak: #475569;           /* secondary / supporting text */
-  --ds-ink-faint: #94a3b8;          /* placeholder / disabled */
+  color-scheme: light;
 
-  --ds-paper: #ffffff;
-  --ds-paper-alt: #f8fafc;          /* card / muted surface */
+  /* Semantic color roles: warm paper, ink, and a restrained blue-green accent. */
+  --ds-color-background: #f6f7f5;
+  --ds-color-surface: #ffffff;
+  --ds-color-surface-elevated: #ffffff;
+  --ds-color-surface-subtle: #edf1ef;
 
-  --ds-rule: #e2e8f0;               /* neutral horizontal rules */
-  --ds-rule-strong: #cbd5e1;       /* stronger separation */
+  --ds-color-text-primary: #17211f;
+  --ds-color-text-secondary: #465552;
+  --ds-color-text-muted: #687773;
+  --ds-color-text-inverse: #f8fbfa;
+  --ds-color-surface-inverse: #17211f;
+  --ds-color-border-inverse: #465552;
 
-  --ds-accent: #2563eb;            /* single brand accent — blue */
-  --ds-accent-hover: #1d4ed8;
-  --ds-accent-weak: #dbeafe;       /* tint for backgrounds / rings */
+  --ds-color-border-default: #d5dfdc;
+  --ds-color-border-subtle: #e5ebe8;
+  --ds-color-border-strong: #aebdb8;
 
-  --ds-error: #dc2626;
-  --ds-error-bg: #fef2f2;
-  --ds-warning: #ca8a04;
+  --ds-color-brand-primary: #0f766e;
+  --ds-color-brand-hover: #0b5f59;
+  --ds-color-brand-active: #084c47;
+  --ds-color-brand-foreground: #ffffff;
+  --ds-color-brand-surface: #d9f0ec;
+  --ds-color-brand-on-inverse: #83d8ce;
+
+  --ds-color-success: #18734a;
+  --ds-color-success-surface: #e4f4eb;
+  --ds-color-warning: #9a5b08;
+  --ds-color-warning-surface: #fff1d6;
+  --ds-color-destructive: #b42318;
+  --ds-color-destructive-surface: #fde8e6;
+  --ds-color-info: #1769aa;
+  --ds-color-info-surface: #e4f1fb;
+
+  --ds-color-interaction-hover: #e8efec;
+  --ds-color-interaction-selected: #d9f0ec;
+  --ds-color-interaction-disabled: #a4b0ad;
+  --ds-color-focus: #0f766e;
+
+  /* Compatibility aliases for existing modules. */
+  --ds-ink: var(--ds-color-text-primary);
+  --ds-ink-strong: #10201d;
+  --ds-ink-weak: var(--ds-color-text-secondary);
+  --ds-ink-faint: var(--ds-color-text-muted);
+  --ds-paper: var(--ds-color-surface);
+  --ds-paper-alt: var(--ds-color-surface-subtle);
+  --ds-rule: var(--ds-color-border-subtle);
+  --ds-rule-strong: var(--ds-color-border-strong);
+  --ds-accent: var(--ds-color-brand-primary);
+  --ds-accent-hover: var(--ds-color-brand-hover);
+  --ds-accent-weak: var(--ds-color-brand-surface);
+  --ds-error: var(--ds-color-destructive);
+  --ds-error-bg: var(--ds-color-destructive-surface);
+  --ds-warning: var(--ds-color-warning);
+  --ds-success: var(--ds-color-success);
+  --ds-success-subtle: var(--ds-color-success-surface);
 
   /* ---------------------------------------------------------------------------
      Typography
@@ -45,14 +80,14 @@
   --ds-font-ui: "Instrument Sans", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --ds-font-document: "Charter", "Sitka Text", "Times New Roman", serif;
 
-  --ds-text-xs:   clamp(0.625rem, 0.53rem + 0.45vw, 0.75rem);
-  --ds-text-sm:   clamp(0.8125rem, 0.72rem + 0.45vw, 0.9375rem);
-  --ds-text-base: clamp(1rem, 0.88rem + 0.55vw, 1.125rem);
-  --ds-text-lg:   clamp(1.1875rem, 1.04rem + 0.69vw, 1.3125rem);
-  --ds-text-xl:   clamp(1.4375rem, 1.23rem + 0.94vw, 1.625rem);
-  --ds-text-2xl:  clamp(1.75rem, 1.46rem + 1.33vw, 2rem);
-  --ds-text-3xl:  clamp(2.125rem, 1.74rem + 1.74vw, 2.5rem);
-  --ds-text-4xl:  clamp(2.625rem, 2.11rem + 2.25vw, 3.25rem);
+  --ds-text-xs: 0.75rem;
+  --ds-text-sm: 0.875rem;
+  --ds-text-base: 1rem;
+  --ds-text-lg: 1.125rem;
+  --ds-text-xl: 1.375rem;
+  --ds-text-2xl: 1.75rem;
+  --ds-text-3xl: 2.125rem;
+  --ds-text-4xl: 2.625rem;
 
   --ds-font-weight-regular: 400;
   --ds-font-weight-medium: 500;
@@ -63,16 +98,13 @@
   --ds-line-height-normal: 1.5;
   --ds-line-height-loose: 1.7;
 
-  --ds-font-ui: var(--ds-font-ui);
-  --ds-font-document: var(--ds-font-document);
-
-  /* Heading font sizes — clamped, used via utility classes */
-  --ds-heading-size-xs:  clamp(0.85rem, 0.74rem + 0.5vw, 1rem);
-  --ds-heading-size-sm:  clamp(1rem, 0.88rem + 0.55vw, 1.125rem);
-  --ds-heading-size-md:  clamp(1.25rem, 1.08rem + 0.73vw, 1.4375rem);
-  --ds-heading-size-lg:  clamp(1.5625rem, 1.33rem + 1vw, 1.875rem);
-  --ds-heading-size-xl:  clamp(2rem, 1.69rem + 1.36vw, 2.5rem);
-  --ds-heading-size-2xl: clamp(2.5rem, 2.11rem + 1.74vw, 3.25rem);
+  /* Stable role sizes keep workflow typography predictable at every viewport. */
+  --ds-heading-size-xs: 0.875rem;
+  --ds-heading-size-sm: 1rem;
+  --ds-heading-size-md: 1.25rem;
+  --ds-heading-size-lg: 1.625rem;
+  --ds-heading-size-xl: 2rem;
+  --ds-heading-size-2xl: 2.5rem;
 
   /* ---------------------------------------------------------------------------
      Spacing — 4px grid, geometric scale (6, 8, 12, 16, 24, 32, 48...)
@@ -112,21 +144,13 @@
   --ds-border-radius-lg: 0.75rem;
   --ds-border-radius-xl: 1rem;
 
-  --ds-border: 1px solid var(--ds-rule);
+  --ds-border: 1px solid var(--ds-color-border-default);
 
-  /* ---------------------------------------------------------------------------
-     Shadows — only for elevated surfaces (cards, modals). No drop shadows
-     on text. Two levels keeps the system honest.
-  --------------------------------------------------------------------------- */
-  --ds-shadow-card: 0 1px 3px rgba(16, 24, 49, 0.06),
-                     0 1px 2px rgba(16, 24, 49, 0.04);
-  --ds-shadow-floating: 0 16px 40px rgba(16, 24, 49, 0.12),
-                         0 4px 8px rgba(16, 24, 49, 0.08);
-
-  /* ---------------------------------------------------------------------------
-     Focus rings — accessible, visible, single accent color.
-  --------------------------------------------------------------------------- */
-  --ds-focus-ring: 0 0 0 3px var(--ds-paper), 0 0 0 6px var(--ds-accent);
+  /* Shadows are semantic so dark mode can use depth without bright halos. */
+  --ds-shadow-card: 0 1px 2px rgb(18 38 34 / 0.06), 0 6px 18px rgb(18 38 34 / 0.04);
+  --ds-shadow-floating: 0 18px 42px rgb(18 38 34 / 0.16), 0 4px 10px rgb(18 38 34 / 0.08);
+  --ds-shadow-inset-top: inset 0 4px 8px -4px rgb(18 38 34 / 0.04);
+  --ds-focus-ring: 0 0 0 3px var(--ds-color-surface), 0 0 0 6px var(--ds-color-focus);
 
   /* ---------------------------------------------------------------------------
      Responsiveness breakpoints (mobile-first).
@@ -137,6 +161,89 @@
   --ds-bp-lg:  64rem;  /* 1024px — tablet / small desk */
   --ds-bp-xl:  80rem;  /* 1280px — standard desk */
   --ds-bp-2xl: 96rem;  /* 1536px — wide */
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ds-color-background: #101917;
+  --ds-color-surface: #172320;
+  --ds-color-surface-elevated: #1d2c28;
+  --ds-color-surface-subtle: #21332f;
+  --ds-color-text-primary: #edf5f2;
+  --ds-color-text-secondary: #c1d0cb;
+  --ds-color-text-muted: #91a59e;
+  --ds-color-text-inverse: #10201d;
+  --ds-color-surface-inverse: #0d1412;
+  --ds-color-border-inverse: #59716a;
+  --ds-color-border-default: #3b514b;
+  --ds-color-border-subtle: #2b403b;
+  --ds-color-border-strong: #59716a;
+  --ds-color-brand-primary: #63c8bd;
+  --ds-color-brand-hover: #83d8ce;
+  --ds-color-brand-active: #a0e5dc;
+  --ds-color-brand-foreground: #10201d;
+  --ds-color-brand-surface: #214b46;
+  --ds-color-brand-on-inverse: #a0e5dc;
+  --ds-color-success: #70d39b;
+  --ds-color-success-surface: #1c4231;
+  --ds-color-warning: #f0b95e;
+  --ds-color-warning-surface: #4a351b;
+  --ds-color-destructive: #ff958d;
+  --ds-color-destructive-surface: #512522;
+  --ds-color-info: #8bc9f2;
+  --ds-color-info-surface: #1d3d54;
+  --ds-color-interaction-hover: #263b36;
+  --ds-color-interaction-selected: #214b46;
+  --ds-color-interaction-disabled: #64756f;
+  --ds-color-focus: #83d8ce;
+  --ds-ink-strong: #f5fbf8;
+  --ds-shadow-card: 0 1px 2px rgb(0 0 0 / 0.25), 0 8px 20px rgb(0 0 0 / 0.16);
+  --ds-shadow-floating: 0 20px 48px rgb(0 0 0 / 0.35), 0 5px 12px rgb(0 0 0 / 0.2);
+  --ds-shadow-inset-top: inset 0 4px 8px -4px rgb(0 0 0 / 0.2);
+  --ds-focus-ring: 0 0 0 3px var(--ds-color-surface), 0 0 0 6px var(--ds-color-focus);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]),
+  :root[data-theme="system"] {
+    color-scheme: dark;
+    --ds-color-background: #101917;
+    --ds-color-surface: #172320;
+    --ds-color-surface-elevated: #1d2c28;
+    --ds-color-surface-subtle: #21332f;
+    --ds-color-text-primary: #edf5f2;
+    --ds-color-text-secondary: #c1d0cb;
+    --ds-color-text-muted: #91a59e;
+    --ds-color-text-inverse: #10201d;
+    --ds-color-surface-inverse: #0d1412;
+    --ds-color-border-inverse: #59716a;
+    --ds-color-border-default: #3b514b;
+    --ds-color-border-subtle: #2b403b;
+    --ds-color-border-strong: #59716a;
+    --ds-color-brand-primary: #63c8bd;
+    --ds-color-brand-hover: #83d8ce;
+    --ds-color-brand-active: #a0e5dc;
+    --ds-color-brand-foreground: #10201d;
+    --ds-color-brand-surface: #214b46;
+    --ds-color-brand-on-inverse: #a0e5dc;
+    --ds-color-success: #70d39b;
+    --ds-color-success-surface: #1c4231;
+    --ds-color-warning: #f0b95e;
+    --ds-color-warning-surface: #4a351b;
+    --ds-color-destructive: #ff958d;
+    --ds-color-destructive-surface: #512522;
+    --ds-color-info: #8bc9f2;
+    --ds-color-info-surface: #1d3d54;
+    --ds-color-interaction-hover: #263b36;
+    --ds-color-interaction-selected: #214b46;
+    --ds-color-interaction-disabled: #64756f;
+    --ds-color-focus: #83d8ce;
+    --ds-ink-strong: #f5fbf8;
+    --ds-shadow-card: 0 1px 2px rgb(0 0 0 / 0.25), 0 8px 20px rgb(0 0 0 / 0.16);
+    --ds-shadow-floating: 0 20px 48px rgb(0 0 0 / 0.35), 0 5px 12px rgb(0 0 0 / 0.2);
+    --ds-shadow-inset-top: inset 0 4px 8px -4px rgb(0 0 0 / 0.2);
+    --ds-focus-ring: 0 0 0 3px var(--ds-color-surface), 0 0 0 6px var(--ds-color-focus);
+  }
 }
 
 /* =============================================================================
