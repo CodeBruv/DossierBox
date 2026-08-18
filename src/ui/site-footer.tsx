@@ -5,14 +5,22 @@ import styles from "@/styles/ui/site-footer.module.css";
 
 export function SiteFooter({ authenticated = false }: { authenticated?: boolean }) {
   const year = new Date().getFullYear();
-  const footerLinks = [
-    { label: "Templates", href: "/templates" },
-    { label: "How it works", href: "/how-it-works" },
-    { label: "Pricing", href: "/pricing" },
-    { label: "Terms", href: "/terms" },
-    { label: "Privacy", href: "/privacy" },
-    { label: "Contact", href: "/contact" },
-  ];
+  const footerLinks = authenticated
+    ? [
+        { label: "Home", href: "/home" },
+        { label: "Dossier", href: "/profile" },
+        { label: "Documents", href: "/documents" },
+        { label: "Terms", href: "/terms" },
+        { label: "Privacy", href: "/privacy" },
+      ]
+    : [
+        { label: "Templates", href: "/templates" },
+        { label: "How it works", href: "/how-it-works" },
+        { label: "Pricing", href: "/pricing" },
+        { label: "Terms", href: "/terms" },
+        { label: "Privacy", href: "/privacy" },
+        { label: "Contact", href: "/contact" },
+      ];
 
   return (
     <footer className={styles.footer}>
