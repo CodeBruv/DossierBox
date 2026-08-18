@@ -1,0 +1,92 @@
+.root {
+  position: relative;
+  margin-left: auto;
+}
+
+.trigger {
+  display: inline-flex;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-2xs);
+  padding: var(--ds-space-2xs);
+  border: 1px solid transparent;
+  border-radius: var(--ds-border-radius-sm);
+  background: transparent;
+  color: var(--ds-color-text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.trigger:hover { background: var(--ds-color-interaction-hover); }
+.trigger:focus-visible,
+.option:focus-visible { outline: var(--ds-focus-ring); outline-offset: 2px; }
+.label { display: none; }
+
+.themeIcon,
+.optionIndicator {
+  display: inline-block;
+  flex: none;
+  width: 0.9rem;
+  height: 0.9rem;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+
+.themeIcon {
+  background: linear-gradient(90deg, currentColor 50%, transparent 50%);
+}
+
+.optionIndicator {
+  background: transparent;
+}
+
+.option[aria-checked="true"] .optionIndicator {
+  box-shadow: inset 0 0 0 0.2rem var(--ds-color-surface-elevated);
+  background: currentColor;
+}
+
+.menu {
+  position: absolute;
+  z-index: 130;
+  top: calc(100% + var(--ds-space-2xs));
+  right: 0;
+  display: grid;
+  width: 11rem;
+  gap: var(--ds-space-3xs);
+  padding: var(--ds-space-xs);
+  border: 1px solid var(--ds-color-border-default);
+  border-radius: var(--ds-border-radius-md);
+  background: var(--ds-color-surface-elevated);
+  box-shadow: var(--ds-shadow-card);
+}
+
+.menu strong {
+  padding: var(--ds-space-2xs);
+  font-size: var(--ds-text-sm);
+}
+
+.option {
+  display: flex;
+  min-height: 2.5rem;
+  align-items: center;
+  gap: var(--ds-space-xs);
+  padding: var(--ds-space-2xs) var(--ds-space-xs);
+  border: 0;
+  border-radius: var(--ds-border-radius-sm);
+  background: transparent;
+  color: var(--ds-color-text-primary);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+.option:hover { background: var(--ds-color-interaction-hover); }
+
+@media (min-width: 48.0625rem) {
+  .root { margin-left: 0; }
+  .label { display: inline; }
+  .trigger { padding-inline: var(--ds-space-xs); }
+}
