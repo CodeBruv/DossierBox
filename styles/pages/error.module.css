@@ -1,0 +1,93 @@
+.page {
+  min-height: 70vh;
+  padding: var(--ds-space-2xl) 0;
+}
+
+.panel {
+  max-width: 42rem;
+  padding-top: var(--ds-space-lg);
+  border-top: 3px solid var(--ds-color-destructive);
+}
+
+.eyebrow {
+  margin: 0 0 var(--ds-space-xs);
+  color: var(--ds-color-destructive);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0;
+  max-width: 34rem;
+}
+
+.description {
+  max-width: 38rem;
+  margin-top: var(--ds-space-sm);
+  color: var(--ds-color-text-secondary);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-sm);
+  margin-top: var(--ds-space-lg);
+}
+
+.primaryButton,
+.secondaryButton {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--ds-color-border-default);
+  border-radius: var(--ds-border-radius-sm);
+  font: inherit;
+  font-weight: var(--ds-font-weight-semibold);
+  text-decoration: none;
+}
+
+.primaryButton {
+  background: var(--ds-color-brand-primary);
+  border-color: var(--ds-color-brand-primary);
+  color: var(--ds-color-brand-foreground);
+}
+
+.primaryButton:hover {
+  background: var(--ds-color-brand-hover);
+  border-color: var(--ds-color-brand-hover);
+  color: var(--ds-color-brand-foreground);
+}
+
+.secondaryButton {
+  background: var(--ds-color-surface);
+  color: var(--ds-color-text-primary);
+}
+
+.secondaryButton:hover {
+  background: var(--ds-color-interaction-hover);
+  border-color: var(--ds-color-border-strong);
+  color: var(--ds-color-text-primary);
+}
+
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible {
+  outline: var(--ds-focus-ring);
+  outline-offset: 2px;
+}
+
+@media (max-width: 30rem) {
+  .actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .primaryButton,
+  .secondaryButton {
+    width: 100%;
+  }
+}
