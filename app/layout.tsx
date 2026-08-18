@@ -6,8 +6,8 @@
  */
 import "./globals.css";
 import "@/styles/print.css";
-import { SiteHeader } from "@/ui";
-import { SiteFooter } from "@/ui";
+import { SiteHeader, SiteFooter, ThemeProvider } from "@/ui";
+import { auth } from "@/auth/auth";
 import { Viewport, type Metadata } from "next";
 import type { ReactNode } from "react";
 
@@ -41,18 +41,38 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0f172a" },
+    { media: "(prefers-color-scheme: light)", color: "#f6f7f5" },
+    { media: "(prefers-color-scheme: dark)", color: "#101917" },
   ],
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+const themeInitializer = `
+  try {
+    const stored = localStorage.getItem("dossierbox-theme");
+    const preference = ["light", "dark", "system"].includes(stored) ? stored : "system";
+    document.documentElement.dataset.theme = preference;
+    document.documentElement.style.colorScheme = preference === "system" ? "light dark" : preference;
+  } catch (_) {
+    document.documentElement.dataset.theme = "system";
+    document.documentElement.style.colorScheme = "light dark";
+  }
+`;
+
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const session = await auth();
+  const authenticated = Boolean(session?.user);
+
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitializer }} />
+      </head>
       <body>
-        <SiteHeader />
-        <main id="main-content">{children}</main>
-        <SiteFooter />
+        <ThemeProvider>
+          <SiteHeader authenticated={authenticated} />
+          <main id="main-content">{children}</main>
+          <SiteFooter authenticated={authenticated} />
+        </ThemeProvider>
       </body>
     </html>
   );
