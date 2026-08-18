@@ -14,6 +14,7 @@ export function ThemeMenu() {
   const [open, setOpen] = useState(false);
   const [preference, setPreference] = useState<ThemePreference>("system");
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(storageKey);
@@ -23,10 +24,16 @@ export function ThemeMenu() {
   useEffect(() => {
     if (!open) return;
     const close = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
     };
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
     };
     document.addEventListener("mousedown", close);
     document.addEventListener("keydown", closeOnEscape);
@@ -40,11 +47,13 @@ export function ThemeMenu() {
     setPreference(value);
     setThemePreference(value);
     setOpen(false);
+    triggerRef.current?.focus();
   }
 
   return (
     <div className={styles.root} ref={rootRef}>
       <button
+        ref={triggerRef}
         type="button"
         className={styles.trigger}
         aria-expanded={open}
