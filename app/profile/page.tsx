@@ -37,11 +37,11 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
       <Container>
         <header className={styles.pageHeader}>
           <div>
-            <p className={styles.eyebrow}>Career profile</p>
-            <h1>Your factual career record</h1>
-            <p className={styles.lead}>Keep reusable facts here. Each section saves independently, so you can stop and return later.</p>
+            <p className={styles.eyebrow}>Your dossier</p>
+            <h1>Your professional source of truth</h1>
+            <p className={styles.lead}>Build and maintain your reusable information here, then use it to create focused professional documents.</p>
           </div>
-          <Link className={styles.accountLink} href="/account">Account</Link>
+          <Link className={styles.accountLink} href="/home">Back to Home</Link>
         </header>
 
         {status ? <p className={styles.successStatus} role="status">{status}</p> : null}
@@ -56,7 +56,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
 
         <div className={styles.sectionHeading}>
           <div>
-            <h2>Your sections</h2>
+            <h2>Dossier sections</h2>
             <p>Only selected sections appear here. Saved information remains intact when a section is hidden.</p>
           </div>
           <Link className={styles.secondaryButton} href="/profile/sections">Choose sections</Link>
