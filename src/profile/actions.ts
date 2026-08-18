@@ -20,7 +20,7 @@ import {
   parseSectionSelection,
 } from "./validation";
 
-const saveFailureMessage = "We could not save that information. Your existing profile was not changed.";
+const saveFailureMessage = "We could not save that information. Your existing dossier was not changed.";
 
 export async function saveProfileBasicsAction(
   _previousState: ProfileFormState,
@@ -37,7 +37,8 @@ export async function saveProfileBasicsAction(
   try {
     await getOrCreateProfile(user.id, user);
     await updateProfileBasics(user.id, result.data);
-  } catch {
+  } catch (error) {
+    console.error("[profile] Failed to save dossier identity", error);
     return failureState(formData, saveFailureMessage);
   }
 
@@ -60,7 +61,8 @@ export async function saveProfileSectionsAction(
   try {
     const profile = await getOrCreateProfile(user.id, user);
     await replaceEnabledSections(profile.id, result.data.sections);
-  } catch {
+  } catch (error) {
+    console.error("[profile] Failed to save dossier sections", error);
     return failureState(formData, saveFailureMessage);
   }
 
@@ -88,7 +90,8 @@ export async function createProfileEntryAction(
   try {
     const profile = await getOrCreateProfile(user.id, user);
     await createSectionEntry(sectionValue, profile.id, result.data as Record<string, unknown>);
-  } catch {
+  } catch (error) {
+    console.error(`[profile] Failed to create ${sectionValue} dossier entry`, error);
     return failureState(formData, saveFailureMessage);
   }
 
@@ -126,7 +129,8 @@ export async function updateProfileEntryAction(
     if (!updated.length) {
       return failureState(formData, "That profile entry was not found or does not belong to you.");
     }
-  } catch {
+  } catch (error) {
+    console.error(`[profile] Failed to update ${sectionValue} dossier entry`, error);
     return failureState(formData, saveFailureMessage);
   }
 
@@ -147,7 +151,8 @@ export async function deleteProfileEntryAction(
   try {
     const profile = await getOrCreateProfile(user.id, user);
     await deleteOwnedSectionEntry(sectionValue, profile.id, itemId);
-  } catch {
+  } catch (error) {
+    console.error(`[profile] Failed to delete ${sectionValue} dossier entry`, error);
     redirect(`/profile/${sectionValue}?status=delete-failed`);
   }
 
