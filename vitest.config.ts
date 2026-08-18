@@ -16,6 +16,10 @@ export default defineConfig({
         replacement: resolve(__dirname, "src/profile"),
       },
       {
+        find: "@/documents",
+        replacement: resolve(__dirname, "src/documents"),
+      },
+      {
         find: "@/ui",
         replacement: resolve(__dirname, "src/ui"),
       },
