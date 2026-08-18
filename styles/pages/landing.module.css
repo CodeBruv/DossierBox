@@ -274,18 +274,18 @@
   gap: var(--ds-space-md);
   margin-top: var(--ds-space-xl);
   padding: var(--ds-space-lg);
-  background-color: var(--ds-ink-strong);
+  background-color: var(--ds-color-surface-inverse);
   border-radius: var(--ds-border-radius-lg);
 }
 
 .distinctionItem {
-  color: var(--ds-paper);
+  color: var(--ds-color-text-inverse);
 }
 
 .distinctionLabel {
   display: block;
   margin-bottom: var(--ds-space-2xs);
-  color: #93c5fd;
+  color: var(--ds-color-brand-on-inverse);
   font-size: var(--ds-text-sm);
   font-weight: var(--ds-font-weight-semibold);
   letter-spacing: 0.06em;
@@ -293,7 +293,7 @@
 }
 
 .distinctionText {
-  color: var(--ds-rule);
+  color: var(--ds-color-border-inverse);
   line-height: var(--ds-line-height-loose);
 }
 
@@ -326,8 +326,8 @@
 
 .finalCta {
   padding-block: clamp(var(--ds-space-2xl), 8vw, var(--ds-space-3xl));
-  color: var(--ds-paper);
-  background-color: var(--ds-ink-strong);
+  color: var(--ds-color-text-inverse);
+  background-color: var(--ds-color-surface-inverse);
 }
 
 .finalCtaInner {
@@ -338,13 +338,13 @@
 
 .finalTitle {
   max-width: 18ch;
-  color: var(--ds-paper);
+  color: var(--ds-color-text-inverse);
 }
 
 .finalText {
   max-width: 39rem;
   margin-top: var(--ds-space-sm);
-  color: var(--ds-rule-strong);
+  color: var(--ds-color-border-inverse);
   line-height: var(--ds-line-height-loose);
 }
 
@@ -353,13 +353,13 @@
 }
 
 .lightLink {
-  color: var(--ds-paper);
-  border-color: var(--ds-paper);
+  color: var(--ds-color-text-inverse);
+  border-color: var(--ds-color-text-inverse);
 }
 
 .lightLink:hover {
-  color: var(--ds-ink-strong);
-  background-color: var(--ds-paper);
+  color: var(--ds-color-surface-inverse);
+  background-color: var(--ds-color-text-inverse);
 }
 
 @media (min-width: 48rem) {
