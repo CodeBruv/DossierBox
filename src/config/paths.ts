@@ -46,6 +46,8 @@ export const routes = {
   signIn: "/auth/sign-in",
   signUp: "/auth/sign-up",
   account: "/account",
+  home: "/home",
+  documents: "/documents",
   profile: "/profile",
   profileBasics: "/profile/basics",
   profileSections: "/profile/sections",
