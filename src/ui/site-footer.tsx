@@ -1,17 +1,10 @@
-/**
- * SiteFooter — secondary navigation and legal links rendered on every page.
- *
- * Contains: copyright, minimal sitemap links (Terms / Privacy / Contact),
- * and the auth entry for mobile convenience. Purely presentational.
- */
 import Link from "next/link";
 import { Container } from "./container";
-import { AuthEntry } from "./auth-entry";
+import { signOutAction } from "@/auth/actions";
 import styles from "@/styles/ui/site-footer.module.css";
 
-export function SiteFooter() {
+export function SiteFooter({ authenticated = false }: { authenticated?: boolean }) {
   const year = new Date().getFullYear();
-
   const footerLinks = [
     { label: "Templates", href: "/templates" },
     { label: "How it works", href: "/how-it-works" },
@@ -25,40 +18,30 @@ export function SiteFooter() {
     <footer className={styles.footer}>
       <Container wide>
         <div className={styles.columns}>
-          {/* Brand + tagline */}
           <div className={styles.branding}>
-            <Link href="/" className={styles.logo}>
-              DossierBox
-            </Link>
-            <p className={styles.tagline}>
-              Professional documents from real career information.
-            </p>
+            <Link href={authenticated ? "/home" : "/"} className={styles.logo}>DossierBox</Link>
+            <p className={styles.tagline}>Professional documents from real career information.</p>
           </div>
-
-          {/* Sitemap */}
           <nav aria-label="Footer">
             <ul className={styles.list}>
-              {footerLinks.map((link) => (
-                <li key={link.href}>
-                  <Link href={link.href} className={styles.link}>
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
+              {footerLinks.map((link) => <li key={link.href}><Link href={link.href} className={styles.link}>{link.label}</Link></li>)}
             </ul>
           </nav>
-
-          {/* Desktop: auth hidden in footer; mobile keeps it in drawer */}
-          <div className={styles.authDesktop}>
-            <AuthEntry />
+          <div className={styles.accountArea}>
+            {authenticated ? (
+              <div className={styles.accountActions}>
+                <Link href="/account" className={styles.link}>Account and settings</Link>
+                <form action={signOutAction}><button type="submit" className={styles.signOut}>Sign out</button></form>
+              </div>
+            ) : (
+              <nav aria-label="Account actions" className={styles.accountActions}>
+                <Link href="/auth/sign-in" className={styles.link}>Sign in</Link>
+                <Link href="/auth/sign-up" className={styles.link}>Get started</Link>
+              </nav>
+            )}
           </div>
         </div>
-
-        <div className={styles.bottom}>
-          <p className={styles.copyright}>
-            © {year} DossierBox. All rights reserved.
-          </p>
-        </div>
+        <div className={styles.bottom}><p className={styles.copyright}>© {year} DossierBox. All rights reserved.</p></div>
       </Container>
     </footer>
   );
