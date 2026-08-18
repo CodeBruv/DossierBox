@@ -4,6 +4,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as authSchema from "./schema";
 import * as profileSchema from "@/profile/schema";
+import * as documentSchema from "@/documents/schema";
 
 const databaseUrl = process.env.DATABASE_URL ?? "postgres://invalid-auth-config@localhost:5432/dossierbox";
 
@@ -23,5 +24,5 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 export const db = drizzle(sql, {
-  schema: { ...authSchema, ...profileSchema },
+  schema: { ...authSchema, ...profileSchema, ...documentSchema },
 });
