@@ -38,7 +38,8 @@ export default async function NewDocumentPage({ searchParams }: NewDocumentPageP
         <p className={styles.eyebrow}>Create from your dossier</p>
         <h1>What are you creating?</h1>
         <p className={styles.lead}>Choose a purpose first. A draft will be created and connected to your dossier.</p>
-        {query.error ? <p className={styles.errorStatus} role="alert">That document type is not supported.</p> : null}
+        {query.error === "unsupported-type" ? <p className={styles.errorStatus} role="alert">That document type is not supported.</p> : null}
+        {query.error === "create-failed" ? <p className={styles.errorStatus} role="alert">We could not create the draft right now. Your dossier has not been changed. Please try again.</p> : null}
         <div className={styles.choiceList}>
           {choices.map((choice) => (
             <form action={createDocumentAction} key={choice.type}>
