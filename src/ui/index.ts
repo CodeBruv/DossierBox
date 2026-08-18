@@ -13,4 +13,6 @@ export { Button } from "./button";
 export { NavMenu } from "./nav-menu";
 export { AuthEntry } from "./auth-entry";
 export { SkipLink } from "./skip-link";
+export { ThemeProvider } from "./theme-provider";
+export { ThemeSelector } from "./theme-selector";
 export type { ButtonProps, ButtonVariant } from "./button";
