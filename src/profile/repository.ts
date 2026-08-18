@@ -17,6 +17,10 @@ import {
   skills,
 } from "./schema";
 import type { ProfileSectionKey } from "./types";
+import {
+  evaluateDossierFoundation,
+  type DossierFoundationReadiness,
+} from "./readiness";
 
 type ProfileDefaults = {
   name: string | null;
@@ -128,6 +132,65 @@ export async function getSectionCounts(profileId: string) {
       "links",
     ].map((section, index) => [section, entries[index]]),
   ) as Record<ProfileSectionKey, number>;
+}
+
+export async function getDossierFoundationReadiness(
+  profileId: string,
+  identity: {
+    displayName: string | null;
+    headline: string | null;
+    careerDirection: string | null;
+  },
+): Promise<DossierFoundationReadiness> {
+  const [experienceEntries, educationEntries, skillEntries, projectEntries] =
+    await Promise.all([
+      db
+        .select({
+          role: experiences.role,
+          organization: experiences.organization,
+          startYear: experiences.startYear,
+          endYear: experiences.endYear,
+          current: experiences.current,
+          description: experiences.description,
+        })
+        .from(experiences)
+        .where(eq(experiences.profileId, profileId)),
+      db
+        .select({
+          institution: education.institution,
+          qualification: education.qualification,
+          startYear: education.startYear,
+          endYear: education.endYear,
+          current: education.current,
+        })
+        .from(education)
+        .where(eq(education.profileId, profileId)),
+      db
+        .select({ name: skills.name })
+        .from(skills)
+        .where(eq(skills.profileId, profileId)),
+      db
+        .select({
+          name: projects.name,
+          role: projects.role,
+          context: projects.context,
+          url: projects.url,
+          startYear: projects.startYear,
+          endYear: projects.endYear,
+          current: projects.current,
+          description: projects.description,
+        })
+        .from(projects)
+        .where(eq(projects.profileId, profileId)),
+    ]);
+
+  return evaluateDossierFoundation({
+    identity,
+    experience: experienceEntries,
+    education: educationEntries,
+    skills: skillEntries,
+    projects: projectEntries,
+  });
 }
 
 export async function listSectionEntries(section: ProfileSectionKey, profileId: string) {
