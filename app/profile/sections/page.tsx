@@ -17,11 +17,11 @@ export default async function ProfileSectionsPage() {
     <div className={styles.page}>
       <Container>
         <div className={styles.narrow}>
-          <Link className={styles.backLink} href="/profile">Back to profile</Link>
+          <Link className={styles.backLink} href="/profile">Back to Dossier</Link>
           <header className={styles.editorHeader}>
-            <p className={styles.eyebrow}>Career profile</p>
+            <p className={styles.eyebrow}>Dossier structure</p>
             <h1>Choose your sections</h1>
-            <p>Build a profile around your actual background, not a fixed CV format.</p>
+            <p>Build a dossier around your actual background, not a fixed CV format.</p>
           </header>
           <ProfileSectionsForm action={saveProfileSectionsAction} selected={selected} />
         </div>
