@@ -15,6 +15,13 @@
       "when": 1786785782260,
       "tag": "0001_elite_liz_osborn",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787026118336,
+      "tag": "0002_bumpy_puppet_master",
+      "breakpoints": true
     }
   ]
 }
