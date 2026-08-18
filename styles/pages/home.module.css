@@ -1,0 +1,284 @@
+.page {
+  min-height: 70vh;
+  padding: var(--ds-space-lg) 0 var(--ds-space-2xl);
+  background: var(--ds-color-background);
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-md);
+  padding: var(--ds-space-md) 0 var(--ds-space-xl);
+}
+
+.header h1 {
+  max-width: 18ch;
+  color: var(--ds-color-text-primary);
+  font-size: var(--ds-heading-size-xl);
+}
+
+.lead {
+  max-width: 42rem;
+  margin-top: var(--ds-space-xs);
+  color: var(--ds-color-text-secondary);
+}
+
+.eyebrow {
+  margin: 0 0 var(--ds-space-2xs);
+  color: var(--ds-color-brand-primary);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.progressCard {
+  max-width: 52rem;
+  padding: var(--ds-space-md);
+  background: var(--ds-color-surface-elevated);
+  border: 1px solid var(--ds-color-border-default);
+  border-top: 3px solid var(--ds-color-brand-primary);
+  border-radius: var(--ds-border-radius-md);
+}
+
+.progressHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ds-space-md);
+}
+
+.progressHeader h2 {
+  max-width: 28rem;
+  font-size: var(--ds-heading-size-md);
+}
+
+.progressHeader strong {
+  flex: none;
+  color: var(--ds-color-brand-primary);
+  font-size: var(--ds-heading-size-lg);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.progressTrack {
+  height: 0.5rem;
+  margin: var(--ds-space-md) 0;
+  overflow: hidden;
+  background: var(--ds-color-surface-subtle);
+  border: 1px solid var(--ds-color-border-subtle);
+  border-radius: 999px;
+}
+
+.progressTrack span {
+  display: block;
+  height: 100%;
+  background: var(--ds-color-brand-primary);
+  border-radius: inherit;
+  transition: width var(--ds-motion-duration) var(--ds-motion-ease);
+}
+
+.sectionList {
+  border-top: 1px solid var(--ds-color-border-subtle);
+}
+
+.statusRow {
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr) auto;
+  min-height: 4.5rem;
+  align-items: center;
+  gap: var(--ds-space-xs);
+  border-bottom: 1px solid var(--ds-color-border-subtle);
+  color: var(--ds-color-text-primary);
+  text-decoration: none;
+}
+
+.statusRow:hover {
+  color: var(--ds-color-brand-primary);
+}
+
+.statusIcon,
+.statusIconComplete {
+  display: grid;
+  width: 1.5rem;
+  height: 1.5rem;
+  place-items: center;
+  border: 1px solid var(--ds-color-border-strong);
+  border-radius: 50%;
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-text-sm);
+}
+
+.statusIconComplete {
+  border-color: var(--ds-color-success);
+  background: var(--ds-color-success-surface);
+  color: var(--ds-color-success);
+}
+
+.statusLabel,
+.statusDetail {
+  display: block;
+}
+
+.statusLabel {
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.statusDetail {
+  margin-top: var(--ds-space-3xs);
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-text-sm);
+}
+
+.statusText {
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-text-sm);
+  white-space: nowrap;
+}
+
+.nextAction {
+  max-width: 42rem;
+  margin-top: var(--ds-space-md);
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-text-sm);
+}
+
+.primaryButton,
+.secondaryButton,
+.textLink {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1rem;
+  border-radius: var(--ds-border-radius-sm);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-font-weight-semibold);
+  text-decoration: none;
+}
+
+.primaryButton {
+  margin-top: var(--ds-space-md);
+  background: var(--ds-color-brand-primary);
+  color: var(--ds-color-brand-foreground);
+}
+
+.primaryButton:hover {
+  background: var(--ds-color-brand-hover);
+  color: var(--ds-color-brand-foreground);
+}
+
+.primaryButton:active {
+  background: var(--ds-color-brand-active);
+}
+
+.secondaryButton {
+  align-self: flex-start;
+  border: 1px solid var(--ds-color-border-default);
+  color: var(--ds-color-text-primary);
+  background: var(--ds-color-surface);
+}
+
+.secondaryButton:hover {
+  border-color: var(--ds-color-border-strong);
+  background: var(--ds-color-interaction-hover);
+  color: var(--ds-color-text-primary);
+}
+
+.textLink {
+  margin-top: var(--ds-space-sm);
+  padding-inline: 0;
+  color: var(--ds-color-brand-primary);
+}
+
+.textLink span {
+  margin-left: var(--ds-space-2xs);
+}
+
+.actionGrid {
+  display: grid;
+  max-width: 52rem;
+  gap: 0;
+  margin-top: var(--ds-space-xl);
+  border-top: 1px solid var(--ds-color-border-default);
+}
+
+.actionCard {
+  padding: var(--ds-space-md) 0;
+  border-bottom: 1px solid var(--ds-color-border-default);
+}
+
+.actionCard h2 {
+  font-size: var(--ds-heading-size-md);
+}
+
+.actionCard p:not(.eyebrow) {
+  max-width: 35rem;
+  margin-top: var(--ds-space-xs);
+  color: var(--ds-color-text-secondary);
+}
+
+.note {
+  margin-top: var(--ds-space-lg);
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-text-sm);
+}
+
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.textLink:focus-visible,
+.statusRow:focus-visible {
+  outline: var(--ds-focus-ring);
+  outline-offset: 0.125rem;
+}
+
+@media (max-width: 22rem) {
+  .progressHeader {
+    flex-direction: column;
+    gap: var(--ds-space-xs);
+  }
+
+  .statusRow {
+    grid-template-columns: 1.75rem minmax(0, 1fr);
+  }
+
+  .statusText {
+    grid-column: 2;
+    margin-top: calc(var(--ds-space-2xs) * -1);
+    padding-bottom: var(--ds-space-2xs);
+  }
+
+  .primaryButton,
+  .secondaryButton {
+    width: 100%;
+  }
+}
+
+@media (min-width: 48rem) {
+  .page {
+    padding-top: var(--ds-space-xl);
+  }
+
+  .header {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+
+  .progressCard {
+    padding: var(--ds-space-lg);
+  }
+
+  .actionGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .actionCard {
+    padding: var(--ds-space-md) var(--ds-space-lg) var(--ds-space-md) 0;
+  }
+
+  .actionCard + .actionCard {
+    padding-right: 0;
+    padding-left: var(--ds-space-lg);
+    border-left: 1px solid var(--ds-color-border-default);
+  }
+}
