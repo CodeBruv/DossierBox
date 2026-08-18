@@ -9,7 +9,27 @@ export default async function DocumentsPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/auth/sign-in?callbackUrl=%2Fdocuments&error=SessionRequired");
 
-  const documents = await listDocuments(session.user.id);
+  let documents;
+  try {
+    documents = await listDocuments(session.user.id);
+  } catch (error) {
+    console.error("[documents] Failed to load documents", error);
+    return (
+      <div className={styles.page}>
+        <Container>
+          <div className={styles.errorState} role="alert">
+            <p className={styles.eyebrow}>Documents unavailable</p>
+            <h1>We couldn't load your documents right now.</h1>
+            <p>Please try again. Your saved dossier and documents have not been changed.</p>
+            <div className={styles.errorActions}>
+              <a className={styles.primaryButton} href="/documents">Try again</a>
+              <a className={styles.backLink} href="/home">Back to Home</a>
+            </div>
+          </div>
+        </Container>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.page}>
