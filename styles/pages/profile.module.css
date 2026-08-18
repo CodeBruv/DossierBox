@@ -1,7 +1,7 @@
 .page {
   min-height: 60vh;
   padding: var(--ds-space-lg) 0 var(--ds-space-2xl);
-  background: var(--ds-paper);
+  background: var(--ds-color-background);
 }
 
 .narrow {
@@ -38,9 +38,10 @@
 
 .eyebrow {
   margin: 0 0 var(--ds-space-2xs);
-  color: var(--ds-accent);
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-font-weight-bold);
+  color: var(--ds-color-brand-primary);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
@@ -187,11 +188,12 @@
   width: 100%;
   min-height: 3rem;
   padding: 0.7rem 0.75rem;
-  border: 1px solid var(--ds-rule-strong);
+  border: 1px solid var(--ds-color-border-default);
   border-radius: var(--ds-border-radius-sm);
-  background: var(--ds-paper);
-  color: var(--ds-ink);
+  background: var(--ds-color-surface);
+  color: var(--ds-color-text-primary);
   font: inherit;
+  transition: border-color var(--ds-motion-duration) var(--ds-motion-ease), background-color var(--ds-motion-duration) var(--ds-motion-ease), box-shadow var(--ds-motion-duration) var(--ds-motion-ease);
 }
 
 .field textarea,
@@ -200,14 +202,15 @@
   resize: vertical;
 }
 
-.field input:focus,
-.fieldWide input:focus,
-.field select:focus,
-.fieldWide select:focus,
-.field textarea:focus,
-.fieldWide textarea:focus {
-  border-color: var(--ds-accent);
-  outline: 3px solid var(--ds-accent-weak);
+.field input:focus-visible,
+.fieldWide input:focus-visible,
+.field select:focus-visible,
+.fieldWide select:focus-visible,
+.field textarea:focus-visible,
+.fieldWide textarea:focus-visible {
+  border-color: var(--ds-color-focus);
+  outline: 3px solid var(--ds-color-brand-surface);
+  outline-offset: 1px;
 }
 
 .field input[aria-invalid="true"],
@@ -277,12 +280,16 @@
 }
 
 .primaryButton {
-  background: var(--ds-accent);
-  color: var(--ds-paper);
+  background: var(--ds-color-brand-primary);
+  color: var(--ds-color-brand-foreground);
 }
 
 .primaryButton:hover:not(:disabled) {
-  background: var(--ds-accent-hover);
+  background: var(--ds-color-brand-hover);
+}
+
+.primaryButton:active:not(:disabled) {
+  background: var(--ds-color-brand-active);
 }
 
 .primaryButton:disabled {
@@ -292,19 +299,20 @@
 
 .secondaryButton,
 .dangerButton {
-  border-color: var(--ds-rule-strong);
-  background: var(--ds-paper);
-  color: var(--ds-ink);
+  border-color: var(--ds-color-border-default);
+  background: var(--ds-color-surface);
+  color: var(--ds-color-text-primary);
 }
 
 .secondaryButton:hover {
-  border-color: var(--ds-accent);
-  color: var(--ds-accent);
+  border-color: var(--ds-color-border-strong);
+  background: var(--ds-color-interaction-hover);
 }
 
 .dangerButton:hover {
-  border-color: var(--ds-error);
-  color: var(--ds-error);
+  border-color: var(--ds-color-destructive);
+  background: var(--ds-color-destructive-surface);
+  color: var(--ds-color-destructive);
 }
 
 .primaryButton:focus-visible,
@@ -313,7 +321,7 @@
 .sectionRow:focus-visible,
 .accountLink:focus-visible,
 .backLink:focus-visible {
-  outline: 3px solid var(--ds-accent);
+  outline: var(--ds-focus-ring);
   outline-offset: 3px;
 }
 
@@ -321,14 +329,15 @@
 .errorSummary {
   margin: var(--ds-space-md) 0 0;
   padding: var(--ds-space-sm);
-  border-left: 3px solid var(--ds-accent);
-  background: var(--ds-paper-alt);
+  border-left: 3px solid var(--ds-color-success);
+  background: var(--ds-color-success-surface);
+  color: var(--ds-color-success);
 }
 
 .errorSummary {
-  border-left-color: var(--ds-error);
-  background: var(--ds-error-bg);
-  color: var(--ds-error);
+  border-left-color: var(--ds-color-destructive);
+  background: var(--ds-color-destructive-surface);
+  color: var(--ds-color-destructive);
 }
 
 .sectionPicker {
@@ -350,14 +359,19 @@
   min-height: 4.5rem;
   align-items: center;
   padding: var(--ds-space-sm);
-  border: var(--ds-border);
+  border: 1px solid var(--ds-color-border-default);
   border-radius: var(--ds-border-radius-sm);
+  background: var(--ds-color-surface);
   cursor: pointer;
 }
 
+.sectionChoice:hover {
+  border-color: var(--ds-color-border-strong);
+}
+
 .sectionChoice:has(input:checked) {
-  border-color: var(--ds-accent);
-  background: var(--ds-accent-weak);
+  border-color: var(--ds-color-brand-primary);
+  background: var(--ds-color-interaction-selected);
 }
 
 .sectionChoice span {
