@@ -36,10 +36,10 @@ export default async function ProfileSectionPage({ params, searchParams }: Secti
     <div className={styles.page}>
       <Container>
         <div className={styles.narrow}>
-          <Link className={styles.backLink} href="/profile">Back to profile</Link>
+          <Link className={styles.backLink} href="/profile">Back to Dossier</Link>
           <header className={styles.sectionPageHeader}>
             <div>
-              <p className={styles.eyebrow}>Career profile</p>
+              <p className={styles.eyebrow}>Dossier section</p>
               <h1>{definition.label}</h1>
               <p>{definition.description}</p>
             </div>
@@ -86,7 +86,7 @@ function entryTitle(section: string, record: Record<string, unknown>) {
   const candidates = section === "experience"
     ? [record.role, record.organization]
     : [record.name, record.title, record.language, record.organization, record.institution, record.label];
-  return candidates.find((value) => typeof value === "string" && value) as string || "Profile entry";
+  return candidates.find((value) => typeof value === "string" && value) as string || "Dossier entry";
 }
 
 function entryDetail(record: Record<string, unknown>) {
@@ -95,5 +95,5 @@ function entryDetail(record: Record<string, unknown>) {
   const years = [record.startYear ?? record.issueYear ?? record.year, record.endYear ?? record.expiryYear]
     .filter((value) => typeof value === "number")
     .join(" - ");
-  return [detail, years].filter(Boolean).join(" · ") || "Saved career information";
+  return [detail, years].filter(Boolean).join(" · ") || "Saved dossier information";
 }
