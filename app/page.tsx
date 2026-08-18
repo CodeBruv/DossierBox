@@ -5,8 +5,8 @@ import styles from "@/styles/pages/landing.module.css";
 
 const processSteps = [
   {
-    title: "Start with your profile",
-    text: "Keep your experience, education, skills, and goals in one reusable career profile.",
+    title: "Start with your Dossier",
+    text: "Keep your experience, education, skills, and goals in one reusable professional record.",
   },
   {
     title: "Choose the purpose",
@@ -57,7 +57,7 @@ function DocumentPreview() {
     <div className={styles.documentStage} aria-hidden="true">
       <div className={styles.document}>
         <div className={styles.documentHeader}>
-          <span className={styles.documentName}>Career Profile</span>
+          <span className={styles.documentName}>Professional Dossier</span>
           <span className={styles.documentRole}>Purpose-led document</span>
         </div>
         <div className={styles.documentSection}>
@@ -109,7 +109,7 @@ export default function LandingPage() {
               <div className={styles.heroActions}>
                 <Button variant="primary" size="lg" asChild>
                   <Link href={routes.signUp} aria-disabled="true">
-                    Build your career profile
+                    Build your Dossier
                   </Link>
                 </Button>
                 <Button variant="secondary" size="lg" asChild>
