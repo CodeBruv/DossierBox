@@ -51,7 +51,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
             <h2 id="basics-title">Personal information and direction</h2>
             <p>{profile.headline || profile.careerDirection || profile.displayName || "Add the core information you want available across your career documents."}</p>
           </div>
-          <Link className={styles.secondaryButton} href="/profile/basics">Edit basics</Link>
+          <Link className={styles.secondaryButton} href="/profile/basics">Edit identity and direction</Link>
         </section>
 
         <div className={styles.sectionHeading}>
