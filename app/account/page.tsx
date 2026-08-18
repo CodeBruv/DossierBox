@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, authSessionConfiguration } from "@/auth/auth";
 import { signOutAction } from "@/auth/actions";
-import { Container } from "@/ui";
+import { Container, ThemeSelector } from "@/ui";
 import styles from "@/styles/pages/auth.module.css";
 
 export default async function AccountPage() {
@@ -20,13 +20,12 @@ export default async function AccountPage() {
     <div className={styles.page}>
       <Container>
         <section className={styles.panel} aria-labelledby="account-title">
-          <p className={styles.eyebrow}>DossierBox account</p>
+          <p className={styles.eyebrow}>Settings</p>
           <h1 id="account-title" className={styles.title}>
-            Your account
+            Account and preferences
           </h1>
           <p className={styles.lead}>
-            Your identity is connected. Career information will stay in a
-            separate profile that you control.
+            Manage your connected identity and account session. Your professional information remains in your dossier.
           </p>
 
           <dl className={styles.accountDetails}>
@@ -40,8 +39,10 @@ export default async function AccountPage() {
             </div>
           </dl>
 
-          <Link className={styles.profileLink} href="/profile">
-            Edit your career profile
+          <ThemeSelector />
+
+          <Link className={styles.profileLink} href="/home">
+            Return to your workspace
           </Link>
 
           <form action={signOutAction}>
@@ -50,8 +51,8 @@ export default async function AccountPage() {
             </button>
           </form>
 
-          <Link className={styles.returnLink} href="/">
-            Return to DossierBox
+          <Link className={styles.returnLink} href="/profile">
+            Open your dossier
           </Link>
         </section>
       </Container>
