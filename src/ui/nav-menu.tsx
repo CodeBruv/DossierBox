@@ -14,22 +14,26 @@ import { cx } from "@/lib/cx";
 import type { NavLink } from "@/config/paths";
 
 export interface NavMenuProps {
-  links: NavLink[];
+  links: readonly NavLink[];
   currentPath?: string;
   horizontal?: boolean;
+  onNavigate?: () => void;
 }
 
-export function NavMenu({ links, currentPath = "/", horizontal = false }: NavMenuProps) {
+export function NavMenu({ links, currentPath = "/", horizontal = false, onNavigate }: NavMenuProps) {
   return (
-    <ul className={cx(styles.list, { [styles.horizontal]: horizontal })} role="menubar">
+    <ul className={cx(styles.list, { [styles.horizontal]: horizontal })}>
       {links.map((link) => {
-        const active = currentPath === link.href;
+        const active =
+          currentPath === link.href ||
+          (link.href !== "/" && currentPath.startsWith(`${link.href}/`));
         return (
-          <li key={link.id} role="none">
+          <li key={link.id}>
             <Link
               href={link.href}
               className={cx(styles.link, { [styles.active]: active })}
               aria-current={active ? "page" : undefined}
+              onClick={onNavigate}
             >
               {link.label}
             </Link>
