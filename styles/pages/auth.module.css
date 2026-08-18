@@ -1,17 +1,25 @@
 .page {
+  min-height: 70vh;
   padding: var(--ds-space-xl) 0 var(--ds-space-2xl);
+  background: var(--ds-color-background);
 }
 
 .panel {
-  width: min(100%, 30rem);
+  width: min(100%, 32rem);
   margin: 0 auto;
+  padding: var(--ds-space-lg);
+  background: var(--ds-color-surface);
+  border: 1px solid var(--ds-color-border-default);
+  border-top: 3px solid var(--ds-color-brand-primary);
+  border-radius: var(--ds-border-radius-md);
 }
 
 .eyebrow {
   margin: 0 0 var(--ds-space-sm);
-  color: var(--ds-accent);
-  font-size: var(--ds-text-sm);
-  font-weight: 700;
+  color: var(--ds-color-brand-primary);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
@@ -37,22 +45,22 @@
   justify-content: center;
   gap: var(--ds-space-sm);
   padding: 0.75rem 1rem;
-  border: var(--ds-border);
+  border: 1px solid var(--ds-color-border-default);
   border-radius: var(--ds-border-radius-sm);
-  background: var(--ds-paper);
-  color: var(--ds-ink);
+  background: var(--ds-color-surface);
+  color: var(--ds-color-text-primary);
   cursor: pointer;
   font: inherit;
   font-weight: 700;
 }
 
 .googleButton:hover:not(:disabled) {
-  border-color: var(--ds-accent);
-  background: var(--ds-paper-alt);
+  border-color: var(--ds-color-border-strong);
+  background: var(--ds-color-interaction-hover);
 }
 
 .googleButton:focus-visible {
-  outline: 3px solid var(--ds-accent);
+  outline: var(--ds-focus-ring);
   outline-offset: 3px;
 }
 
@@ -81,9 +89,9 @@
 .status {
   margin: var(--ds-space-md) 0 0;
   padding: var(--ds-space-sm);
-  border-left: 3px solid var(--ds-accent);
-  background: var(--ds-paper-alt);
-  color: var(--ds-ink);
+  border-left: 3px solid var(--ds-color-info);
+  background: var(--ds-color-info-surface);
+  color: var(--ds-color-text-primary);
 }
 
 .returnLink {
@@ -97,9 +105,9 @@
   display: grid;
   gap: var(--ds-space-sm);
   margin: var(--ds-space-lg) 0;
-  padding: var(--ds-space-md);
-  border: var(--ds-border);
-  border-radius: var(--ds-border-radius-sm);
+  padding: var(--ds-space-md) 0;
+  border-top: 1px solid var(--ds-color-border-subtle);
+  border-bottom: 1px solid var(--ds-color-border-subtle);
 }
 
 .accountDetails dt {
@@ -121,24 +129,36 @@
 }
 
 .signOutButton {
-  min-height: 3rem;
-  padding: 0.75rem 1rem;
-  border: var(--ds-border);
+  min-height: 2.75rem;
+  padding: 0.65rem 1rem;
+  border: 1px solid var(--ds-color-border-default);
   border-radius: var(--ds-border-radius-sm);
-  background: var(--ds-paper);
-  color: var(--ds-ink);
+  background: var(--ds-color-surface);
+  color: var(--ds-color-text-primary);
   cursor: pointer;
   font: inherit;
   font-weight: 700;
 }
 
 .signOutButton:hover {
-  border-color: var(--ds-accent);
+  border-color: var(--ds-color-border-strong);
+  background: var(--ds-color-interaction-hover);
 }
 
 .signOutButton:focus-visible {
-  outline: 3px solid var(--ds-accent);
+  outline: var(--ds-focus-ring);
   outline-offset: 3px;
+}
+
+@media (max-width: 22rem) {
+  .panel {
+    padding: var(--ds-space-md);
+  }
+
+  .googleButton,
+  .signOutButton {
+    width: 100%;
+  }
 }
 
 @media (min-width: 48rem) {
