@@ -27,12 +27,14 @@ export function SiteHeader({ currentPath = "/", authenticated = false }: SiteHea
   const pathname = usePathname() ?? currentPath;
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
-  const isProduct = authenticated || pathname === "/home" || pathname.startsWith("/documents") || pathname.startsWith("/profile") || pathname.startsWith("/account");
+  const mobileDrawerRef = useRef<HTMLDivElement>(null);
+  const isProduct = authenticated;
   const links = isProduct ? productLinks : navLinks;
 
-  function closeMenu() {
+  function closeMenu(restoreFocus = false) {
     setMenuOpen(false);
     document.body.style.overflow = "";
+    if (restoreFocus) menuButtonRef.current?.focus();
   }
 
   useEffect(() => {
@@ -41,17 +43,43 @@ export function SiteHeader({ currentPath = "/", authenticated = false }: SiteHea
 
   useEffect(() => {
     if (!menuOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    const drawer = mobileDrawerRef.current;
+    const focusableElements = drawer
+      ? Array.from(
+          drawer.querySelectorAll<HTMLElement>(
+            'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+          ),
+        )
+      : [];
+
     document.body.style.overflow = "hidden";
-    const closeOnEscape = (event: KeyboardEvent) => {
+    (focusableElements[0] ?? drawer)?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        closeMenu();
-        menuButtonRef.current?.focus();
+        closeMenu(true);
+        return;
+      }
+
+      if (event.key !== "Tab" || focusableElements.length === 0) return;
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
       }
     };
-    document.addEventListener("keydown", closeOnEscape);
+
+    document.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.removeEventListener("keydown", closeOnEscape);
-      document.body.style.overflow = "";
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
     };
   }, [menuOpen]);
 
@@ -93,8 +121,16 @@ export function SiteHeader({ currentPath = "/", authenticated = false }: SiteHea
       </div>
       {menuOpen ? (
         <>
-          <button type="button" className={styles.backdrop} aria-label="Close navigation menu" onClick={closeMenu} />
-          <div id="mobile-menu" className={styles.mobileDrawer} role="dialog" aria-modal="true" aria-label="Navigation menu">
+          <button type="button" className={styles.backdrop} aria-label="Close navigation menu" tabIndex={-1} onClick={() => closeMenu(true)} />
+          <div
+            ref={mobileDrawerRef}
+            id="mobile-menu"
+            className={styles.mobileDrawer}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation menu"
+            tabIndex={-1}
+          >
             <Container>
               <nav className={styles.mobileNav} aria-label={isProduct ? "Product" : "Primary"}>
                 <NavMenu links={links} currentPath={pathname} onNavigate={handleNavigate} />
