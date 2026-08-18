@@ -47,8 +47,6 @@ export default async function HomePage() {
     .map((row) => row.section)
     .filter((section): section is ProfileSectionKey => section in profileSectionMap);
   const trackedReadiness = [readiness.identity, ...foundationSections.map((section) => readiness[section])];
-  const readyCount = trackedReadiness.filter((item) => item.state === "ready").length;
-  const progress = Math.round((readyCount / trackedReadiness.length) * 100);
   const nextSection = trackedReadiness.some((item) => item.state !== "ready")
     ? !isReady(readiness.identity)
       ? { label: "Identity and direction", href: "/profile/basics", detail: readiness.identity.detail }
@@ -81,13 +79,10 @@ export default async function HomePage() {
         <section className={styles.progressCard} aria-labelledby="progress-title">
           <div className={styles.progressHeader}>
             <div>
-              <p className={styles.eyebrow}>Dossier</p>
-              <h2 id="progress-title">Keep building your professional record</h2>
+              <p className={styles.eyebrow}>Dossier readiness</p>
+              <h2 id="progress-title">Build a reliable professional record</h2>
+              <p className={styles.readinessIntro}>Each section becomes ready when it contains enough meaningful information to reuse in a document.</p>
             </div>
-            <strong>{progress}%</strong>
-          </div>
-          <div className={styles.progressTrack} aria-label={`${progress}% of dossier foundation complete`} role="progressbar" aria-valuemax={100} aria-valuemin={0} aria-valuenow={progress}>
-            <span style={{ width: `${progress}%` }} />
           </div>
           <div className={styles.sectionList}>
             <StatusRow label="Identity and direction" readiness={readiness.identity} href="/profile/basics" />
@@ -102,7 +97,7 @@ export default async function HomePage() {
           </div>
           <p className={styles.nextAction}>{nextSection.detail}</p>
           <Link className={styles.primaryButton} href={nextSection.href}>
-            {progress === 100 ? "Review your dossier" : `Continue with ${nextSection.label.toLowerCase()}`}
+            {nextSection.label === "Review your dossier" ? nextSection.label : `Continue with ${nextSection.label.toLowerCase()}`}
           </Link>
         </section>
 
