@@ -14,9 +14,9 @@ export default async function ProfileBasicsPage() {
     <div className={styles.page}>
       <Container>
         <div className={styles.narrow}>
-          <Link className={styles.backLink} href="/profile">Back to profile</Link>
+          <Link className={styles.backLink} href="/profile">Back to Dossier</Link>
           <header className={styles.editorHeader}>
-            <p className={styles.eyebrow}>Career profile</p>
+            <p className={styles.eyebrow}>Dossier identity</p>
             <h1>Personal information and direction</h1>
             <p>Store contact details and factual career direction. All fields are optional.</p>
           </header>
