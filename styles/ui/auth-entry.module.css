@@ -14,7 +14,7 @@
   cursor: pointer;
 }
 .entry a:focus-visible {
-  outline: 3px solid var(--ds-accent);
+  outline: 3px solid var(--ds-color-focus);
   outline-offset: 2px;
   border-radius: var(--ds-border-radius-sm);
 }
