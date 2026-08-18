@@ -101,13 +101,43 @@
   font-weight: 700;
 }
 
+.accountLayout {
+  width: min(100%, 48rem);
+  margin: 0 auto;
+}
+
+.accountHeader {
+  padding-bottom: var(--ds-space-lg);
+  border-bottom: 1px solid var(--ds-color-border-default);
+}
+
+.accountHeader .lead {
+  max-width: 42rem;
+}
+
+.settingsSection,
+.accountActionsSection {
+  padding: var(--ds-space-lg) 0;
+  border-bottom: 1px solid var(--ds-color-border-default);
+}
+
+.settingsSection h2,
+.accountActionsSection h2 {
+  margin: 0;
+  font-size: var(--ds-heading-size-md);
+}
+
+.sectionDescription {
+  margin-top: var(--ds-space-xs);
+  color: var(--ds-color-text-secondary);
+}
+
 .accountDetails {
   display: grid;
   gap: var(--ds-space-sm);
-  margin: var(--ds-space-lg) 0;
-  padding: var(--ds-space-md) 0;
+  margin: var(--ds-space-md) 0 0;
+  padding: var(--ds-space-md) 0 0;
   border-top: 1px solid var(--ds-color-border-subtle);
-  border-bottom: 1px solid var(--ds-color-border-subtle);
 }
 
 .accountDetails dt {
@@ -120,13 +150,6 @@
   overflow-wrap: anywhere;
 }
 
-.profileLink {
-  display: inline-flex;
-  min-height: 3rem;
-  align-items: center;
-  color: var(--ds-accent);
-  font-weight: 700;
-}
 
 .signOutButton {
   min-height: 2.75rem;
