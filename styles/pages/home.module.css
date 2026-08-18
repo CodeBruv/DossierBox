@@ -53,6 +53,12 @@
   font-size: var(--ds-heading-size-md);
 }
 
+.readinessIntro {
+  max-width: 42rem;
+  margin-top: var(--ds-space-xs);
+  color: var(--ds-color-text-secondary);
+}
+
 .progressHeader strong {
   flex: none;
   color: var(--ds-color-brand-primary);
