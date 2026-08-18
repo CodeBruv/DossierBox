@@ -122,8 +122,37 @@
 .successStatus {
   max-width: 42rem;
   margin-top: var(--ds-space-md);
-  color: var(--ds-color-danger);
+  color: var(--ds-color-destructive);
   font-size: var(--ds-text-sm);
+}
+
+.errorState {
+  max-width: 42rem;
+  padding-top: var(--ds-space-lg);
+  border-top: 3px solid var(--ds-color-destructive);
+}
+
+.errorState h1 {
+  max-width: 30rem;
+  font-size: var(--ds-heading-size-lg);
+}
+
+.errorState > p:not(.eyebrow) {
+  margin-top: var(--ds-space-xs);
+  color: var(--ds-color-text-secondary);
+}
+
+.errorActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-sm);
+  margin-top: var(--ds-space-md);
+}
+
+.errorActions .primaryButton,
+.errorActions .backLink {
+  margin-top: 0;
 }
 
 .choiceList {
@@ -258,7 +287,8 @@
 }
 
 @media (max-width: 22rem) {
-  .primaryButton {
+  .primaryButton,
+  .errorActions .backLink {
     width: 100%;
   }
 }
