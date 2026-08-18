@@ -8,9 +8,9 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  background-color: var(--ds-paper);
-  border-bottom: 1px solid var(--ds-rule);
-  backdrop-filter: saturate(180%) blur(4px);
+  background-color: color-mix(in srgb, var(--ds-color-surface) 94%, transparent);
+  border-bottom: 1px solid var(--ds-color-border-subtle);
+  backdrop-filter: saturate(140%) blur(10px);
 }
 
 .inner {
@@ -26,32 +26,36 @@
 }
 
 .logo {
-  font-weight: 700;
+  font-weight: var(--ds-font-weight-semibold);
   font-size: 1.25rem;
-  letter-spacing: -0.02em;
-  color: var(--ds-ink-strong);
+  letter-spacing: -0.035em;
+  color: var(--ds-color-text-primary);
   text-decoration: none;
 }
 .logo:hover { color: var(--ds-accent); }
 
-.desktopNav {
-  display: none;
+.desktopNav { display: none; }
+.utilities {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2xs);
 }
 
 .menuButton {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  width: 2rem;
-  height: 1.5rem;
-  gap: 3px;
+  width: 2.75rem;
+  height: 2.75rem;
+  gap: 4px;
   border-radius: var(--ds-border-radius-sm);
   background: transparent;
   cursor: pointer;
-  padding: 0.25rem;
+  padding: 0.75rem;
   transition: background-color var(--ds-motion-duration) var(--ds-motion-ease);
 }
-.menuButton:hover { background-color: var(--ds-paper-alt); }
+.menuButton:hover { background-color: var(--ds-color-interaction-hover); }
+.menuButton:focus-visible { outline: var(--ds-focus-ring); outline-offset: 2px; }
 
 .menuIcon {
   display: block;
@@ -66,9 +70,7 @@
 
 /* Desktop: show nav, hide mobile toggle */
 @media (min-width: 48.0625rem) {
-  .desktopNav {
-    display: block;
-  }
+  .desktopNav { display: block; margin-left: auto; }
   .desktopNav nav ul {
     flex-direction: row;
     gap: var(--ds-space-xs);
@@ -77,13 +79,24 @@
 }
 
 /* Mobile drawer */
+.backdrop {
+  position: fixed;
+  z-index: 109;
+  inset: 4rem 0 0;
+  width: 100%;
+  border: 0;
+  background: color-mix(in srgb, var(--ds-color-text-primary) 28%, transparent);
+  cursor: default;
+}
+
 .mobileDrawer {
   position: fixed;
+  z-index: 110;
   top: 4rem;
   left: 0;
   right: 0;
-  background-color: var(--ds-paper);
-  border-bottom: 1px solid var(--ds-rule);
+  background-color: var(--ds-color-surface);
+  border-bottom: 1px solid var(--ds-color-border-default);
   box-shadow: var(--ds-shadow-card);
   padding-top: var(--ds-space-sm);
   padding-bottom: var(--ds-space-lg);
