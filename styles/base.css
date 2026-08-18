@@ -30,13 +30,15 @@ html {
    blocks — it must never leak into the surrounding UI.
 */
 body {
+  min-width: 320px;
   font-family: var(--ds-font-ui);
   font-weight: var(--ds-font-weight-regular);
   font-size: var(--ds-text-base);
   line-height: var(--ds-line-height-normal);
-  color: var(--ds-ink);
-  background-color: var(--ds-paper);
+  color: var(--ds-color-text-primary);
+  background-color: var(--ds-color-background);
   -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--ds-motion-duration) var(--ds-motion-ease), color var(--ds-motion-duration) var(--ds-motion-ease);
 }
 
 /* ===========================================================================
@@ -44,20 +46,20 @@ body {
    Headings use a slightly condensed scale so tall titles (like "International
    CV") render compactly. The document font family is NOT applied here.
 =========================================================================== */
-h1, .h1 { font-size: var(--ds-heading-size-2xl); font-weight: var(--ds-font-weight-bold); line-height: var(--ds-line-height-tight); letter-spacing: -0.02em; }
-h2, .h2 { font-size: var(--ds-heading-size-xl);   font-weight: var(--ds-font-weight-semibold); line-height: var(--ds-line-height-tight); letter-spacing: -0.01em; }
-h3, .h3 { font-size: var(--ds-heading-size-lg);   font-weight: var(--ds-font-weight-semibold); line-height: var(--ds-line-height-tight); }
-h4, .h4 { font-size: var(--ds-heading-size-md);   font-weight: var(--ds-font-weight-semibold); line-height: var(--ds-line-height-tight); }
-h5, .h5 { font-size: var(--ds-heading-size-sm);   font-weight: var(--ds-font-weight-semibold); line-height: var(--ds-line-height-tight); }
-h6, .h6 { font-size: var(--ds-heading-size-xs);   font-weight: var(--ds-font-weight-semibold); line-height: var(--ds-line-height-tight); text-transform: uppercase; letter-spacing: 0.05em; font-style: normal; }
+h1, .h1 { font-size: var(--ds-heading-size-2xl); font-weight: var(--ds-font-weight-semibold); line-height: var(--ds-line-height-tight); letter-spacing: -0.035em; }
+h2, .h2 { font-size: var(--ds-heading-size-xl); font-weight: var(--ds-font-weight-semibold); line-height: var(--ds-line-height-tight); letter-spacing: -0.025em; }
+h3, .h3 { font-size: var(--ds-heading-size-lg); font-weight: var(--ds-font-weight-semibold); line-height: var(--ds-line-height-tight); }
+h4, .h4 { font-size: var(--ds-heading-size-md); font-weight: var(--ds-font-weight-semibold); line-height: var(--ds-line-height-tight); }
+h5, .h5 { font-size: var(--ds-heading-size-sm); font-weight: var(--ds-font-weight-semibold); line-height: var(--ds-line-height-tight); }
+h6, .h6 { font-size: var(--ds-heading-size-xs); font-weight: var(--ds-font-weight-semibold); line-height: var(--ds-line-height-tight); text-transform: uppercase; letter-spacing: 0.08em; font-style: normal; }
 
 a {
-  color: var(--ds-accent);
+  color: var(--ds-color-brand-primary);
   text-decoration: none;
   border-bottom: 1px solid transparent;
-  transition: border-color var(--ds-motion-duration) var(--ds-motion-ease);
+  transition: border-color var(--ds-motion-duration) var(--ds-motion-ease), color var(--ds-motion-duration) var(--ds-motion-ease);
 }
-a:hover { border-color: currentColor; }
+a:hover { color: var(--ds-color-brand-hover); border-color: currentColor; }
 a:focus-visible {
   outline: var(--ds-focus-ring);
   outline-offset: 0.125rem;
@@ -145,6 +147,7 @@ button {
   -webkit-font-smoothing: antialiased;
 }
 button:disabled, [disabled] { cursor: not-allowed; opacity: 0.6; }
+input::placeholder, textarea::placeholder { color: var(--ds-color-text-muted); opacity: 1; }
 
 /* ===========================================================================
    Images — don't overflow containers
@@ -159,13 +162,13 @@ img, svg {
    Selection color — subtle accent, not default blue
 =========================================================================== */
 ::selection {
-  background: var(--ds-accent-weak);
-  color: var(--ds-accent-hover);
+  background: var(--ds-color-brand-surface);
+  color: var(--ds-color-brand-active);
 }
 
 /* ===========================================================================
    Inset shadows for scroll edges (used on tabbed/scrollable surfaces)
 =========================================================================== */
 .shadow-inset-top {
-  box-shadow: inset 0 4px 8px -4px rgba(16, 24, 49, 0.04);
+  box-shadow: var(--ds-shadow-inset-top);
 }
