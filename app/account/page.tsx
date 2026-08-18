@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, authSessionConfiguration } from "@/auth/auth";
 import { signOutAction } from "@/auth/actions";
@@ -19,42 +18,56 @@ export default async function AccountPage() {
   return (
     <div className={styles.page}>
       <Container>
-        <section className={styles.panel} aria-labelledby="account-title">
-          <p className={styles.eyebrow}>Settings</p>
-          <h1 id="account-title" className={styles.title}>
-            Account and preferences
-          </h1>
-          <p className={styles.lead}>
-            Manage your connected identity and account session. Your professional information remains in your dossier.
-          </p>
+        <div className={styles.accountLayout}>
+          <header className={styles.accountHeader}>
+            <p className={styles.eyebrow}>Account</p>
+            <h1 id="account-title" className={styles.title}>
+              Account and settings
+            </h1>
+            <p className={styles.lead}>
+              Manage your account, appearance, and session. Your professional information remains in your Dossier.
+            </p>
+          </header>
 
-          <dl className={styles.accountDetails}>
-            <div>
-              <dt>Name</dt>
-              <dd>{session.user.name ?? "Not provided"}</dd>
-            </div>
-            <div>
-              <dt>Email</dt>
-              <dd>{session.user.email ?? "Not provided"}</dd>
-            </div>
-          </dl>
+          <section className={styles.settingsSection} aria-labelledby="profile-account-title">
+            <h2 id="profile-account-title">Account information</h2>
+            <dl className={styles.accountDetails}>
+              <div>
+                <dt>Name</dt>
+                <dd>{session.user.name ?? "Not provided"}</dd>
+              </div>
+              <div>
+                <dt>Email</dt>
+                <dd>{session.user.email ?? "Not provided"}</dd>
+              </div>
+            </dl>
+          </section>
 
-          <ThemeSelector />
+          <section className={styles.settingsSection} aria-labelledby="appearance-title">
+            <h2 id="appearance-title">Appearance</h2>
+            <p className={styles.sectionDescription}>Choose how DossierBox should appear on this device.</p>
+            <ThemeSelector />
+          </section>
 
-          <Link className={styles.profileLink} href="/home">
-            Return to your workspace
-          </Link>
+          <section className={styles.settingsSection} aria-labelledby="security-title">
+            <h2 id="security-title">Security</h2>
+            <p className={styles.sectionDescription}>Google manages authentication for this account. Password and session management will be added when the supporting infrastructure is available.</p>
+          </section>
 
-          <form action={signOutAction}>
-            <button className={styles.signOutButton} type="submit">
-              Sign out
-            </button>
-          </form>
+          <section className={styles.settingsSection} aria-labelledby="data-title">
+            <h2 id="data-title">Data</h2>
+            <p className={styles.sectionDescription}>Your Dossier is the source of truth for documents created in DossierBox.</p>
+          </section>
 
-          <Link className={styles.returnLink} href="/profile">
-            Open your dossier
-          </Link>
-        </section>
+          <section className={styles.accountActionsSection} aria-labelledby="account-actions-title">
+            <h2 id="account-actions-title">Account actions</h2>
+            <form action={signOutAction}>
+              <button className={styles.signOutButton} type="submit">
+                Sign out
+              </button>
+            </form>
+          </section>
+        </div>
       </Container>
     </div>
   );
