@@ -28,14 +28,14 @@
   height: auto;
   width: auto;
   padding: var(--ds-space-2xs) var(--ds-space-sm);
-  background-color: var(--ds-paper);
-  border: 1px solid var(--ds-rule-strong);
+  background-color: var(--ds-color-surface);
+  border: 1px solid var(--ds-color-border-strong);
   border-radius: var(--ds-border-radius-sm);
   box-shadow: var(--ds-shadow-floating);
-  color: var(--ds-ink-strong);
+  color: var(--ds-color-text-primary);
   font-size: var(--ds-text-sm);
   font-weight: var(--ds-font-weight-medium);
-  outline: 3px solid var(--ds-accent);
+  outline: 3px solid var(--ds-color-focus);
   outline-offset: 2px;
   transition: outline-color var(--ds-motion-duration) var(--ds-motion-ease);
 }
