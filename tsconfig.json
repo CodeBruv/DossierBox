@@ -42,6 +42,9 @@
       ],
       "@/profile/*": [
         "./src/profile/*"
+      ],
+      "@/documents/*": [
+        "./src/documents/*"
       ]
     },
     "plugins": [
