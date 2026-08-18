@@ -4,8 +4,8 @@
 ============================================================================ */
 
 .footer {
-  background-color: var(--ds-paper);
-  border-top: 1px solid var(--ds-rule);
+  background-color: var(--ds-color-surface);
+  border-top: 1px solid var(--ds-color-border-subtle);
   margin-top: var(--ds-space-3xl);
   padding: var(--ds-space-lg) 0 var(--ds-space-2xl);
 }
@@ -27,10 +27,10 @@
 .logo {
   font-weight: 700;
   font-size: 1.125rem;
-  color: var(--ds-ink-strong);
+  color: var(--ds-color-text-primary);
   text-decoration: none;
 }
-.logo:hover { color: var(--ds-accent); }
+.logo:hover { color: var(--ds-color-brand-hover); }
 
 .tagline {
   font-size: var(--ds-text-sm);
@@ -48,37 +48,45 @@
 }
 
 .link {
-  color: var(--ds-ink-weak);
+  color: var(--ds-color-text-secondary);
   font-size: var(--ds-text-sm);
   text-decoration: none;
   transition: color var(--ds-motion-duration) var(--ds-motion-ease);
   white-space: nowrap;
 }
 .link:hover {
-  color: var(--ds-ink-strong);
+  color: var(--ds-color-text-primary);
 }
 
-.authDesktop {
-  display: none;
+.accountArea { display: block; }
+.accountActions { display: grid; gap: var(--ds-space-2xs); }
+.signOut {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ds-color-text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--ds-text-sm);
+  text-align: left;
 }
+.signOut:hover { color: var(--ds-color-text-primary); }
+.signOut:focus-visible { outline: var(--ds-focus-ring); outline-offset: 2px; }
 
 .bottom {
   margin-top: var(--ds-space-xl);
   padding-top: var(--ds-space-md);
-  border-top: 1px solid var(--ds-rule);
+  border-top: 1px solid var(--ds-color-border-subtle);
 }
 
 .copyright {
   font-size: var(--ds-text-xs);
-  color: var(--ds-ink-faint);
+  color: var(--ds-color-text-muted);
 }
 
 /* Desktop footer layout */
 @media (min-width: 48.0625rem) {
   .columns {
     flex-wrap: nowrap;
-  }
-  .authDesktop {
-    display: block;
   }
 }
