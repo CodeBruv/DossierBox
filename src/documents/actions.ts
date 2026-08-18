@@ -18,6 +18,14 @@ export async function createDocumentAction(formData: FormData) {
   }
 
   const user = await requireProfileUser();
-  const document = await createDocument(user.id, type as DocumentType);
+  let document;
+
+  try {
+    document = await createDocument(user.id, type as DocumentType);
+  } catch (error) {
+    console.error("[documents] Failed to create document draft", error);
+    redirect("/documents/new?error=create-failed");
+  }
+
   redirect(`/documents/${document.id}`);
 }
