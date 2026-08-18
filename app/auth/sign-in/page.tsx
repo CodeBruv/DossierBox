@@ -55,7 +55,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
             className={styles.authForm}
             action={async () => {
               "use server";
-              await signIn("google", { redirectTo: callbackUrl });
+              await signIn("google", { redirectTo: callbackUrl === "/account" ? "/home" : callbackUrl });
             }}
           >
             <SignInButton disabled={!authConfiguration} />
