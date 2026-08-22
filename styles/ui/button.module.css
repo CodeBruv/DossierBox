@@ -55,11 +55,11 @@
 .variant-secondary {
   background-color: var(--ds-color-surface);
   color: var(--ds-color-text-primary);
-  border-color: var(--ds-color-border-default);
+  border-color: var(--ds-color-border-control);
 }
 .variant-secondary:hover {
   background-color: var(--ds-color-interaction-hover);
-  border-color: var(--ds-color-border-strong);
+  border-color: var(--ds-color-border-control-hover);
 }
 .variant-secondary:focus-visible,
 .variant-tertiary:focus-visible {
