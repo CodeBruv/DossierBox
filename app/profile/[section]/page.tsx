@@ -2,7 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { deleteProfileEntryAction } from "@/profile/actions";
 import { requireProfileUser } from "@/profile/authorization";
-import { getOrCreateProfile, listSectionEntries } from "@/profile/repository";
+import { DossierRail, SectionFlowFooter } from "@/profile/components/dossier-flow-nav";
+import { buildDossierFlow, currentStep } from "@/profile/flow";
+import {
+  getEnabledSectionKeys,
+  getOrCreateProfile,
+  listSectionEntries,
+} from "@/profile/repository";
 import { isProfileSection, profileSectionMap } from "@/profile/sections";
 import { Container } from "@/ui";
 import styles from "@/styles/pages/profile.module.css";
@@ -16,8 +22,12 @@ const statusMessages: Record<string, string> = {
   created: "Entry saved.",
   updated: "Entry updated.",
   deleted: "Entry deleted.",
+  "sections-saved": "Sections updated. Continue from here.",
+  "basics-saved": "Identity saved. Continue from here.",
   "delete-failed": "The entry could not be deleted.",
 };
+
+const failureStatuses = new Set(["delete-failed"]);
 
 export default async function ProfileSectionPage({ params, searchParams }: SectionPageProps) {
   const { section } = await params;
@@ -25,28 +35,42 @@ export default async function ProfileSectionPage({ params, searchParams }: Secti
 
   const user = await requireProfileUser();
   const profile = await getOrCreateProfile(user.id, user);
-  const [entries, query] = await Promise.all([
+  const [entries, enabled, query] = await Promise.all([
     listSectionEntries(section, profile.id),
+    getEnabledSectionKeys(profile.id),
     searchParams,
   ]);
+
   const definition = profileSectionMap[section];
+  const flow = buildDossierFlow(enabled);
+  const step = currentStep(flow, section);
   const status = query.status ? statusMessages[query.status] : undefined;
+  const isFailure = query.status ? failureStatuses.has(query.status) : false;
 
   return (
     <div className={styles.page}>
       <Container>
         <div className={styles.narrow}>
-          <Link className={styles.backLink} href="/profile">Back to Dossier</Link>
+          <DossierRail currentKey={section} flow={flow} />
+
           <header className={styles.sectionPageHeader}>
             <div>
-              <p className={styles.eyebrow}>Dossier section</p>
+              <p className={styles.eyebrow}>
+                {step ? `Step ${step.position} of ${flow.total}` : "Optional section"}
+              </p>
               <h1>{definition.label}</h1>
               <p>{definition.description}</p>
             </div>
-            <Link className={styles.primaryButton} href={`/profile/${section}/new`}>Add {definition.singular}</Link>
           </header>
 
-          {status ? <p className={query.status === "delete-failed" ? styles.errorSummary : styles.successStatus} role="status">{status}</p> : null}
+          {status ? (
+            <p
+              className={isFailure ? styles.errorSummary : styles.successStatus}
+              role="status"
+            >
+              {status}
+            </p>
+          ) : null}
 
           {entries.length ? (
             <div className={styles.entryList}>
@@ -71,11 +95,20 @@ export default async function ProfileSectionPage({ params, searchParams }: Secti
             </div>
           ) : (
             <div className={styles.emptyState}>
-              <h2>No entries yet</h2>
-              <p>Add only factual information you want available for future use.</p>
-              <Link className={styles.primaryButton} href={`/profile/${section}/new`}>Add {definition.singular}</Link>
+              <h2>Nothing here yet</h2>
+              <p>Add only factual information you want available for future documents.</p>
+              <Link className={styles.primaryButton} href={`/profile/${section}/new`}>
+                Add {definition.singular}
+              </Link>
             </div>
           )}
+
+          <SectionFlowFooter
+            flow={flow}
+            hasEntries={entries.length > 0}
+            section={section}
+            singular={definition.singular}
+          />
         </div>
       </Container>
     </div>
