@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { authSessionConfiguration } from "@/auth/auth";
 import { getSession } from "@/auth/session";
+import { resolveTemplate } from "@/documents/presentation";
 import { listDocuments, documentTypeLabel } from "@/documents/repository";
 import { Container } from "@/ui";
 import styles from "@/styles/pages/documents.module.css";
@@ -23,8 +25,9 @@ export default async function DocumentsPage() {
             <h1>We couldn't load your documents right now.</h1>
             <p>Please try again. Your saved dossier and documents have not been changed.</p>
             <div className={styles.errorActions}>
+              {/* Deliberately a plain anchor: this one is meant to re-request the page. */}
               <a className={styles.primaryButton} href="/documents">Try again</a>
-              <a className={styles.backLink} href="/home">Back to Home</a>
+              <Link className={styles.backLink} href="/home">Back to Home</Link>
             </div>
           </div>
         </Container>
@@ -41,7 +44,7 @@ export default async function DocumentsPage() {
             <h1>Your documents</h1>
             <p className={styles.lead}>Documents are created from your dossier for a specific purpose. Your reusable information stays in the dossier.</p>
           </div>
-          <a className={styles.primaryButton} href="/documents/new">Create a document</a>
+          <Link className={styles.primaryButton} href="/documents/new">Create a document</Link>
         </div>
 
         {documents.length ? (
@@ -51,9 +54,20 @@ export default async function DocumentsPage() {
                 <div>
                   <p className={styles.documentType}>{documentTypeLabel(document.type)}</p>
                   <h2>{document.title}</h2>
-                  <p className={styles.documentMeta}>Draft · Created {document.createdAt.toLocaleDateString()}</p>
+                  {/*
+                    Updated, not created, because the list is ordered by
+                    updatedAt — showing a different date than the one the order
+                    is based on makes the ordering look arbitrary. The style is
+                    named too: two documents of the same type can now differ
+                    only by style, and this is where the user tells them apart.
+                  */}
+                  <p className={styles.documentMeta}>
+                    {document.status === "draft" ? "Draft" : document.status} ·{" "}
+                    {resolveTemplate(document.template, document.type).label} · Updated{" "}
+                    {document.updatedAt.toLocaleDateString()}
+                  </p>
                 </div>
-                <a className={styles.secondaryButton} href={`/documents/${document.id}`}>Open</a>
+                <Link className={styles.secondaryButton} href={`/documents/${document.id}`}>Open</Link>
               </article>
             ))}
           </div>
@@ -61,7 +75,7 @@ export default async function DocumentsPage() {
           <div className={styles.emptyState}>
             <h2>Your document workspace is ready when you are.</h2>
             <p>Start with a purpose and create a draft connected to your dossier.</p>
-            <a className={styles.primaryButton} href="/documents/new">Create a document</a>
+            <Link className={styles.primaryButton} href="/documents/new">Create a document</Link>
           </div>
         )}
       </Container>
