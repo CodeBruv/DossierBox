@@ -7,6 +7,13 @@ node_modules/
 out/
 build/
 
+# TypeScript incremental build cache. This is a build artifact and was being
+# tracked, so it appeared in every diff. It is already committed, so ignoring it
+# here is not enough — untrack it once with:
+#   git rm --cached tsconfig.tsbuildinfo
+*.tsbuildinfo
+next-env.d.ts
+
 # Environment
 .env
 .env.local
