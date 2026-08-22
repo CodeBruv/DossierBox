@@ -1,0 +1,44 @@
+# Line endings.
+#
+# The repository stores LF. Without this file, editing on Windows rewrites files
+# to CRLF and git reports every line of every file as changed: `git diff --check`
+# produced 16,978 whitespace errors and `git diff --stat` claimed roughly 78 files
+# and 10,000 changed lines when the real change was 41 files. That makes review
+# impossible and hides genuine changes inside the noise.
+#
+# `text=auto` lets git detect text files and normalise them to LF on the way into
+# the index; `eol=lf` checks them back out as LF so the divergence cannot reappear.
+# Adding this file alone dropped the phantom diff to 120 lines without rewriting
+# anything in the working tree.
+#
+# One-time cleanup, best run immediately after committing unrelated work so the
+# two do not mix:
+#
+#   git add --renormalize .
+#   git commit -m "Normalise line endings to LF"
+#
+* text=auto eol=lf
+
+# Explicitly binary. `text=auto` detects these correctly in practice, but naming
+# them means a corrupt font or image can never be attributed to line-ending
+# translation.
+*.woff   binary
+*.woff2  binary
+*.ttf    binary
+*.otf    binary
+*.eot    binary
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.webp   binary
+*.avif   binary
+*.ico    binary
+*.pdf    binary
+
+# SVG is text and benefits from real diffs.
+*.svg    text eol=lf
+
+# Generated. Marking these keeps merge conflicts in them from being hand-edited.
+package-lock.json  -diff linguist-generated
+*.tsbuildinfo      -diff linguist-generated
