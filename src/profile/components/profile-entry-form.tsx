@@ -8,6 +8,12 @@ import styles from "@/styles/pages/profile.module.css";
 
 type ProfileEntryFormProps = {
   action: (state: ProfileFormState, formData: FormData) => Promise<ProfileFormState>;
+  /**
+   * Only shown when creating. Editing one entry has no "another" to add, and
+   * offering it there would be a button that exists because the code allows it
+   * rather than because the user needs it.
+   */
+  allowAddAnother?: boolean;
   cancelHref: string;
   definition: ProfileSectionDefinition;
   initialValues?: Record<string, unknown>;
@@ -16,6 +22,7 @@ type ProfileEntryFormProps = {
 
 export function ProfileEntryForm({
   action,
+  allowAddAnother = false,
   cancelHref,
   definition,
   initialValues = {},
@@ -122,10 +129,27 @@ export function ProfileEntryForm({
       </div>
 
       <div className={styles.formActions}>
-        <button className={styles.primaryButton} disabled={pending} type="submit">
+        <button
+          className={styles.primaryButton}
+          disabled={pending}
+          name="intent"
+          type="submit"
+          value="stay"
+        >
           {pending ? "Saving..." : submitLabel}
         </button>
-        <Link className={styles.secondaryButton} href={cancelHref}>
+        {allowAddAnother ? (
+          <button
+            className={styles.secondaryButton}
+            disabled={pending}
+            name="intent"
+            type="submit"
+            value="another"
+          >
+            Save and add another
+          </button>
+        ) : null}
+        <Link className={styles.quietLink} href={cancelHref}>
           Cancel
         </Link>
       </div>
