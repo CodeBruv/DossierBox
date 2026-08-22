@@ -23,14 +23,42 @@
 
   --ds-color-text-primary: #17211f;
   --ds-color-text-secondary: #465552;
-  --ds-color-text-muted: #687773;
+  /* Measured: 4.56:1 on the subtle panel, 4.83:1 on the page, 5.19:1 on white.
+     The previous #687773 fell to 4.12:1 on subtle panels and 4.37:1 on the page,
+     which is why hints and counts read as barely-there grey. Still clearly a
+     third step below text-secondary (6.87:1), so the hierarchy is intact. */
+  --ds-color-text-muted: #61706c;
   --ds-color-text-inverse: #f8fbfa;
+  --ds-color-text-inverse-secondary: #c1d0cb;
   --ds-color-surface-inverse: #17211f;
-  --ds-color-border-inverse: #465552;
+  /* 3.04:1 on the inverse slab; the previous #465552 sat at 2.11:1, so any
+     control edge drawn inside the dark panel effectively vanished. */
+  --ds-color-border-inverse: #5e6d6a;
 
   --ds-color-border-default: #d5dfdc;
   --ds-color-border-subtle: #e5ebe8;
+  /* Decorative emphasis only — thick rules, the document illustration on the
+     landing page, and anything aliased through --ds-rule-strong. It is NOT a
+     control boundary and is deliberately not held to 3:1. */
   --ds-color-border-strong: #aebdb8;
+  /*
+     Boundary of an interactive control — text input, select, textarea, outlined
+     button, selectable card. WCAG 1.4.11 asks for 3:1 against the adjacent
+     background for anything that identifies a control, and border-default
+     (1.27:1 on the page) does not come close: fields looked like floating text.
+
+     This is deliberately a separate token rather than a darker border-default.
+     Dividers, card edges and table rules carry no such requirement, and pushing
+     every hairline to 3:1 would turn a quiet document-first interface into a
+     grid of hard boxes. Measured: 3.42:1 on white, 3.18:1 on the page,
+     3.00:1 on subtle panels.
+  */
+  --ds-color-border-control: #838d8a;
+  /* Hover/emphasis state of the same boundary. It must be firmer than the
+     resting state, which is why hover cannot reuse border-strong: at 1.95:1 that
+     token is lighter than the resting control edge, so hovering a button used to
+     make its outline fade. Measured 4.81:1 on white, 4.48:1 on the page. */
+  --ds-color-border-control-hover: #6b7471;
 
   --ds-color-brand-primary: #0f766e;
   --ds-color-brand-hover: #0b5f59;
@@ -50,7 +78,9 @@
 
   --ds-color-interaction-hover: #e8efec;
   --ds-color-interaction-selected: #d9f0ec;
-  --ds-color-interaction-disabled: #a4b0ad;
+  /* Disabled text is exempt from the 4.5:1 rule, but 2.24:1 was unreadable
+     rather than merely quiet. 3.04:1 keeps it legibly inactive. */
+  --ds-color-interaction-disabled: #85918e;
   --ds-color-focus: #0f766e;
 
   /* Compatibility aliases for existing modules. */
@@ -150,7 +180,16 @@
   --ds-shadow-card: 0 1px 2px rgb(18 38 34 / 0.06), 0 6px 18px rgb(18 38 34 / 0.04);
   --ds-shadow-floating: 0 18px 42px rgb(18 38 34 / 0.16), 0 4px 10px rgb(18 38 34 / 0.08);
   --ds-shadow-inset-top: inset 0 4px 8px -4px rgb(18 38 34 / 0.04);
-  --ds-focus-ring: 0 0 0 3px var(--ds-color-surface), 0 0 0 6px var(--ds-color-focus);
+
+  /* Focus ring.
+     This MUST stay a valid `outline` shorthand. Every consumer applies it as
+     `outline: var(--ds-focus-ring)`. It previously held a two-layer box-shadow
+     value, which made those declarations invalid at computed-value time; the
+     browser then fell back to `outline: none` and suppressed even the default
+     user-agent ring, leaving the whole app with no visible keyboard focus.
+     Pair with `outline-offset` for separation instead of a surface-coloured
+     inner ring. */
+  --ds-focus-ring: 2px solid var(--ds-color-focus);
 
   /* ---------------------------------------------------------------------------
      Responsiveness breakpoints (mobile-first).
@@ -172,12 +211,19 @@
   --ds-color-text-primary: #edf5f2;
   --ds-color-text-secondary: #c1d0cb;
   --ds-color-text-muted: #91a59e;
-  --ds-color-text-inverse: #10201d;
-  --ds-color-surface-inverse: #0d1412;
-  --ds-color-border-inverse: #59716a;
+  /* The inverse slab stays a deliberate panel in dark mode, but it cannot go
+     darker than an already-dark page without becoming a void. So it lifts to an
+     elevated tone and its text stays light. Previously text-inverse (#10201d)
+     sat on surface-inverse (#0d1412) — ~1.1:1, i.e. invisible. */
+  --ds-color-text-inverse: #edf5f2;
+  --ds-color-text-inverse-secondary: #c1d0cb;
+  --ds-color-surface-inverse: #2b403b;
+  --ds-color-border-inverse: #738b84;
   --ds-color-border-default: #3b514b;
   --ds-color-border-subtle: #2b403b;
   --ds-color-border-strong: #59716a;
+  --ds-color-border-control: #677d77;
+  --ds-color-border-control-hover: #7a948c;
   --ds-color-brand-primary: #63c8bd;
   --ds-color-brand-hover: #83d8ce;
   --ds-color-brand-active: #a0e5dc;
@@ -200,7 +246,8 @@
   --ds-shadow-card: 0 1px 2px rgb(0 0 0 / 0.25), 0 8px 20px rgb(0 0 0 / 0.16);
   --ds-shadow-floating: 0 20px 48px rgb(0 0 0 / 0.35), 0 5px 12px rgb(0 0 0 / 0.2);
   --ds-shadow-inset-top: inset 0 4px 8px -4px rgb(0 0 0 / 0.2);
-  --ds-focus-ring: 0 0 0 3px var(--ds-color-surface), 0 0 0 6px var(--ds-color-focus);
+  /* No --ds-focus-ring override needed: it resolves --ds-color-focus, which is
+     redefined above. Re-adding it here would only risk the two copies drifting. */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -214,12 +261,15 @@
     --ds-color-text-primary: #edf5f2;
     --ds-color-text-secondary: #c1d0cb;
     --ds-color-text-muted: #91a59e;
-    --ds-color-text-inverse: #10201d;
-    --ds-color-surface-inverse: #0d1412;
-    --ds-color-border-inverse: #59716a;
+    --ds-color-text-inverse: #edf5f2;
+    --ds-color-text-inverse-secondary: #c1d0cb;
+    --ds-color-surface-inverse: #2b403b;
+    --ds-color-border-inverse: #738b84;
     --ds-color-border-default: #3b514b;
     --ds-color-border-subtle: #2b403b;
     --ds-color-border-strong: #59716a;
+    --ds-color-border-control: #677d77;
+    --ds-color-border-control-hover: #7a948c;
     --ds-color-brand-primary: #63c8bd;
     --ds-color-brand-hover: #83d8ce;
     --ds-color-brand-active: #a0e5dc;
@@ -242,7 +292,6 @@
     --ds-shadow-card: 0 1px 2px rgb(0 0 0 / 0.25), 0 8px 20px rgb(0 0 0 / 0.16);
     --ds-shadow-floating: 0 20px 48px rgb(0 0 0 / 0.35), 0 5px 12px rgb(0 0 0 / 0.2);
     --ds-shadow-inset-top: inset 0 4px 8px -4px rgb(0 0 0 / 0.2);
-    --ds-focus-ring: 0 0 0 3px var(--ds-color-surface), 0 0 0 6px var(--ds-color-focus);
   }
 }
 
