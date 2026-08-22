@@ -1,0 +1,284 @@
+/* =============================================================================
+   Document preview — the sheet
+   =============================================================================
+   This module owns layout only: the shape of the page, its margins, and the
+   vertical rhythm between sections and entries. Typography — the serif family,
+   body metrics, section titles, bullets — comes from the global `.document-*`
+   classes in typography.css, which were written for exactly this component. The
+   split is deliberate: when the PDF renderer arrives it must produce the same
+   type as the preview, so the type rules have to live somewhere both can read.
+============================================================================ */
+
+/*
+   The sheet re-points three inherited aliases at the fixed document palette.
+
+   This is the whole reason the preview can be trusted. `--ds-ink` and `--ds-rule`
+   resolve through the themeable colour layer, and the global `.document-body`,
+   `.document-section-title` and `.document-bullet` rules read them — so on a
+   white sheet in dark mode the document's own text resolved to #edf5f2 and
+   disappeared. Because custom properties inherit, redefining them here fixes
+   every descendant at once without editing a single global rule.
+
+   It also repairs printing. print.css pins `body { color: #000 }`, but a class
+   selector beats an element selector, so `.document-body { color: var(--ds-ink) }`
+   won every time and printing in dark mode produced light text on white paper.
+   The local values apply in print too, so the sheet is now literally ink on
+   paper wherever it is rendered.
+
+   A template's `--doc-*` properties are set inline on this same element by the
+   preview component, which is why every metric below reads one with a fallback:
+   the fallback is the untemplated document, and the template only redirects. No
+   rule here is ever written twice for a different style.
+*/
+.sheet {
+  --sheet-margin: var(--doc-margin, var(--ds-document-margins));
+
+  --ds-ink: var(--ds-document-ink);
+  --ds-ink-weak: var(--ds-document-ink-weak);
+  --ds-rule: var(--ds-document-rule);
+
+  width: 100%;
+  max-width: var(--doc-paper-width, var(--ds-page-a4-w));
+  margin-inline: auto;
+  padding: var(--sheet-margin);
+  background: var(--ds-document-paper);
+  color: var(--ds-document-ink);
+  border: 1px solid var(--ds-document-rule);
+  border-radius: var(--ds-border-radius-sm);
+  box-shadow: var(--ds-shadow-card);
+}
+
+/*
+   24mm of margin is correct on paper and absurd on a phone: it would leave
+   roughly 180px of measure on a 360px viewport. So the sheet keeps real print
+   margins where there is room and falls back to UI spacing where there is not.
+
+   The tradeoff is explicit: at narrow widths this is a reading view of the
+   document's content, not a scale simulation of the printed page. Nothing about
+   the text changes — only the surrounding whitespace — so what the reader sees
+   is still what they will download.
+*/
+@media (max-width: 64rem) {
+  .sheet {
+    --sheet-margin: var(--ds-document-margins-dense);
+  }
+}
+
+@media (max-width: 48rem) {
+  .sheet {
+    --sheet-margin: var(--ds-space-md);
+    border-radius: 0;
+  }
+}
+
+/* ---- Masthead ---------------------------------------------------------- */
+
+.masthead {
+  margin-bottom: 1.6em;
+}
+
+.name {
+  font-size: var(--doc-name-size, 19pt);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: var(--doc-name-tracking, -0.01em);
+  color: var(--doc-name-ink, var(--ds-document-ink));
+  margin: 0;
+  /* A long legal name must wrap rather than push the sheet wider. */
+  overflow-wrap: break-word;
+}
+
+.headline {
+  font-size: 11pt;
+  line-height: 1.35;
+  margin: 0.3em 0 0;
+  color: var(--ds-document-ink);
+}
+
+/*
+   Contacts arrive as an array and are joined here, in the presentation layer,
+   because the separator is a visual decision. They are joined into one string
+   rather than wrapped in per-item elements with a generated separator so that
+   selecting and copying an email address out of the preview yields readable
+   text — which someone will absolutely do.
+*/
+.contacts {
+  font-size: 9.5pt;
+  line-height: 1.4;
+  margin: 0.5em 0 0;
+  color: var(--ds-document-ink-weak);
+  overflow-wrap: break-word;
+}
+
+/* ---- Sections --------------------------------------------------------- */
+
+.section {
+  /* Keep a heading with the content it introduces when the page breaks. */
+  break-inside: auto;
+}
+
+/*
+   Written as a descendant of .section purely to out-specify the global
+   `.document-section-title`. Two single-class selectors carry equal specificity,
+   so which one wins would otherwise depend on stylesheet order — and the order
+   of a global stylesheet against a CSS Module is not something to rely on.
+
+   It reads `--doc-section-gap` for the same reason the global rule does: this
+   selector wins, so if it hard-coded a gap it would silently defeat every
+   template's section rhythm.
+*/
+.section > .sectionTitle {
+  margin-top: var(--doc-section-gap, 1.5em);
+  break-after: avoid;
+}
+
+.section:first-of-type > .sectionTitle {
+  margin-top: 0;
+}
+
+/*
+   Numbered headings, as the reference CV numbers them.
+
+   A counter rather than numbers in the composition layer, because the number is
+   not information — it is a convention of one visual style, and the same document
+   moved to another template must lose it without its content changing. The
+   counter also renumbers itself when a section is hidden, which a stored index
+   could not do.
+*/
+.numbered {
+  counter-reset: doc-section;
+}
+
+.numbered .sectionTitle::before {
+  counter-increment: doc-section;
+  content: counter(doc-section) ". ";
+}
+
+.prose {
+  margin: 0;
+}
+
+/* ---- Entries ---------------------------------------------------------- */
+
+.entries {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.entry {
+  /* An entry split across a page break is the classic CV formatting failure. */
+  break-inside: avoid;
+}
+
+.entry + .entry {
+  margin-top: var(--doc-entry-gap, 0.9em);
+}
+
+.entryTitle {
+  font-size: 10.5pt;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0;
+  overflow-wrap: break-word;
+}
+
+/*
+   The split arrangement: title left, dates flush right on one line.
+
+   The reference résumé achieves this in Word with a right tab stop at 7.61in and
+   a hard tab. Flexbox is the honest equivalent — a tab stop is a fixed position,
+   which on a fluid sheet would leave the dates stranded mid-line at some widths.
+
+   `gap` and `flex-shrink: 0` on the meta are what keep it safe: a long role title
+   wraps within its own column instead of colliding with the dates or pushing them
+   off the sheet, which is exactly what the tab-stop version does badly.
+*/
+.entryHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--ds-space-sm);
+}
+
+.entryHead .entryTitle {
+  /* Claims the space the dates do not, so wrapping happens here. */
+  flex: 1 1 auto;
+}
+
+.entryHead .entryMeta {
+  flex: 0 0 auto;
+  margin-top: 0;
+  text-align: right;
+}
+
+/* Below this the sheet is too narrow to hold two columns of text honestly. */
+@media (max-width: 30rem) {
+  .entryHead {
+    display: block;
+  }
+
+  .entryHead .entryMeta {
+    margin-top: 0.15em;
+    text-align: left;
+  }
+}
+
+.entrySubtitle {
+  font-size: 10.5pt;
+  line-height: 1.3;
+  margin: 0.1em 0 0;
+  overflow-wrap: break-word;
+}
+
+.entryMeta {
+  font-size: 9.5pt;
+  line-height: 1.35;
+  font-style: var(--doc-meta-style, normal);
+  margin: 0.15em 0 0;
+  color: var(--ds-document-ink-weak);
+}
+
+.entryDetail {
+  margin-top: 0.35em;
+}
+
+/*
+   URLs are the one field that can be longer than the measure, so they are
+   allowed to break anywhere. Underlined rather than coloured: a printed
+   document has no hover state and a blue link reads as a web page.
+*/
+.entryLink {
+  display: inline-block;
+  font-size: 9.5pt;
+  line-height: 1.35;
+  margin-top: 0.15em;
+  color: var(--ds-document-ink-weak);
+  overflow-wrap: anywhere;
+}
+
+/* ---- Inline and grouped lists ----------------------------------------- */
+
+.inlineItems {
+  margin: 0;
+}
+
+/*
+   A skill group prints the way a career document prints it: one line, label
+   first. Rendered as a paragraph with a bold label rather than a definition
+   list, because getting <dt>/<dd> onto a shared line requires overriding
+   display and the user-agent indent, and the resulting markup is announced
+   worse, not better.
+*/
+.group {
+  margin: 0;
+}
+
+.group + .group {
+  margin-top: 0.3em;
+}
+
+.groupLabel {
+  font-weight: 700;
+}
+
