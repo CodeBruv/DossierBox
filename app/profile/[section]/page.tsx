@@ -18,16 +18,32 @@ type SectionPageProps = {
   searchParams: Promise<{ status?: string }>;
 };
 
-const statusMessages: Record<string, string> = {
-  created: "Entry saved.",
-  updated: "Entry updated.",
-  deleted: "Entry deleted.",
-  "sections-saved": "Sections updated. Continue from here.",
-  "basics-saved": "Identity saved. Continue from here.",
-  "delete-failed": "The entry could not be deleted.",
+type StatusTone = "success" | "notice" | "failure";
+
+const statusMessages: Record<string, { message: string; tone: StatusTone }> = {
+  created: { message: "Entry saved.", tone: "success" },
+  updated: { message: "Entry updated.", tone: "success" },
+  deleted: { message: "Entry deleted.", tone: "success" },
+  "sections-saved": { message: "Sections updated. Continue from here.", tone: "success" },
+  "basics-saved": { message: "Identity saved. Continue from here.", tone: "success" },
+  "delete-failed": { message: "The entry could not be deleted.", tone: "failure" },
+  /**
+   * Reached when an edit link points at an entry that is no longer in the
+   * dossier — most often because it was deleted in another tab, or the link was
+   * followed from a stale page. Previously this rendered a bare 404, which reads
+   * as "this part of DossierBox is broken" rather than "that one entry is gone".
+   */
+  "entry-missing": {
+    message: "That entry is no longer in your dossier. It may have already been deleted.",
+    tone: "notice",
+  },
 };
 
-const failureStatuses = new Set(["delete-failed"]);
+const toneClass: Record<StatusTone, string> = {
+  success: styles.successStatus,
+  notice: styles.noticeStatus,
+  failure: styles.errorSummary,
+};
 
 export default async function ProfileSectionPage({ params, searchParams }: SectionPageProps) {
   const { section } = await params;
@@ -45,7 +61,6 @@ export default async function ProfileSectionPage({ params, searchParams }: Secti
   const flow = buildDossierFlow(enabled);
   const step = currentStep(flow, section);
   const status = query.status ? statusMessages[query.status] : undefined;
-  const isFailure = query.status ? failureStatuses.has(query.status) : false;
 
   return (
     <div className={styles.page}>
@@ -65,10 +80,10 @@ export default async function ProfileSectionPage({ params, searchParams }: Secti
 
           {status ? (
             <p
-              className={isFailure ? styles.errorSummary : styles.successStatus}
-              role="status"
+              className={toneClass[status.tone]}
+              role={status.tone === "failure" ? "alert" : "status"}
             >
-              {status}
+              {status.message}
             </p>
           ) : null}
 
