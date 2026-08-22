@@ -51,4 +51,45 @@ export const routes = {
   profile: "/profile",
   profileBasics: "/profile/basics",
   profileSections: "/profile/sections",
+  profileReview: "/profile/review",
+  terms: "/terms",
+  privacy: "/privacy",
+  contact: "/contact",
 } as const;
+
+/**
+ * Secondary footer groups. The footer is deliberately not a second copy of the
+ * header: it carries acquisition and legal links only, and nothing that the
+ * sticky header already provides.
+ */
+export const footerGroups: { id: string; label: string; links: NavLink[] }[] = [
+  {
+    id: "product",
+    label: "Product",
+    links: [
+      { id: "templates", label: "Templates", href: "/templates" },
+      { id: "how", label: "How it works", href: "/how-it-works" },
+      { id: "pricing", label: "Pricing", href: "/pricing" },
+    ],
+  },
+  {
+    id: "company",
+    label: "Company",
+    links: [
+      { id: "contact", label: "Contact", href: "/contact" },
+      { id: "terms", label: "Terms", href: "/terms" },
+      { id: "privacy", label: "Privacy", href: "/privacy" },
+    ],
+  },
+] as const;
+
+/**
+ * Signed-in users get legal links only. Product marketing pages are acquisition
+ * surfaces; showing them under someone's own workspace is noise, and the header
+ * already owns Home / Dossier / Documents / Account.
+ */
+export const footerLegalLinks: NavLink[] = [
+  { id: "terms", label: "Terms", href: "/terms" },
+  { id: "privacy", label: "Privacy", href: "/privacy" },
+  { id: "contact", label: "Contact", href: "/contact" },
+] as const;
