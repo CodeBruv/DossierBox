@@ -1,92 +1,156 @@
 /* =============================================================================
-   SiteFooter — clean, minimal, secondary navigation.
+   SiteFooter — the quietest surface in the product.
+
+   Two shapes, because the two audiences need different things:
+   · public       → brand, tagline, and two labelled link groups
+   · authenticated → brand and legal links on one line, nothing else
+
    Restrained: no cards, no icons-as-decoration, just typography and rules.
 ============================================================================ */
 
-.footer {
-  background-color: var(--ds-color-surface);
-  border-top: 1px solid var(--ds-color-border-subtle);
+.footer,
+.footerCompact {
   margin-top: var(--ds-space-3xl);
-  padding: var(--ds-space-lg) 0 var(--ds-space-2xl);
+  border-top: 1px solid var(--ds-color-border-subtle);
+  background-color: var(--ds-color-surface);
 }
 
+.footer {
+  padding: var(--ds-space-xl) 0 var(--ds-space-lg);
+}
+
+/* Inside the app the footer should barely register. */
+.footerCompact {
+  margin-top: var(--ds-space-2xl);
+  padding: var(--ds-space-md) 0;
+}
+
+/* Mobile-first: one column. The previous `flex-wrap` + `space-between` left
+   uneven gaps and a staggered third column at intermediate widths. */
 .columns {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: var(--ds-space-xl);
+  display: grid;
+  gap: var(--ds-space-lg);
+}
+
+.compactRow {
+  display: grid;
+  gap: var(--ds-space-2xs);
 }
 
 .branding {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: var(--ds-space-2xs);
+  align-content: start;
 }
 
 .logo {
-  font-weight: 700;
-  font-size: 1.125rem;
+  align-self: start;
   color: var(--ds-color-text-primary);
+  font-size: 1.125rem;
+  font-weight: 700;
   text-decoration: none;
 }
-.logo:hover { color: var(--ds-color-brand-hover); }
+
+.logo:hover {
+  color: var(--ds-color-brand-hover);
+}
+
+.logo:focus-visible {
+  outline: var(--ds-focus-ring);
+  outline-offset: 3px;
+}
 
 .tagline {
-  font-size: var(--ds-text-sm);
+  max-width: 22rem;
   color: var(--ds-ink-weak);
+  font-size: var(--ds-text-sm);
   line-height: var(--ds-line-height-normal);
 }
 
+.groups {
+  display: grid;
+  gap: var(--ds-space-lg);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.groupLabel {
+  margin: 0 0 var(--ds-space-2xs);
+  color: var(--ds-color-text-primary);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ds-space-2xs);
-  list-style: none;
+  display: grid;
+  gap: var(--ds-space-3xs);
   margin: 0;
   padding: 0;
+  list-style: none;
+}
+
+/* Legal links sit on one wrapping line: three short links do not deserve a
+   column each, and they must be allowed to wrap on a narrow phone. */
+.inlineList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2xs) var(--ds-space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .link {
+  /* 2.25rem keeps the tap target usable without inflating the footer. */
+  display: inline-flex;
+  min-height: 2.25rem;
+  align-items: center;
   color: var(--ds-color-text-secondary);
   font-size: var(--ds-text-sm);
   text-decoration: none;
   transition: color var(--ds-motion-duration) var(--ds-motion-ease);
-  white-space: nowrap;
 }
+
 .link:hover {
   color: var(--ds-color-text-primary);
+  text-decoration: underline;
 }
 
-.accountArea { display: block; }
-.accountActions { display: grid; gap: var(--ds-space-2xs); }
-.signOut {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--ds-color-text-secondary);
-  cursor: pointer;
-  font: inherit;
-  font-size: var(--ds-text-sm);
-  text-align: left;
+.link:focus-visible {
+  outline: var(--ds-focus-ring);
+  outline-offset: 3px;
 }
-.signOut:hover { color: var(--ds-color-text-primary); }
-.signOut:focus-visible { outline: var(--ds-focus-ring); outline-offset: 2px; }
 
 .bottom {
-  margin-top: var(--ds-space-xl);
-  padding-top: var(--ds-space-md);
+  margin-top: var(--ds-space-lg);
+  padding-top: var(--ds-space-sm);
   border-top: 1px solid var(--ds-color-border-subtle);
 }
 
-.copyright {
-  font-size: var(--ds-text-xs);
-  color: var(--ds-color-text-muted);
+.footerCompact .bottom {
+  margin-top: var(--ds-space-sm);
 }
 
-/* Desktop footer layout */
-@media (min-width: 48.0625rem) {
+.copyright {
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-text-xs);
+}
+
+@media (min-width: 48rem) {
   .columns {
-    flex-wrap: nowrap;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--ds-space-2xl);
+    align-items: start;
+  }
+
+  .groups {
+    gap: var(--ds-space-2xl);
+    grid-template-columns: repeat(2, auto);
+  }
+
+  .compactRow {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
   }
 }
