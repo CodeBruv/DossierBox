@@ -20,7 +20,7 @@ The user's career profile is the **factual source of truth**; documents are deri
 ### Status: Complete
 - `package.json` — Next.js 15, React 19, TypeScript 5
 - `tsconfig.json` — strict mode, path aliases (`@/*`, `@/ui/*`, `@/config/*`, `@/lib/*`)
-- `next.config.js` — standalone output, strict mode
+- `next.config.js` — React strict mode. (No `output: "standalone"`: the deploy target is Vercel, which produces its own output. Do not reason as if this runs as a long-lived Node server — server pages run as serverless functions, which is why the DB pool ceiling is kept small.)
 - `styles/tokens.css` — design token system (colors, typography scales, spacing, breakpoints, document metrics, shadows)
 - `styles/base.css` — box model reset, base typography, accessible element styles
 - `styles/typography.css` — font-face declarations, document-font scoping, document-ready typography helpers
