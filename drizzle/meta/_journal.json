@@ -29,6 +29,13 @@
       "when": 1787052882448,
       "tag": "0003_bent_daredevil",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1787139282448,
+      "tag": "0004_document_configuration",
+      "breakpoints": true
     }
   ]
 }
