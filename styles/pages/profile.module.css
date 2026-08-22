@@ -479,12 +479,22 @@
 }
 
 .successStatus,
+.noticeStatus,
 .errorSummary {
   margin: var(--ds-space-md) 0 0;
   padding: var(--ds-space-sm);
   border-left: 3px solid var(--ds-color-success);
   background: var(--ds-color-success-surface);
   color: var(--ds-color-success);
+}
+
+/* Neutral notice: something the user should know about, but not their mistake
+   and not a success worth congratulating. Uses the already contrast-audited
+   info pair, so it holds up in both themes without new tokens. */
+.noticeStatus {
+  border-left-color: var(--ds-color-info);
+  background: var(--ds-color-info-surface);
+  color: var(--ds-color-info);
 }
 
 .errorSummary {
