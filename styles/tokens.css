@@ -162,6 +162,33 @@
   --ds-document-margins: 24mm;   /* ~1 inch */
   --ds-document-margins-dense: 18mm;
 
+  /* Document ink and paper.
+     Deliberately literal, and deliberately NOT restated by the dark theme.
+     A career document is ink on paper: the preview has to match the PDF the
+     person downloads, so a preview that inverted with the app theme would show
+     them something they can never produce. This follows the precedent already
+     set in print.css, which pins print output to literal values for the same
+     reason. The surrounding product UI still themes normally — only the sheet
+     is fixed. */
+  --ds-document-paper: #ffffff;
+  --ds-document-ink: #0f172a;
+  --ds-document-ink-weak: #45556c;
+  --ds-document-rule: #cbd5e1;
+
+  /* The one accent a document may use.
+     Measured from the reference résumé, which sets its name and section rules in
+     a deep navy and leaves everything else black. That restraint is the point:
+     one colour on two elements reads as a printed document, whereas a coloured
+     paragraph reads as a web page. Darker than the UI brand blue because it has
+     to survive a monochrome printer as a convincing near-black. */
+  --ds-document-accent: #1f3864;
+
+  /* A sans face for documents, named separately from the UI face.
+     They currently resolve to the same family, but a document's type is not the
+     application's type: the UI face can be changed for product reasons without
+     silently reflowing every document anyone has already downloaded. */
+  --ds-font-document-sans: "Instrument Sans", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
   /* ---------------------------------------------------------------------------
      Layout
   --------------------------------------------------------------------------- */
