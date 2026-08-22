@@ -144,6 +144,16 @@ const pairs = [
   ["--ds-color-focus", "--ds-color-surface", "focus ring on card", 3],
   ["--ds-color-focus", "--ds-color-surface-inverse", "focus ring on slab", 3],
   ["--ds-color-border-inverse", "--ds-color-surface-inverse", "control border on slab", 3],
+  /*
+   * The document sheet is theme-independent by design (see tokens.css), so these
+   * report the same ratio in both themes. They are measured anyway because the
+   * document preview is the part of the product a person reads most closely, and
+   * because a future template change to ink or paper must not quietly fall below
+   * target.
+   */
+  ["--ds-document-ink", "--ds-document-paper", "document body text", 4.5],
+  ["--ds-document-ink-weak", "--ds-document-paper", "document meta text", 4.5],
+  ["--ds-document-rule", "--ds-document-paper", "document rule (decorative)", 1],
 ];
 
 let failures = 0;
