@@ -134,6 +134,159 @@
   white-space: nowrap;
 }
 
+/*
+ * "Not started" is a neutral fact, not a warning, so it reads in the same
+ * quiet register as a count rather than in an alarming colour.
+ */
+.countEmpty {
+  flex: none;
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-text-sm);
+  white-space: nowrap;
+}
+
+/* Dossier flow -------------------------------------------------------------
+ * The rail keeps the user oriented inside one continuous build instead of
+ * making them return to a central list between sections.
+ */
+.flowRail {
+  padding-bottom: var(--ds-space-md);
+}
+
+.flowMeta {
+  margin: 0 0 var(--ds-space-2xs);
+  color: var(--ds-ink-weak);
+  font-size: var(--ds-text-sm);
+}
+
+.flowMetaLink {
+  color: var(--ds-accent);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.flowSteps {
+  display: flex;
+  gap: var(--ds-space-2xs);
+  margin: 0;
+  padding: 0 0 var(--ds-space-2xs);
+  list-style: none;
+  /* Long section lists scroll sideways rather than wrapping into a tall block. */
+  overflow-x: auto;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.flowStep {
+  flex: none;
+}
+
+.flowStepLink {
+  display: inline-flex;
+  min-height: 2.25rem;
+  align-items: center;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--ds-color-border-control);
+  border-radius: 999px;
+  background: var(--ds-color-surface);
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-text-sm);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.flowStepLink:hover {
+  border-color: var(--ds-color-border-control-hover);
+  background: var(--ds-color-interaction-hover);
+  color: var(--ds-color-text-primary);
+}
+
+.flowStepLink:focus-visible {
+  outline: var(--ds-focus-ring);
+  outline-offset: 2px;
+}
+
+.flowStepCurrent .flowStepLink {
+  border-color: var(--ds-color-brand-primary);
+  background: var(--ds-color-brand-primary);
+  color: var(--ds-color-brand-foreground);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.flowStepDone .flowStepLink {
+  border-color: var(--ds-color-border-control-hover);
+  color: var(--ds-color-text-primary);
+}
+
+.flowFooter {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--ds-space-sm);
+  margin-top: var(--ds-space-lg);
+  padding-top: var(--ds-space-md);
+  border-top: var(--ds-border);
+}
+
+.flowFooterBack:empty {
+  display: none;
+}
+
+.flowFooterActions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-2xs);
+}
+
+/*
+ * A text link, not a third button. Cancel and "skip" are escape hatches and
+ * should not compete visually with the action the user most likely wants.
+ */
+.quietLink {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  color: var(--ds-color-text-secondary);
+  font-weight: var(--ds-font-weight-medium);
+  text-decoration: none;
+}
+
+.quietLink:hover {
+  color: var(--ds-color-text-primary);
+  text-decoration: underline;
+}
+
+.quietLink:focus-visible {
+  outline: var(--ds-focus-ring);
+  outline-offset: 3px;
+}
+
+/* Review handoff ---------------------------------------------------------- */
+.handoff {
+  margin-top: var(--ds-space-xl);
+  padding: var(--ds-space-lg);
+  border: var(--ds-border);
+  border-radius: var(--ds-border-radius-md);
+  background: var(--ds-color-surface-subtle);
+}
+
+.handoff h2 {
+  margin: 0;
+  font-size: var(--ds-heading-size-md);
+  letter-spacing: 0;
+}
+
+.handoff p:last-of-type {
+  margin: var(--ds-space-2xs) 0 0;
+  color: var(--ds-ink-weak);
+}
+
+.handoffActions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-2xs);
+  margin-top: var(--ds-space-md);
+}
+
 .emptyState {
   margin-top: var(--ds-space-lg);
   padding: var(--ds-space-lg) 0;
@@ -188,7 +341,7 @@
   width: 100%;
   min-height: 3rem;
   padding: 0.7rem 0.75rem;
-  border: 1px solid var(--ds-color-border-default);
+  border: 1px solid var(--ds-color-border-control);
   border-radius: var(--ds-border-radius-sm);
   background: var(--ds-color-surface);
   color: var(--ds-color-text-primary);
@@ -299,13 +452,13 @@
 
 .secondaryButton,
 .dangerButton {
-  border-color: var(--ds-color-border-default);
+  border-color: var(--ds-color-border-control);
   background: var(--ds-color-surface);
   color: var(--ds-color-text-primary);
 }
 
 .secondaryButton:hover {
-  border-color: var(--ds-color-border-strong);
+  border-color: var(--ds-color-border-control-hover);
   background: var(--ds-color-interaction-hover);
 }
 
@@ -359,14 +512,14 @@
   min-height: 4.5rem;
   align-items: center;
   padding: var(--ds-space-sm);
-  border: 1px solid var(--ds-color-border-default);
+  border: 1px solid var(--ds-color-border-control);
   border-radius: var(--ds-border-radius-sm);
   background: var(--ds-color-surface);
   cursor: pointer;
 }
 
 .sectionChoice:hover {
-  border-color: var(--ds-color-border-strong);
+  border-color: var(--ds-color-border-control-hover);
 }
 
 .sectionChoice:has(input:checked) {
@@ -448,5 +601,23 @@
   .entryActions form,
   .entryActions button {
     width: auto;
+  }
+
+  .flowFooter {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .flowFooterActions,
+  .handoffActions {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--ds-space-sm);
+  }
+
+  /* Forward action sits rightmost on wide screens, where the eye ends up. */
+  .flowFooterActions {
+    justify-content: flex-end;
   }
 }
