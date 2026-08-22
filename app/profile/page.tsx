@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { requireProfileUser } from "@/profile/authorization";
+import { buildDossierFlow } from "@/profile/flow";
 import {
-  getEnabledSections,
+  getEnabledSectionKeys,
   getOrCreateProfile,
   getSectionCounts,
 } from "@/profile/repository";
@@ -22,15 +23,32 @@ const statusMessages: Record<string, string> = {
 export default async function ProfilePage({ searchParams }: ProfilePageProps) {
   const user = await requireProfileUser();
   const profile = await getOrCreateProfile(user.id, user);
-  const [enabledRows, counts, query] = await Promise.all([
-    getEnabledSections(profile.id),
+  const [enabledKeys, counts, query] = await Promise.all([
+    getEnabledSectionKeys(profile.id),
     getSectionCounts(profile.id),
     searchParams,
   ]);
-  const enabled = enabledRows
-    .map((row) => row.section)
-    .filter((section): section is ProfileSectionKey => section in profileSectionMap);
+
+  const flow = buildDossierFlow(enabledKeys);
+  const sections = flow.steps
+    .filter((step) => !step.isBasics)
+    .map((step) => step.key as ProfileSectionKey);
   const status = query.status ? statusMessages[query.status] : undefined;
+  const identityReady = Boolean(profile.displayName);
+
+  /**
+   * The hub is an overview, not a checkpoint the user must pass through between
+   * sections. Its single primary action resumes wherever the dossier is thinnest
+   * so returning users are never left deciding where to click.
+   */
+  const firstEmpty = sections.find((key) => counts[key] === 0);
+  const resume = !identityReady
+    ? { href: "/profile/basics", label: "Start with your identity" }
+    : !sections.length
+      ? { href: "/profile/sections", label: "Choose your sections" }
+      : firstEmpty
+        ? { href: `/profile/${firstEmpty}`, label: `Continue with ${profileSectionMap[firstEmpty].label}` }
+        : { href: "/profile/review", label: "Review your dossier" };
 
   return (
     <div className={styles.page}>
@@ -41,7 +59,9 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
             <h1>Your professional source of truth</h1>
             <p className={styles.lead}>Build and maintain your reusable information here, then use it to create focused professional documents.</p>
           </div>
-          <Link className={styles.accountLink} href="/home">Back to Home</Link>
+          <Link className={styles.primaryButton} href={resume.href}>
+            {resume.label}
+          </Link>
         </header>
 
         {status ? <p className={styles.successStatus} role="status">{status}</p> : null}
@@ -59,12 +79,14 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
             <h2>Dossier sections</h2>
             <p>Only selected sections appear here. Saved information remains intact when a section is hidden.</p>
           </div>
-          <Link className={styles.secondaryButton} href="/profile/sections">Choose sections</Link>
+          {sections.length ? (
+            <Link className={styles.secondaryButton} href="/profile/sections">Change sections</Link>
+          ) : null}
         </div>
 
-        {enabled.length ? (
+        {sections.length ? (
           <div className={styles.sectionList}>
-            {enabled.map((key) => {
+            {sections.map((key) => {
               const definition = profileSectionMap[key];
               const count = counts[key];
               return (
@@ -73,7 +95,9 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
                     <strong>{definition.label}</strong>
                     <small>{definition.description}</small>
                   </span>
-                  <span className={styles.count}>{count} {count === 1 ? "entry" : "entries"}</span>
+                  <span className={count ? styles.count : styles.countEmpty}>
+                    {count ? `${count} ${count === 1 ? "entry" : "entries"}` : "Not started"}
+                  </span>
                 </Link>
               );
             })}
@@ -85,6 +109,21 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
             <Link className={styles.primaryButton} href="/profile/sections">Choose sections</Link>
           </div>
         )}
+
+        {sections.length ? (
+          <div className={styles.flowFooter}>
+            <div className={styles.flowFooterBack}>
+              <Link className={styles.quietLink} href="/home">
+                <span aria-hidden="true">← </span>Home
+              </Link>
+            </div>
+            <div className={styles.flowFooterActions}>
+              <Link className={styles.secondaryButton} href="/profile/review">
+                Review dossier
+              </Link>
+            </div>
+          </div>
+        ) : null}
       </Container>
     </div>
   );
