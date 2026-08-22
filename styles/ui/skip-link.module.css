@@ -29,7 +29,7 @@
   width: auto;
   padding: var(--ds-space-2xs) var(--ds-space-sm);
   background-color: var(--ds-color-surface);
-  border: 1px solid var(--ds-color-border-strong);
+  border: 1px solid var(--ds-color-border-control);
   border-radius: var(--ds-border-radius-sm);
   box-shadow: var(--ds-shadow-floating);
   color: var(--ds-color-text-primary);
