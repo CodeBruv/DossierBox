@@ -7,6 +7,21 @@ export default defineConfig({
   },
   resolve: {
     alias: [
+      /**
+       * `server-only` is not installed as a top-level package — it ships inside
+       * Next, where its `exports` map deliberately resolves to a throwing module
+       * outside a `react-server` environment. Vitest therefore cannot resolve the
+       * bare specifier, and every test touching one of the ten modules that
+       * import it failed on that import instead of on the code under test.
+       *
+       * Anchored so it matches the specifier exactly and cannot swallow a package
+       * that merely starts with the same characters. See the stub for why this
+       * does not weaken the production boundary.
+       */
+      {
+        find: /^server-only$/,
+        replacement: resolve(__dirname, "test/stubs/server-only.ts"),
+      },
       {
         find: "@/auth",
         replacement: resolve(__dirname, "src/auth"),
