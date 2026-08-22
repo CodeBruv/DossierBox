@@ -26,7 +26,7 @@
   justify-content: center;
   gap: var(--ds-space-3xs);
   padding: var(--ds-space-2xs) var(--ds-space-xs);
-  border: 1px solid var(--ds-color-border-default);
+  border: 1px solid var(--ds-color-border-control);
   border-radius: var(--ds-border-radius-sm);
   background: var(--ds-color-surface);
   color: var(--ds-color-text-secondary);
