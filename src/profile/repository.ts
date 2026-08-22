@@ -19,6 +19,19 @@ import {
   skills,
 } from "./schema";
 import type { ProfileSectionKey } from "./types";
+import type {
+  DossierAchievement,
+  DossierCredential,
+  DossierEducation,
+  DossierExperience,
+  DossierLanguage,
+  DossierLink,
+  DossierMembership,
+  DossierProject,
+  DossierPublication,
+  DossierSkill,
+  DossierSnapshot,
+} from "./dossier";
 import {
   evaluateDossierFoundation,
   type DossierFoundationReadiness,
@@ -264,6 +277,164 @@ export async function getDossierFoundationReadiness(
   });
 }
 
+/**
+ * The whole dossier, in **one** round trip, for composing a document.
+ *
+ * This deliberately follows {@link getDossierFoundationReadiness} rather than
+ * issuing ten selects inside `Promise.all`. That pattern reads as parallel but is
+ * not: the connection ceiling is intentionally small for serverless, so the
+ * statements queue on one connection and the page pays ten sequential round trips
+ * to the database region. Aggregating each section in the same statement that
+ * locates the profile keeps the cost flat as sections are added.
+ *
+ * Only the columns a document can actually present are selected. Internal
+ * bookkeeping — ids, `profileId`, `position`, timestamps — is deliberately left
+ * behind: a document has no use for it, and it should not travel to the renderer.
+ *
+ * Returns `null` when the profile does not exist, so the caller decides what that
+ * means rather than receiving a hollow snapshot that looks like an empty dossier.
+ *
+ * It is keyed on `userId`, not `profileId`, for two reasons. The caller — a
+ * document page — holds a session, not a profile id, so keying on the profile
+ * would force a lookup first and turn one round trip into two. More importantly it
+ * makes ownership structural: there is no argument you can pass this function that
+ * returns someone else's dossier, so a document can never be composed from another
+ * account's career history.
+ */
+export async function getDossierSnapshot(
+  userId: string,
+): Promise<DossierSnapshot | null> {
+  const [row] = await db
+    .select({
+      displayName: profiles.displayName,
+      headline: profiles.headline,
+      careerDirection: profiles.careerDirection,
+      contactEmail: profiles.contactEmail,
+      phone: profiles.phone,
+      city: profiles.city,
+      region: profiles.region,
+      country: profiles.country,
+      website: profiles.website,
+      experience: jsonRowsFor<DossierExperience>(experiences, {
+        type: experiences.type,
+        organization: experiences.organization,
+        role: experiences.role,
+        location: experiences.location,
+        startMonth: experiences.startMonth,
+        startYear: experiences.startYear,
+        endMonth: experiences.endMonth,
+        endYear: experiences.endYear,
+        current: experiences.current,
+        description: experiences.description,
+      }),
+      education: jsonRowsFor<DossierEducation>(education, {
+        institution: education.institution,
+        qualification: education.qualification,
+        field: education.field,
+        location: education.location,
+        startMonth: education.startMonth,
+        startYear: education.startYear,
+        endMonth: education.endMonth,
+        endYear: education.endYear,
+        current: education.current,
+        description: education.description,
+      }),
+      projects: jsonRowsFor<DossierProject>(projects, {
+        name: projects.name,
+        role: projects.role,
+        context: projects.context,
+        url: projects.url,
+        startMonth: projects.startMonth,
+        startYear: projects.startYear,
+        endMonth: projects.endMonth,
+        endYear: projects.endYear,
+        current: projects.current,
+        description: projects.description,
+      }),
+      skills: jsonRowsFor<DossierSkill>(skills, {
+        name: skills.name,
+        type: skills.type,
+        notes: skills.notes,
+      }),
+      credentials: jsonRowsFor<DossierCredential>(credentials, {
+        type: credentials.type,
+        name: credentials.name,
+        issuer: credentials.issuer,
+        identifier: credentials.identifier,
+        url: credentials.url,
+        issueMonth: credentials.issueMonth,
+        issueYear: credentials.issueYear,
+        expiryMonth: credentials.expiryMonth,
+        expiryYear: credentials.expiryYear,
+        description: credentials.description,
+      }),
+      achievements: jsonRowsFor<DossierAchievement>(achievements, {
+        type: achievements.type,
+        title: achievements.title,
+        issuer: achievements.issuer,
+        month: achievements.month,
+        year: achievements.year,
+        description: achievements.description,
+      }),
+      languages: jsonRowsFor<DossierLanguage>(languages, {
+        language: languages.language,
+        proficiency: languages.proficiency,
+        notes: languages.notes,
+      }),
+      publications: jsonRowsFor<DossierPublication>(publications, {
+        title: publications.title,
+        publisher: publications.publisher,
+        month: publications.month,
+        year: publications.year,
+        url: publications.url,
+        description: publications.description,
+      }),
+      memberships: jsonRowsFor<DossierMembership>(memberships, {
+        organization: memberships.organization,
+        role: memberships.role,
+        startMonth: memberships.startMonth,
+        startYear: memberships.startYear,
+        endMonth: memberships.endMonth,
+        endYear: memberships.endYear,
+        current: memberships.current,
+        description: memberships.description,
+      }),
+      links: jsonRowsFor<DossierLink>(profileLinks, {
+        type: profileLinks.type,
+        label: profileLinks.label,
+        url: profileLinks.url,
+      }),
+    })
+    .from(profiles)
+    .where(eq(profiles.userId, userId));
+
+  if (!row) return null;
+
+  return {
+    identity: {
+      displayName: row.displayName,
+      headline: row.headline,
+      careerDirection: row.careerDirection,
+      contactEmail: row.contactEmail,
+      phone: row.phone,
+      city: row.city,
+      region: row.region,
+      country: row.country,
+      website: row.website,
+    },
+    experience: row.experience,
+    education: row.education,
+    projects: row.projects,
+    skills: row.skills,
+    credentials: row.credentials,
+    achievements: row.achievements,
+    languages: row.languages,
+    publications: row.publications,
+    memberships: row.memberships,
+    links: row.links,
+  };
+}
+
 export async function listSectionEntries(section: ProfileSectionKey, profileId: string) {
   switch (section) {
     case "experience":
@@ -436,6 +607,11 @@ function countFor(table: SectionTable) {
  * The JSON keys come from this module's own object literals, never from user
  * input, which is why they can be emitted as raw identifiers. Column references
  * still go through Drizzle, so they remain correctly qualified and quoted.
+ *
+ * The aggregate is ordered by the section's own `position`, then `createdAt`, to
+ * match {@link listSectionEntries}. `json_agg` has no inherent order, so without
+ * this a generated document could list the same experience in a different order
+ * on each render — the one thing a career document must never do.
  */
 function jsonRowsFor<T>(table: SectionTable, columns: Record<string, AnyPgColumn>) {
   const pairs = Object.entries(columns).map(
@@ -443,7 +619,13 @@ function jsonRowsFor<T>(table: SectionTable, columns: Record<string, AnyPgColumn
   );
 
   return sql<T[]>`(
-    select coalesce(json_agg(json_build_object(${sql.join(pairs, sql`, `)})), '[]'::json)
+    select coalesce(
+      json_agg(
+        json_build_object(${sql.join(pairs, sql`, `)})
+        order by ${table.position}, ${table.createdAt}
+      ),
+      '[]'::json
+    )
     from ${table}
     where ${table.profileId} = ${profiles.id}
   )`;
