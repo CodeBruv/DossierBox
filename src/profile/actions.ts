@@ -1,20 +1,27 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { requireProfileUser } from "./authorization";
 import {
   createSectionEntry,
   deleteOwnedSectionEntry,
+  getEnabledSectionKeys,
   getOrCreateProfile,
   replaceEnabledSections,
   updateOwnedSectionEntry,
   updateProfileBasics,
 } from "./repository";
+import {
+  buildDossierFlow,
+  parseSaveIntent,
+  resolveEntryDestination,
+} from "./flow";
 import { isProfileSection } from "./sections";
 import type { ProfileFormState, ProfileSectionKey } from "./types";
 import {
   formStateFromError,
+  formStateFromSubmission,
   parseBasicsFormData,
   parseEntryFormData,
   parseSectionSelection,
@@ -33,17 +40,32 @@ export async function saveProfileBasicsAction(
   }
 
   const user = await requireProfileUser();
+  const intent = parseSaveIntent(formData.get("intent"));
+  let destination = "/profile?status=basics-saved";
 
   try {
-    await getOrCreateProfile(user.id, user);
+    const profile = await getOrCreateProfile(user.id, user);
     await updateProfileBasics(user.id, result.data);
+
+    if (intent === "continue") {
+      /**
+       * Identity is step one, so "continue" moves into the first section the
+       * user selected. When they have not chosen any sections yet, the useful
+       * next screen is the picker rather than a dead end.
+       */
+      const flow = buildDossierFlow(await getEnabledSectionKeys(profile.id));
+      destination = flow.steps[1]
+        ? `${flow.steps[1].href}?status=basics-saved`
+        : "/profile/sections?status=basics-saved";
+    }
   } catch (error) {
+    unstable_rethrow(error);
     console.error("[profile] Failed to save dossier identity", error);
     return failureState(formData, saveFailureMessage);
   }
 
   revalidateProfilePaths();
-  redirect("/profile?status=basics-saved");
+  redirect(destination);
 }
 
 export async function saveProfileSectionsAction(
@@ -57,17 +79,32 @@ export async function saveProfileSectionsAction(
   }
 
   const user = await requireProfileUser();
+  const intent = parseSaveIntent(formData.get("intent"));
+  let destination = "/profile?status=sections-saved";
 
   try {
     const profile = await getOrCreateProfile(user.id, user);
     await replaceEnabledSections(profile.id, result.data.sections);
+
+    if (intent === "continue") {
+      /**
+       * Choosing sections is a planning step. Continuing from it should drop the
+       * user straight into the first section they picked rather than returning
+       * them to a hub they have just finished configuring.
+       */
+      const flow = buildDossierFlow(result.data.sections);
+      destination = flow.steps[1]
+        ? `${flow.steps[1].href}?status=sections-saved`
+        : "/profile/review?status=sections-saved";
+    }
   } catch (error) {
+    unstable_rethrow(error);
     console.error("[profile] Failed to save dossier sections", error);
     return failureState(formData, saveFailureMessage);
   }
 
   revalidateProfilePaths();
-  redirect("/profile?status=sections-saved");
+  redirect(destination);
 }
 
 export async function createProfileEntryAction(
@@ -86,17 +123,32 @@ export async function createProfileEntryAction(
   }
 
   const user = await requireProfileUser();
+  const intent = parseSaveIntent(formData.get("intent"));
+  let destination = `/profile/${sectionValue}?status=created`;
 
   try {
     const profile = await getOrCreateProfile(user.id, user);
     await createSectionEntry(sectionValue, profile.id, result.data as Record<string, unknown>);
+
+    /**
+     * The flow is only needed to answer "what comes after this section?", so it
+     * is loaded solely for the intent that asks that question. Saving in place
+     * or adding another entry stays at one round trip.
+     */
+    const flow =
+      intent === "continue"
+        ? buildDossierFlow(await getEnabledSectionKeys(profile.id))
+        : undefined;
+
+    destination = resolveEntryDestination(flow, sectionValue, intent);
   } catch (error) {
+    unstable_rethrow(error);
     console.error(`[profile] Failed to create ${sectionValue} dossier entry`, error);
     return failureState(formData, saveFailureMessage);
   }
 
   revalidateProfilePaths(sectionValue);
-  redirect(`/profile/${sectionValue}?status=created`);
+  redirect(destination);
 }
 
 export async function updateProfileEntryAction(
@@ -116,6 +168,8 @@ export async function updateProfileEntryAction(
   }
 
   const user = await requireProfileUser();
+  const intent = parseSaveIntent(formData.get("intent"));
+  let destination = `/profile/${sectionValue}?status=updated`;
 
   try {
     const profile = await getOrCreateProfile(user.id, user);
@@ -129,13 +183,21 @@ export async function updateProfileEntryAction(
     if (!updated.length) {
       return failureState(formData, "That profile entry was not found or does not belong to you.");
     }
+
+    if (intent === "continue") {
+      const flow = buildDossierFlow(await getEnabledSectionKeys(profile.id));
+      destination = resolveEntryDestination(flow, sectionValue, intent, "updated");
+    } else {
+      destination = resolveEntryDestination(undefined, sectionValue, intent, "updated");
+    }
   } catch (error) {
+    unstable_rethrow(error);
     console.error(`[profile] Failed to update ${sectionValue} dossier entry`, error);
     return failureState(formData, saveFailureMessage);
   }
 
   revalidateProfilePaths(sectionValue);
-  redirect(`/profile/${sectionValue}?status=updated`);
+  redirect(destination);
 }
 
 export async function deleteProfileEntryAction(
@@ -152,6 +214,7 @@ export async function deleteProfileEntryAction(
     const profile = await getOrCreateProfile(user.id, user);
     await deleteOwnedSectionEntry(sectionValue, profile.id, itemId);
   } catch (error) {
+    unstable_rethrow(error);
     console.error(`[profile] Failed to delete ${sectionValue} dossier entry`, error);
     redirect(`/profile/${sectionValue}?status=delete-failed`);
   }
@@ -161,30 +224,15 @@ export async function deleteProfileEntryAction(
 }
 
 function failureState(formData: FormData, message: string): ProfileFormState {
-  const values: Record<string, string> = {};
-  const multipleValues: Record<string, string[]> = {};
-
-  for (const [name, value] of formData.entries()) {
-    if (typeof value !== "string") {
-      continue;
-    }
-
-    values[name] = value;
-    multipleValues[name] = [...(multipleValues[name] ?? []), value];
-  }
-
-  return {
-    status: "error",
-    message,
-    values,
-    multipleValues,
-  };
+  return formStateFromSubmission(formData, message);
 }
 
 function revalidateProfilePaths(section?: ProfileSectionKey) {
   revalidatePath("/profile");
   revalidatePath("/profile/basics");
   revalidatePath("/profile/sections");
+  revalidatePath("/profile/review");
+  revalidatePath("/home");
 
   if (section) {
     revalidatePath(`/profile/${section}`);
