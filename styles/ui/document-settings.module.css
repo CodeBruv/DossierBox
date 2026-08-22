@@ -1,0 +1,194 @@
+/* =============================================================================
+   Document settings — the controls beside the sheet
+   =============================================================================
+   Follows the form conventions already established in profile.module.css:
+   1px control borders, `:has(input:checked)` for the selected card, 3rem minimum
+   control height, and the same focus treatment. Reproducing those here rather
+   than inventing a second form language is the point — the document workspace
+   should feel like the rest of the application, not like a separate tool.
+
+   This is application UI, so it themes normally. The sheet next to it does not.
+   That separation is deliberate and is why nothing in this file touches the
+   `--ds-document-*` tokens.
+============================================================================ */
+
+.settings {
+  display: grid;
+  gap: var(--ds-space-lg);
+  align-content: start;
+}
+
+.field {
+  display: grid;
+  gap: var(--ds-space-2xs);
+  /* Without this a long default title can widen the whole grid column. */
+  min-width: 0;
+}
+
+.label,
+.legend {
+  color: var(--ds-ink);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.legend {
+  margin-bottom: var(--ds-space-2xs);
+  font-size: var(--ds-heading-size-sm);
+}
+
+.input {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid var(--ds-color-border-control);
+  border-radius: var(--ds-border-radius-sm);
+  background: var(--ds-color-surface);
+  color: var(--ds-color-text-primary);
+  font: inherit;
+}
+
+.input:focus-visible {
+  border-color: var(--ds-color-focus);
+  outline: 3px solid var(--ds-color-brand-surface);
+  outline-offset: 1px;
+}
+
+.hint {
+  margin: 0;
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-text-sm);
+}
+
+/* A fieldset carries a UA border and padding that would fight the layout. */
+.fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* ---- Style choice ------------------------------------------------------ */
+
+.templates {
+  display: grid;
+  gap: var(--ds-space-2xs);
+}
+
+.template {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr;
+  gap: var(--ds-space-2xs);
+  align-items: start;
+  padding: var(--ds-space-sm);
+  border: 1px solid var(--ds-color-border-control);
+  border-radius: var(--ds-border-radius-sm);
+  background: var(--ds-color-surface);
+  cursor: pointer;
+}
+
+.template:hover {
+  border-color: var(--ds-color-border-control-hover);
+}
+
+.template:has(input:checked) {
+  border-color: var(--ds-color-brand-primary);
+  background: var(--ds-color-interaction-selected);
+}
+
+/*
+   The focus ring goes on the card, not the radio. The radio is 1rem in the
+   corner of a 4rem target, and a ring drawn around it is easy to miss when
+   arrowing through the group.
+*/
+.template:has(input:focus-visible) {
+  outline: var(--ds-focus-ring);
+  outline-offset: 0.125rem;
+}
+
+.templateBody {
+  display: grid;
+  gap: var(--ds-space-3xs);
+  min-width: 0;
+}
+
+.templateBody strong {
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.templateBody span {
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-text-sm);
+}
+
+/* ---- Section visibility ----------------------------------------------- */
+
+.sections {
+  list-style: none;
+  margin: var(--ds-space-xs) 0 0;
+  padding: 0;
+  border-top: 1px solid var(--ds-color-border-default);
+}
+
+/*
+   A row rather than a card. These are toggles over a list the user already
+   knows, so the borders that help distinguish three style choices would only
+   add noise across a dozen sections.
+*/
+.section {
+  display: flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: var(--ds-space-xs);
+  padding: var(--ds-space-2xs) 0;
+  border-bottom: 1px solid var(--ds-color-border-default);
+  cursor: pointer;
+}
+
+.section:hover {
+  color: var(--ds-color-brand-primary);
+}
+
+.section:has(input:focus-visible) {
+  outline: var(--ds-focus-ring);
+  outline-offset: 0.125rem;
+}
+
+/*
+   A cleared section is still legible, not greyed to the edge of readability:
+   the user has to be able to read what they turned off in order to turn it
+   back on.
+*/
+.section:has(input:not(:checked)) span {
+  color: var(--ds-color-text-secondary);
+}
+
+.save {
+  min-height: 2.75rem;
+  padding: 0.65rem 1rem;
+  border-radius: var(--ds-border-radius-sm);
+  background: var(--ds-color-brand-primary);
+  color: var(--ds-color-brand-foreground);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-font-weight-semibold);
+  /* Sits with the controls rather than stretching the column. */
+  justify-self: start;
+}
+
+.save:hover {
+  background: var(--ds-color-brand-hover);
+}
+
+.save:active {
+  background: var(--ds-color-brand-active);
+}
+
+.save:focus-visible {
+  outline: var(--ds-focus-ring);
+  outline-offset: 0.125rem;
+}
+
+@media (max-width: 22rem) {
+  .save {
+    width: 100%;
+  }
+}
