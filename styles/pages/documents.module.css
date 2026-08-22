@@ -122,8 +122,22 @@
 .successStatus {
   max-width: 42rem;
   margin-top: var(--ds-space-md);
-  color: var(--ds-color-destructive);
   font-size: var(--ds-text-sm);
+}
+
+.errorStatus {
+  color: var(--ds-color-destructive);
+}
+
+/*
+   Saving is the confirmation people look for hardest, so it is not styled as a
+   quieter version of the failure message. It was previously grouped with
+   .errorStatus and inherited the destructive colour, which announced a
+   successful save in red.
+*/
+.successStatus {
+  color: var(--ds-color-success);
+  font-weight: var(--ds-font-weight-semibold);
 }
 
 .errorState {
@@ -221,7 +235,8 @@
 
 .documentType,
 .documentMeta,
-.statusBadge {
+.statusBadge,
+.editorMeta {
   color: var(--ds-color-text-muted);
   font-size: var(--ds-text-xs);
 }
@@ -237,23 +252,68 @@
   margin-top: var(--ds-space-3xs);
 }
 
-.editorPlaceholder {
-  max-width: 42rem;
-  margin-top: var(--ds-space-xl);
-  padding: var(--ds-space-lg) 0;
-  border-top: 3px solid var(--ds-color-brand-primary);
-  border-bottom: 1px solid var(--ds-color-border-default);
+/* Status and provenance for the open document, under its header. */
+.editorMeta {
+  margin-top: var(--ds-space-md);
 }
 
-.editorPlaceholder h2 {
-  margin-top: var(--ds-space-xs);
-  font-size: var(--ds-heading-size-md);
+/*
+   The workspace: controls and the sheet.
+
+   The sheet sits outside .narrow so it can reach its full A4 measure (210mm ≈
+   794px) while the surrounding text stays at a comfortable reading width. The
+   document is the visual hero; the page furniture around it stays narrow.
+
+   One column by default and two only when there is room for both, because the
+   sheet's measure is a physical width — putting controls alongside it any
+   earlier would shrink the document rather than the furniture.
+*/
+.workspace {
+  display: grid;
+  gap: var(--ds-space-lg);
+  margin-top: var(--ds-space-lg);
+  padding-bottom: var(--ds-space-lg);
 }
 
-.editorPlaceholder > p:not(.statusBadge):not(.documentMeta) {
-  max-width: 38rem;
-  margin-top: var(--ds-space-xs);
-  color: var(--ds-color-text-secondary);
+@media (min-width: 64rem) {
+  .workspace {
+    /* `minmax(0, …)` on both tracks: without it a long unbroken string in
+       either column can force the grid wider than its container. */
+    grid-template-columns: minmax(0, 18rem) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  /*
+     Sticky, because a three-page document scrolls a long way and the controls
+     that change it should not be left behind at the top. Only at this width: in
+     one column the controls already sit directly above the sheet.
+  */
+  .workspaceControls {
+    position: sticky;
+    top: var(--ds-space-lg);
+  }
+}
+
+.workspacePreview {
+  min-width: 0;
+}
+
+/*
+   In print the controls are hidden, but a hidden grid item still leaves its
+   track behind — so without this the sheet would print inside a 1fr column with
+   18rem of empty paper beside it.
+*/
+@media print {
+  .workspace {
+    display: block;
+    gap: 0;
+    margin-top: 0;
+    padding-bottom: 0;
+  }
+
+  .page {
+    padding: 0;
+  }
 }
 
 .statusBadge {
