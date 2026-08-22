@@ -1,6 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
-
-vi.mock("server-only", () => ({}));
+import { describe, expect, it } from "vitest";
 
 import { hashPassword, verifyPassword } from "./password";
 import { digestLimiterKey, getRateLimitWindow } from "./rate-limit";
