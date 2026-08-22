@@ -1,6 +1,8 @@
 import "server-only";
 
-import { and, asc, count, eq } from "drizzle-orm";
+import { cache } from "react";
+import { and, asc, eq, sql } from "drizzle-orm";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { db } from "@/auth/database";
 import {
   achievements,
@@ -20,6 +22,10 @@ import type { ProfileSectionKey } from "./types";
 import {
   evaluateDossierFoundation,
   type DossierFoundationReadiness,
+  type EducationRecord,
+  type ExperienceRecord,
+  type ProjectRecord,
+  type SkillRecord,
 } from "./readiness";
 
 type ProfileDefaults = {
@@ -27,7 +33,51 @@ type ProfileDefaults = {
   email: string | null;
 };
 
+/**
+ * Section key → table. Declared once so counting, positioning and any future
+ * cross-section read can be written as a single statement instead of ten.
+ */
+const sectionTables = {
+  experience: experiences,
+  education,
+  projects,
+  skills,
+  credentials,
+  achievements,
+  languages,
+  publications,
+  memberships,
+  links: profileLinks,
+} as const;
+
+const sectionKeys = Object.keys(sectionTables) as ProfileSectionKey[];
+
 export async function getOrCreateProfile(userId: string, defaults: ProfileDefaults) {
+  return loadOrCreateProfile(userId, defaults.name, defaults.email);
+}
+
+/**
+ * Request-scoped memoization of the profile lookup.
+ *
+ * Every authenticated screen needs `profile.id` before it can read anything, and
+ * several of them are rendered together, so the same lookup ran repeatedly
+ * within one request. `cache` collapses those into one query for the duration of
+ * a single server request and shares nothing across requests or users.
+ *
+ * The arguments are deliberately primitives: `cache` keys on argument identity,
+ * so passing the `{ name, email }` object straight through would create a fresh
+ * key on every call and memoize nothing.
+ *
+ * One constraint follows from this: a caller that writes to the profile row and
+ * then wants to read the new values back within the same request must use the
+ * value it wrote rather than calling this again. Callers currently only need
+ * `profile.id`, which does not change.
+ */
+const loadOrCreateProfile = cache(async function loadOrCreateProfile(
+  userId: string,
+  name: string | null,
+  email: string | null,
+) {
   const existing = await db.query.profiles.findFirst({
     where: eq(profiles.userId, userId),
   });
@@ -40,8 +90,8 @@ export async function getOrCreateProfile(userId: string, defaults: ProfileDefaul
     .insert(profiles)
     .values({
       userId,
-      displayName: defaults.name,
-      contactEmail: defaults.email,
+      displayName: name,
+      contactEmail: email,
     })
     .onConflictDoNothing({ target: profiles.userId })
     .returning();
@@ -59,7 +109,7 @@ export async function getOrCreateProfile(userId: string, defaults: ProfileDefaul
   }
 
   return concurrent;
-}
+});
 
 export async function getProfileByUserId(userId: string) {
   return db.query.profiles.findFirst({ where: eq(profiles.userId, userId) });
@@ -83,6 +133,21 @@ export async function getEnabledSections(profileId: string) {
     .orderBy(asc(profileSections.position));
 }
 
+/**
+ * The enabled section keys in the user's chosen order — the exact input
+ * `buildDossierFlow` needs. Selecting one column keeps the payload small for
+ * the many callers that only need to know the running order.
+ */
+export async function getEnabledSectionKeys(profileId: string): Promise<string[]> {
+  const rows = await db
+    .select({ section: profileSections.section })
+    .from(profileSections)
+    .where(eq(profileSections.profileId, profileId))
+    .orderBy(asc(profileSections.position));
+
+  return rows.map((row) => row.section);
+}
+
 export async function replaceEnabledSections(
   profileId: string,
   sections: readonly ProfileSectionKey[],
@@ -104,36 +169,52 @@ export async function replaceEnabledSections(
   });
 }
 
+/**
+ * Entry counts for every section in a **single** round trip.
+ *
+ * This previously issued ten independent `count(*)` statements. They were
+ * wrapped in `Promise.all`, which looked parallel but is not: the pool is
+ * deliberately narrow, so the ten statements queued on one connection and the
+ * page paid ten sequential network round trips to the database region. Counting
+ * with correlated sub-selects against the already-filtered profile row costs
+ * one round trip regardless of how many sections exist.
+ */
 export async function getSectionCounts(profileId: string) {
-  const entries = await Promise.all([
-    countRows(experiences, profileId),
-    countRows(education, profileId),
-    countRows(projects, profileId),
-    countRows(skills, profileId),
-    countRows(credentials, profileId),
-    countRows(achievements, profileId),
-    countRows(languages, profileId),
-    countRows(publications, profileId),
-    countRows(memberships, profileId),
-    countRows(profileLinks, profileId),
-  ]);
+  const [row] = await db
+    .select({
+      experience: countFor(experiences),
+      education: countFor(education),
+      projects: countFor(projects),
+      skills: countFor(skills),
+      credentials: countFor(credentials),
+      achievements: countFor(achievements),
+      languages: countFor(languages),
+      publications: countFor(publications),
+      memberships: countFor(memberships),
+      links: countFor(profileLinks),
+    })
+    .from(profiles)
+    .where(eq(profiles.id, profileId));
 
   return Object.fromEntries(
-    [
-      "experience",
-      "education",
-      "projects",
-      "skills",
-      "credentials",
-      "achievements",
-      "languages",
-      "publications",
-      "memberships",
-      "links",
-    ].map((section, index) => [section, entries[index]]),
+    sectionKeys.map((section) => [section, Number(row?.[section] ?? 0)]),
   ) as Record<ProfileSectionKey, number>;
 }
 
+/**
+ * Everything the readiness evaluator needs, in a **single** round trip.
+ *
+ * This previously issued four selects inside `Promise.all`. That reads as
+ * parallel but was not: the pool is narrow, so the four statements queued behind
+ * each other on one connection and the page paid four sequential round trips to
+ * the database region — on `/home`, the single slowest authenticated screen.
+ *
+ * Each row set is aggregated into JSON by the same statement that locates the
+ * profile, so the cost is one round trip regardless of how many sections the
+ * evaluator grows to consider. The scoring rules stay in `readiness.ts`, which
+ * is pure and unit-tested; pushing those predicates into SQL would have made
+ * them untestable and duplicated the product's definition of "ready".
+ */
 export async function getDossierFoundationReadiness(
   profileId: string,
   identity: {
@@ -142,54 +223,44 @@ export async function getDossierFoundationReadiness(
     careerDirection: string | null;
   },
 ): Promise<DossierFoundationReadiness> {
-  const [experienceEntries, educationEntries, skillEntries, projectEntries] =
-    await Promise.all([
-      db
-        .select({
-          role: experiences.role,
-          organization: experiences.organization,
-          startYear: experiences.startYear,
-          endYear: experiences.endYear,
-          current: experiences.current,
-          description: experiences.description,
-        })
-        .from(experiences)
-        .where(eq(experiences.profileId, profileId)),
-      db
-        .select({
-          institution: education.institution,
-          qualification: education.qualification,
-          startYear: education.startYear,
-          endYear: education.endYear,
-          current: education.current,
-        })
-        .from(education)
-        .where(eq(education.profileId, profileId)),
-      db
-        .select({ name: skills.name })
-        .from(skills)
-        .where(eq(skills.profileId, profileId)),
-      db
-        .select({
-          name: projects.name,
-          role: projects.role,
-          context: projects.context,
-          url: projects.url,
-          startYear: projects.startYear,
-          endYear: projects.endYear,
-          current: projects.current,
-          description: projects.description,
-        })
-        .from(projects)
-        .where(eq(projects.profileId, profileId)),
-    ]);
+  const [row] = await db
+    .select({
+      experience: jsonRowsFor<ExperienceRecord>(experiences, {
+        role: experiences.role,
+        organization: experiences.organization,
+        startYear: experiences.startYear,
+        endYear: experiences.endYear,
+        current: experiences.current,
+        description: experiences.description,
+      }),
+      education: jsonRowsFor<EducationRecord>(education, {
+        institution: education.institution,
+        qualification: education.qualification,
+        startYear: education.startYear,
+        endYear: education.endYear,
+        current: education.current,
+      }),
+      skills: jsonRowsFor<SkillRecord>(skills, { name: skills.name }),
+      projects: jsonRowsFor<ProjectRecord>(projects, {
+        name: projects.name,
+        role: projects.role,
+        context: projects.context,
+        url: projects.url,
+        startYear: projects.startYear,
+        endYear: projects.endYear,
+        current: projects.current,
+        description: projects.description,
+      }),
+    })
+    .from(profiles)
+    .where(eq(profiles.id, profileId));
 
   return evaluateDossierFoundation({
     identity,
-    experience: experienceEntries,
-    education: educationEntries,
-    skills: skillEntries,
-    projects: projectEntries,
+    experience: row?.experience ?? [],
+    education: row?.education ?? [],
+    skills: row?.skills ?? [],
+    projects: row?.projects ?? [],
   });
 }
 
@@ -342,31 +413,64 @@ export async function deleteOwnedSectionEntry(
   }
 }
 
-async function countRows(
-  table:
-    | typeof experiences
-    | typeof education
-    | typeof projects
-    | typeof skills
-    | typeof credentials
-    | typeof achievements
-    | typeof languages
-    | typeof publications
-    | typeof memberships
-    | typeof profileLinks,
-  profileId: string,
-) {
-  const [result] = await db
-    .select({ value: count() })
-    .from(table)
-    .where(eq(table.profileId, profileId));
+type SectionTable = (typeof sectionTables)[ProfileSectionKey];
 
-  return Number(result?.value ?? 0);
+/**
+ * `count(*)` for one section, correlated to the profile row being selected.
+ * Cast to `int` so the driver hands back a JS number rather than a bigint
+ * string.
+ */
+function countFor(table: SectionTable) {
+  return sql<number>`(select count(*)::int from ${table} where ${table.profileId} = ${profiles.id})`;
 }
 
+/**
+ * Rows of one section as a JSON array, correlated to the profile row being
+ * selected — the row-level equivalent of {@link countFor}.
+ *
+ * Only the requested columns are aggregated, so a section with long descriptions
+ * does not drag its whole body across the wire when the caller needs a handful of
+ * fields. `coalesce` guarantees an array rather than SQL NULL for an empty
+ * section, so callers never have to special-case it.
+ *
+ * The JSON keys come from this module's own object literals, never from user
+ * input, which is why they can be emitted as raw identifiers. Column references
+ * still go through Drizzle, so they remain correctly qualified and quoted.
+ */
+function jsonRowsFor<T>(table: SectionTable, columns: Record<string, AnyPgColumn>) {
+  const pairs = Object.entries(columns).map(
+    ([alias, column]) => sql`${sql.raw(`'${alias.replace(/'/g, "''")}'`)}, ${column}`,
+  );
+
+  return sql<T[]>`(
+    select coalesce(json_agg(json_build_object(${sql.join(pairs, sql`, `)})), '[]'::json)
+    from ${table}
+    where ${table.profileId} = ${profiles.id}
+  )`;
+}
+
+/**
+ * Next ordering position for a new entry.
+ *
+ * This used to load every row in the section just to read the highest
+ * `position`, which meant an insert cost grew with the size of the section.
+ * `max(position)` answers the same question with one aggregate.
+ */
 async function nextPosition(section: ProfileSectionKey, profileId: string) {
-  const entries = await listSectionEntries(section, profileId);
-  return Math.max(-1, ...entries.map((entry) => entry.position)) + 1;
+  const table = sectionTables[section];
+
+  const [row] = await db
+    .select({
+      next: sql<number>`(
+        select coalesce(max(${table.position}), -1) + 1
+        from ${table}
+        where ${table.profileId} = ${profileId}
+      )`,
+    })
+    .from(profiles)
+    .where(eq(profiles.id, profileId));
+
+  return Number(row?.next ?? 0);
 }
 
 function withoutProtectedFields(values: Record<string, unknown>) {
