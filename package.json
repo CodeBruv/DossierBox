@@ -10,8 +10,12 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "audit:contrast": "node ./scripts/contrast-audit.mjs",
+    "perf:routes": "node ./scripts/measure-routes.mjs",
     "db:generate": "node --env-file-if-exists=.env.local ./node_modules/drizzle-kit/bin.cjs generate",
     "db:migrate": "node --env-file-if-exists=.env.local ./node_modules/drizzle-kit/bin.cjs migrate",
+    "db:secure": "node --env-file-if-exists=.env.local ./scripts/db-security.mjs",
+    "db:secure:check": "node --env-file-if-exists=.env.local ./scripts/db-security.mjs --check",
     "lint:strict": "next lint && tsc --noEmit"
   },
   "keywords": [
