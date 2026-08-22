@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { auth, authSessionConfiguration } from "@/auth/auth";
+import { authSessionConfiguration } from "@/auth/auth";
+import { getSession } from "@/auth/session";
 import { createDocumentAction } from "@/documents/actions";
 import { Container } from "@/ui";
 import styles from "@/styles/pages/documents.module.css";
@@ -28,7 +29,7 @@ const choices = [
 
 export default async function NewDocumentPage({ searchParams }: NewDocumentPageProps) {
   if (!authSessionConfiguration) redirect("/auth/sign-in?callbackUrl=%2Fdocuments%2Fnew&error=Configuration");
-  const session = await auth();
+  const session = await getSession();
   if (!session?.user) redirect("/auth/sign-in?callbackUrl=%2Fdocuments%2Fnew&error=SessionRequired");
   const query = await searchParams;
 
