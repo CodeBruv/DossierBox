@@ -45,7 +45,7 @@
   justify-content: center;
   gap: var(--ds-space-sm);
   padding: 0.75rem 1rem;
-  border: 1px solid var(--ds-color-border-default);
+  border: 1px solid var(--ds-color-border-control);
   border-radius: var(--ds-border-radius-sm);
   background: var(--ds-color-surface);
   color: var(--ds-color-text-primary);
@@ -55,7 +55,7 @@
 }
 
 .googleButton:hover:not(:disabled) {
-  border-color: var(--ds-color-border-strong);
+  border-color: var(--ds-color-border-control-hover);
   background: var(--ds-color-interaction-hover);
 }
 
@@ -101,85 +101,18 @@
   font-weight: 700;
 }
 
-.accountLayout {
-  width: min(100%, 48rem);
-  margin: 0 auto;
-}
-
-.accountHeader {
-  padding-bottom: var(--ds-space-lg);
-  border-bottom: 1px solid var(--ds-color-border-default);
-}
-
-.accountHeader .lead {
-  max-width: 42rem;
-}
-
-.settingsSection,
-.accountActionsSection {
-  padding: var(--ds-space-lg) 0;
-  border-bottom: 1px solid var(--ds-color-border-default);
-}
-
-.settingsSection h2,
-.accountActionsSection h2 {
-  margin: 0;
-  font-size: var(--ds-heading-size-md);
-}
-
-.sectionDescription {
-  margin-top: var(--ds-space-xs);
-  color: var(--ds-color-text-secondary);
-}
-
-.accountDetails {
-  display: grid;
-  gap: var(--ds-space-sm);
-  margin: var(--ds-space-md) 0 0;
-  padding: var(--ds-space-md) 0 0;
-  border-top: 1px solid var(--ds-color-border-subtle);
-}
-
-.accountDetails dt {
-  color: var(--ds-ink-weak);
-  font-size: var(--ds-text-sm);
-}
-
-.accountDetails dd {
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
-
-.signOutButton {
-  min-height: 2.75rem;
-  padding: 0.65rem 1rem;
-  border: 1px solid var(--ds-color-border-default);
-  border-radius: var(--ds-border-radius-sm);
-  background: var(--ds-color-surface);
-  color: var(--ds-color-text-primary);
-  cursor: pointer;
-  font: inherit;
-  font-weight: 700;
-}
-
-.signOutButton:hover {
-  border-color: var(--ds-color-border-strong);
-  background: var(--ds-color-interaction-hover);
-}
-
-.signOutButton:focus-visible {
-  outline: var(--ds-focus-ring);
-  outline-offset: 3px;
-}
+/* The account page previously borrowed this stylesheet. It now owns
+   styles/pages/account.module.css, so the account-specific rules that used to
+   live here (.accountLayout, .accountHeader, .settingsSection, .accountDetails,
+   .accountActionsSection, .sectionDescription, .signOutButton) have moved with
+   it rather than lingering as dead selectors. */
 
 @media (max-width: 22rem) {
   .panel {
     padding: var(--ds-space-md);
   }
 
-  .googleButton,
-  .signOutButton {
+  .googleButton {
     width: 100%;
   }
 }
