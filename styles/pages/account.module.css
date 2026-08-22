@@ -1,0 +1,225 @@
+/* =============================================================================
+   Account — identity, sign-in method, information, appearance, session.
+
+   The previous version borrowed auth.module.css and read as a stack of
+   undifferentiated prose blocks. This gives the page its own hierarchy: one
+   identity band, then framed panels in decreasing order of consequence.
+============================================================================ */
+
+.page {
+  min-height: 60vh;
+  padding: var(--ds-space-lg) 0 var(--ds-space-2xl);
+  background: var(--ds-color-background);
+}
+
+.layout {
+  display: grid;
+  width: min(100%, 44rem);
+  gap: var(--ds-space-lg);
+  margin: 0 auto;
+}
+
+.header {
+  padding-bottom: var(--ds-space-sm);
+  border-bottom: 1px solid var(--ds-color-border-default);
+}
+
+.eyebrow {
+  margin: 0 0 var(--ds-space-3xs);
+  color: var(--ds-color-brand-primary);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--ds-heading-size-lg);
+  letter-spacing: 0;
+}
+
+/* Identity band --------------------------------------------------------- */
+.identity {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-sm);
+}
+
+.avatar {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  flex: none;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ds-color-brand-surface);
+  color: var(--ds-color-brand-primary);
+  font-size: var(--ds-text-lg);
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: 0.02em;
+}
+
+.identityText {
+  display: grid;
+  gap: var(--ds-space-3xs);
+  min-width: 0;
+}
+
+.identityName {
+  font-size: var(--ds-text-lg);
+  font-weight: var(--ds-font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.identityEmail {
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-text-sm);
+  overflow-wrap: anywhere;
+}
+
+/* Panels ---------------------------------------------------------------- */
+.panel {
+  display: grid;
+  gap: var(--ds-space-sm);
+  padding: var(--ds-space-md);
+  border: 1px solid var(--ds-color-border-default);
+  border-radius: var(--ds-border-radius-md);
+  background: var(--ds-color-surface);
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: var(--ds-heading-size-sm);
+  letter-spacing: 0;
+}
+
+.panelNote {
+  margin: 0;
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-text-sm);
+  line-height: var(--ds-line-height-normal);
+}
+
+.inlineLink {
+  color: var(--ds-color-brand-primary);
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.inlineLink:focus-visible {
+  outline: var(--ds-focus-ring);
+  outline-offset: 2px;
+}
+
+/* Label/value rows. Stacked on a phone so a long value never squeezes the
+   label into a two-character column. */
+.rows {
+  display: grid;
+}
+
+.row {
+  display: grid;
+  gap: var(--ds-space-3xs);
+  padding: var(--ds-space-2xs) 0;
+  border-bottom: 1px solid var(--ds-color-border-subtle);
+}
+
+.row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.rowLabel {
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-text-sm);
+}
+
+.rowValue {
+  color: var(--ds-color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.panelLinks {
+  display: grid;
+  gap: var(--ds-space-2xs);
+}
+
+.panelLink {
+  display: grid;
+  gap: var(--ds-space-3xs);
+  padding: var(--ds-space-sm);
+  border: 1px solid var(--ds-color-border-control);
+  border-radius: var(--ds-border-radius-sm);
+  color: var(--ds-color-text-primary);
+  text-decoration: none;
+}
+
+.panelLink span {
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-text-sm);
+}
+
+.panelLink:hover {
+  border-color: var(--ds-color-border-control-hover);
+  background: var(--ds-color-interaction-hover);
+}
+
+.panelLink:hover strong {
+  color: var(--ds-color-brand-primary);
+}
+
+.panelLink:focus-visible {
+  outline: var(--ds-focus-ring);
+  outline-offset: 3px;
+}
+
+.signOutButton {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1rem;
+  border: 1px solid var(--ds-color-border-control);
+  border-radius: var(--ds-border-radius-sm);
+  background: var(--ds-color-surface);
+  color: var(--ds-color-text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.signOutButton:hover {
+  border-color: var(--ds-color-destructive);
+  background: var(--ds-color-destructive-surface);
+  color: var(--ds-color-destructive);
+}
+
+.signOutButton:focus-visible {
+  outline: var(--ds-focus-ring);
+  outline-offset: 3px;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (min-width: 48rem) {
+  .page {
+    padding-top: var(--ds-space-xl);
+  }
+
+  .row {
+    grid-template-columns: 12rem minmax(0, 1fr);
+    align-items: baseline;
+    gap: var(--ds-space-sm);
+  }
+
+  .panelLinks {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
