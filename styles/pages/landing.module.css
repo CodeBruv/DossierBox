@@ -293,7 +293,7 @@
 }
 
 .distinctionText {
-  color: var(--ds-color-border-inverse);
+  color: var(--ds-color-text-inverse-secondary);
   line-height: var(--ds-line-height-loose);
 }
 
@@ -344,7 +344,7 @@
 .finalText {
   max-width: 39rem;
   margin-top: var(--ds-space-sm);
-  color: var(--ds-color-border-inverse);
+  color: var(--ds-color-text-inverse-secondary);
   line-height: var(--ds-line-height-loose);
 }
 
