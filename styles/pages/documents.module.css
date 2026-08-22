@@ -101,7 +101,7 @@
   align-items: center;
   min-height: 2.5rem;
   padding: 0.55rem 0.85rem;
-  border: 1px solid var(--ds-color-border-default);
+  border: 1px solid var(--ds-color-border-control);
   color: var(--ds-color-text-primary);
   font-size: var(--ds-text-sm);
   font-weight: var(--ds-font-weight-semibold);
@@ -109,7 +109,7 @@
 }
 
 .secondaryButton:hover {
-  border-color: var(--ds-color-border-strong);
+  border-color: var(--ds-color-border-control-hover);
   color: var(--ds-color-brand-primary);
 }
 
