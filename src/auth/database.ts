@@ -38,6 +38,35 @@ const databaseUrl = process.env.DATABASE_URL ?? "postgres://invalid-auth-config@
 const poolMax = readPositiveInteger(process.env.DATABASE_POOL_MAX, 3);
 const idleTimeoutSeconds = readPositiveInteger(process.env.DATABASE_IDLE_TIMEOUT, 20);
 
+/**
+ * How long a single connection attempt may take before it is abandoned.
+ *
+ * This was 10 seconds, and a sign-in against the eu-central-1 pooler failed with
+ * `CONNECT_TIMEOUT` while later requests to the same database succeeded. That
+ * pattern — intermittent, on a cold connection, against a healthy database — is a
+ * threshold being crossed, not a fault in the connection logic. Opening a pooled
+ * connection is a TCP handshake, a TLS negotiation and pooler-side authentication,
+ * and over a long geographic hop the first one of those can legitimately outlast
+ * ten seconds.
+ *
+ * Raising it is not symmetric with lowering it. The cost of a higher ceiling is
+ * paid only when a connection is genuinely slow; the happy path is unaffected,
+ * because the timeout is a deadline rather than a delay. The cost of too low a
+ * ceiling falls on the authentication callback, where a failed adapter query
+ * surfaces as `error=Configuration` — a message that says the application is
+ * misconfigured when in fact the network was briefly slow. A slow sign-in is a
+ * much better outcome than one that appears to be a setup error.
+ *
+ * It is not raised further than this because a genuinely unreachable database
+ * should fail while someone is still willing to wait, and Vercel's own function
+ * timeout is the real upper bound in production.
+ *
+ * This is a reliability improvement, not a proven cure: the failure was
+ * intermittent, so the honest claim is that it removes the most plausible cause
+ * and makes the remaining cases fail more informatively.
+ */
+const connectTimeoutSeconds = readPositiveInteger(process.env.DATABASE_CONNECT_TIMEOUT, 20);
+
 const globalForDatabase = globalThis as unknown as {
   dossierBoxSql?: ReturnType<typeof postgres>;
 };
@@ -47,7 +76,7 @@ const sql =
   postgres(databaseUrl, {
     max: poolMax,
     idle_timeout: idleTimeoutSeconds,
-    connect_timeout: 10,
+    connect_timeout: connectTimeoutSeconds,
     /**
      * Required, not optional: the connection string points at a transaction-mode
      * pooler, which cannot support server-side prepared statements. Removing this
