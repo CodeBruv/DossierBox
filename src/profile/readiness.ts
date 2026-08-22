@@ -5,13 +5,13 @@ export type DossierReadiness = {
   detail: string;
 };
 
-type IdentityRecord = {
+export type IdentityRecord = {
   displayName: string | null;
   headline: string | null;
   careerDirection: string | null;
 };
 
-type ExperienceRecord = {
+export type ExperienceRecord = {
   role: string;
   organization: string;
   startYear: number | null;
@@ -20,7 +20,7 @@ type ExperienceRecord = {
   description: string | null;
 };
 
-type EducationRecord = {
+export type EducationRecord = {
   institution: string;
   qualification: string | null;
   startYear: number | null;
@@ -28,7 +28,7 @@ type EducationRecord = {
   current: boolean;
 };
 
-type ProjectRecord = {
+export type ProjectRecord = {
   name: string;
   role: string | null;
   context: string | null;
@@ -39,7 +39,7 @@ type ProjectRecord = {
   description: string | null;
 };
 
-type SkillRecord = {
+export type SkillRecord = {
   name: string;
 };
 
