@@ -64,12 +64,23 @@
 
 /*
    Scope the document font. Only elements carrying .document-font (or a
-   descendant of one) switch to the serif. This is used by the eventual
-   document preview component — keeping it isolated from UI typography.
+   descendant of one) switch to the document face. This is used by the document
+   preview component — keeping it isolated from UI typography.
+
+   `--doc-family` is how a template redirects the face. Every rule below follows
+   the same pattern: read a `--doc-*` property, fall back to the value that was
+   already here. So a template supplies only what it wants to change, an element
+   with no template still renders exactly as before, and none of these rules ever
+   need to be duplicated per template.
+
+   Inheritance is what makes it work, and it is also why it is the right layer:
+   these are the rules the print stylesheet and the eventual PDF renderer read,
+   so a template applied to the sheet reaches the printed page for free instead
+   of being a screen-only skin.
 */
 .document-font,
 .document-font * {
-  font-family: var(--ds-font-document);
+  font-family: var(--doc-family, var(--ds-font-document));
 }
 
 /* ===========================================================================
@@ -92,16 +103,17 @@
 
 /* Section heading inside documents */
 .document-section-title {
-  font-family: var(--ds-font-document);
-  font-size: 11pt;
+  font-family: var(--doc-family, var(--ds-font-document));
+  font-size: var(--doc-section-size, 11pt);
   font-weight: 700;
   line-height: 1.3;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--doc-section-tracking, 0.04em);
   text-transform: uppercase;
-  margin-top: 1.4em;
+  margin-top: var(--doc-section-gap, 1.4em);
   margin-bottom: 0.55em;
-  border-bottom: 0.5pt solid var(--ds-rule);
+  border-bottom: var(--doc-section-rule, 0.5pt solid var(--ds-rule));
   padding-bottom: 0.18em;
+  color: var(--doc-section-ink, var(--ds-ink));
 }
 .document-section-title:first-child {
   margin-top: 0;
@@ -109,9 +121,9 @@
 
 /* Body text inside documents — real print metrics */
 .document-body {
-  font-family: var(--ds-font-document);
-  font-size: 10.5pt;
-  line-height: 1.35;
+  font-family: var(--doc-family, var(--ds-font-document));
+  font-size: var(--doc-body-size, 10.5pt);
+  line-height: var(--doc-line-height, 1.35);
   color: var(--ds-ink);
 }
 
