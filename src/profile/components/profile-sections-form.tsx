@@ -38,10 +38,25 @@ export function ProfileSectionsForm({ action, selected }: ProfileSectionsFormPro
         ))}
       </fieldset>
       <div className={styles.formActions}>
-        <button className={styles.primaryButton} disabled={pending} type="submit">
-          {pending ? "Saving..." : "Save section choices"}
+        <button
+          className={styles.primaryButton}
+          disabled={pending}
+          name="intent"
+          type="submit"
+          value="continue"
+        >
+          {pending ? "Saving..." : "Save and start building"}
         </button>
-        <Link className={styles.secondaryButton} href="/profile">Cancel</Link>
+        <button
+          className={styles.secondaryButton}
+          disabled={pending}
+          name="intent"
+          type="submit"
+          value="stay"
+        >
+          Save only
+        </button>
+        <Link className={styles.quietLink} href="/profile">Cancel</Link>
       </div>
     </form>
   );
