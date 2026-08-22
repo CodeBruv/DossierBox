@@ -58,7 +58,7 @@
   width: 11rem;
   gap: var(--ds-space-3xs);
   padding: var(--ds-space-xs);
-  border: 1px solid var(--ds-color-border-default);
+  border: 1px solid var(--ds-color-border-control);
   border-radius: var(--ds-border-radius-md);
   background: var(--ds-color-surface-elevated);
   box-shadow: var(--ds-shadow-card);
