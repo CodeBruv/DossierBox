@@ -20,9 +20,15 @@
     font-size: 12pt;
   }
 
+  /* Print is always ink on paper.
+     These must NOT use the themeable tokens: --ds-ink / --ds-paper resolve
+     through the semantic colour layer, so printing while dark mode is active
+     produced light text on a dark background — and `color-adjust: exact`
+     forced the browser to honour it, wasting toner and breaking document
+     fidelity. Print output is canonical, so it is pinned to literal values. */
   body {
-    color: var(--ds-ink);
-    background: var(--ds-paper);
+    color: #000000;
+    background: #ffffff;
     -webkit-print-color-adjust: exact;
     color-adjust: exact;
   }
