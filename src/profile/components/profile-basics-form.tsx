@@ -78,10 +78,25 @@ export function ProfileBasicsForm({ action, profile }: ProfileBasicsFormProps) {
         </div>
       </div>
       <div className={styles.formActions}>
-        <button className={styles.primaryButton} disabled={pending} type="submit">
-          {pending ? "Saving..." : "Save basics"}
+        <button
+          className={styles.primaryButton}
+          disabled={pending}
+          name="intent"
+          type="submit"
+          value="continue"
+        >
+          {pending ? "Saving..." : "Save and continue"}
         </button>
-        <Link className={styles.secondaryButton} href="/profile">Cancel</Link>
+        <button
+          className={styles.secondaryButton}
+          disabled={pending}
+          name="intent"
+          type="submit"
+          value="stay"
+        >
+          Save only
+        </button>
+        <Link className={styles.quietLink} href="/profile">Cancel</Link>
       </div>
     </form>
   );
