@@ -7,7 +7,7 @@
 import "./globals.css";
 import "@/styles/print.css";
 import { SiteHeader, SiteFooter, ThemeProvider } from "@/ui";
-import { auth } from "@/auth/auth";
+import { getSession } from "@/auth/session";
 import { Viewport, type Metadata } from "next";
 import type { ReactNode } from "react";
 
@@ -59,7 +59,7 @@ const themeInitializer = `
 `;
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const session = await auth();
+  const session = await getSession();
   const authenticated = Boolean(session?.user);
 
   return (
