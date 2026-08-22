@@ -44,7 +44,7 @@
   align-items: center;
   justify-content: center;
   padding: 0.7rem 1rem;
-  border: 1px solid var(--ds-color-border-default);
+  border: 1px solid var(--ds-color-border-control);
   border-radius: var(--ds-border-radius-sm);
   font: inherit;
   font-weight: var(--ds-font-weight-semibold);
@@ -70,7 +70,7 @@
 
 .secondaryButton:hover {
   background: var(--ds-color-interaction-hover);
-  border-color: var(--ds-color-border-strong);
+  border-color: var(--ds-color-border-control-hover);
   color: var(--ds-color-text-primary);
 }
 
