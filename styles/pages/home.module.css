@@ -108,7 +108,7 @@
   width: 1.5rem;
   height: 1.5rem;
   place-items: center;
-  border: 1px solid var(--ds-color-border-strong);
+  border: 1px solid var(--ds-color-border-control);
   border-radius: 50%;
   color: var(--ds-color-text-secondary);
   font-size: var(--ds-text-sm);
@@ -179,13 +179,13 @@
 
 .secondaryButton {
   align-self: flex-start;
-  border: 1px solid var(--ds-color-border-default);
+  border: 1px solid var(--ds-color-border-control);
   color: var(--ds-color-text-primary);
   background: var(--ds-color-surface);
 }
 
 .secondaryButton:hover {
-  border-color: var(--ds-color-border-strong);
+  border-color: var(--ds-color-border-control-hover);
   background: var(--ds-color-interaction-hover);
   color: var(--ds-color-text-primary);
 }
