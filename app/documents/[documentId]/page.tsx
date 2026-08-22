@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { auth, authSessionConfiguration } from "@/auth/auth";
+import { authSessionConfiguration } from "@/auth/auth";
+import { getSession } from "@/auth/session";
 import { documentTypeLabel, getOwnedDocument } from "@/documents/repository";
 import { Container } from "@/ui";
 import styles from "@/styles/pages/documents.module.css";
@@ -12,7 +13,7 @@ type DocumentPageProps = {
 export default async function DocumentPage({ params }: DocumentPageProps) {
   const { documentId } = await params;
   if (!authSessionConfiguration) redirect(`/auth/sign-in?callbackUrl=%2Fdocuments%2F${documentId}&error=Configuration`);
-  const session = await auth();
+  const session = await getSession();
   if (!session?.user?.id) redirect(`/auth/sign-in?callbackUrl=%2Fdocuments%2F${documentId}&error=SessionRequired`);
 
   let document;
