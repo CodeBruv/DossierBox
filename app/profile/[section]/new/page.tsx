@@ -29,6 +29,7 @@ export default async function NewProfileEntryPage({ params }: NewEntryPageProps)
           </header>
           <ProfileEntryForm
             action={action}
+            allowAddAnother
             cancelHref={`/profile/${section}`}
             definition={definition}
             submitLabel="Save entry"
