@@ -1,7 +1,8 @@
 import "server-only";
 
 import { redirect } from "next/navigation";
-import { auth, authSessionConfiguration } from "@/auth/auth";
+import { authSessionConfiguration } from "@/auth/auth";
+import { getSession } from "@/auth/session";
 
 export type AuthenticatedProfileUser = {
   id: string;
@@ -14,7 +15,7 @@ export async function requireProfileUser(): Promise<AuthenticatedProfileUser> {
     redirect("/auth/sign-in?callbackUrl=%2Fprofile&error=Configuration");
   }
 
-  const session = await auth();
+  const session = await getSession();
 
   if (!session?.user?.id) {
     redirect("/auth/sign-in?callbackUrl=%2Fprofile&error=SessionRequired");
