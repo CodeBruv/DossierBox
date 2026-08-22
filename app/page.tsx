@@ -108,17 +108,15 @@ export default function LandingPage() {
               </p>
               <div className={styles.heroActions}>
                 <Button variant="primary" size="lg" asChild>
-                  <Link href={routes.signUp} aria-disabled="true">
-                    Build your Dossier
-                  </Link>
+                  <Link href={routes.signUp}>Build your Dossier</Link>
                 </Button>
                 <Button variant="secondary" size="lg" asChild>
                   <Link href={routes.templates}>Explore document templates</Link>
                 </Button>
               </div>
               <p className={styles.heroNote}>
-                Account creation is coming soon. Explore the product direction
-                while the foundation is being built.
+                One reusable career record. Create the documents each
+                opportunity actually calls for.
               </p>
             </div>
             <DocumentPreview />
@@ -228,9 +226,7 @@ export default function LandingPage() {
                 <Link href={routes.howItWorks}>See how it works</Link>
               </Button>
               <Button variant="primary" size="lg" asChild>
-                <Link href={routes.signUp} aria-disabled="true">
-                  Get started
-                </Link>
+                <Link href={routes.signUp}>Get started</Link>
               </Button>
             </div>
           </div>
