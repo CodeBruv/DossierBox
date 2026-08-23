@@ -2,6 +2,7 @@ import "server-only";
 
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/auth/database";
+import { documentTypeLabel as catalogueDocumentTypeLabel } from "./catalogue";
 import { defaultTemplateFor } from "./presentation";
 import { documents, type DocumentType } from "./schema";
 
@@ -84,15 +85,16 @@ export async function updateDocumentConfiguration(
   return document ?? null;
 }
 
+/**
+ * The document's label, from the catalogue.
+ *
+ * Re-exported through the repository because call sites already import it from here.
+ * It used to be a `switch` over the three enum values, which meant a fourth document
+ * type would have needed a code change in a database module — exactly the coupling the
+ * catalogue exists to remove.
+ */
 export function documentTypeLabel(type: DocumentType) {
-  switch (type) {
-    case "professional_cv":
-      return "Professional CV";
-    case "professional_resume":
-      return "Professional résumé";
-    case "academic_cv":
-      return "Academic or international CV";
-  }
+  return catalogueDocumentTypeLabel(type);
 }
 
 function documentTitle(type: DocumentType) {
