@@ -35,6 +35,18 @@ export default defineConfig({
         replacement: resolve(__dirname, "src/documents"),
       },
       {
+        find: "@/entitlements",
+        replacement: resolve(__dirname, "src/entitlements"),
+      },
+      {
+        find: "@/applications",
+        replacement: resolve(__dirname, "src/applications"),
+      },
+      {
+        find: "@/writing",
+        replacement: resolve(__dirname, "src/writing"),
+      },
+      {
         find: "@/ui",
         replacement: resolve(__dirname, "src/ui"),
       },
