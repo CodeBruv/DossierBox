@@ -166,6 +166,7 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
             >
               <DocumentSettings
                 documentId={document.id}
+                documentType={document.type}
                 hiddenSections={document.hiddenSections}
                 sections={offeredSections}
                 template={template.id}
