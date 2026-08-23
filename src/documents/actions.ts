@@ -2,22 +2,9 @@
 
 import { redirect, unstable_rethrow } from "next/navigation";
 import { requireProfileUser } from "@/profile/authorization";
-import { profileSectionKeys } from "@/profile/types";
+import { isAvailableDocumentType, isDocumentSectionKey } from "./catalogue";
 import { isDocumentTemplateId } from "./presentation";
 import { createDocument, updateDocumentConfiguration } from "./repository";
-import type { DocumentType } from "./schema";
-
-const documentTypes = new Set<DocumentType>([
-  "professional_cv",
-  "professional_resume",
-  "academic_cv",
-]);
-
-/**
- * Every section a document can contain. `summary` is composed rather than stored,
- * so it is not one of the profile section keys and has to be added here.
- */
-const sectionKeys = new Set<string>([...profileSectionKeys, "summary"]);
 
 /**
  * A document title has to fit a heading and a filename, and nothing useful is
@@ -28,7 +15,14 @@ const TITLE_MAX_LENGTH = 120;
 
 export async function createDocumentAction(formData: FormData) {
   const type = formData.get("type");
-  if (typeof type !== "string" || !documentTypes.has(type as DocumentType)) {
+  /**
+   * `isAvailableDocumentType`, not merely "is a registered type": the catalogue is
+   * allowed to describe document types the engine cannot yet produce, and a posted
+   * `type` naming one of those must be refused here rather than reaching the database.
+   * A server action is a public endpoint; the form it was rendered into proves nothing
+   * about what was posted.
+   */
+  if (!isAvailableDocumentType(type)) {
     redirect("/documents/new?error=unsupported-type");
   }
 
@@ -36,7 +30,7 @@ export async function createDocumentAction(formData: FormData) {
   let document: Awaited<ReturnType<typeof createDocument>>;
 
   try {
-    document = await createDocument(user.id, type as DocumentType);
+    document = await createDocument(user.id, type);
   } catch (error) {
     /**
      * `redirect()` and `notFound()` signal control flow by throwing. Any such
@@ -82,6 +76,18 @@ export async function updateDocumentAction(formData: FormData) {
   }
 
   const rawTemplate = formData.get("template");
+  /*
+   * A template this build knows — and nothing more than that, deliberately.
+   *
+   * The style picker now offers only styles that suit the document's type, and a check on
+   * the *form* is never a check at all: this is a public endpoint. The reason the pairing is
+   * not verified here is that verifying it needs the document's type, which needs a read,
+   * which adds a round trip to a save path already measured at seconds. The guarantee is
+   * enforced at the point where a bad pairing would do damage instead: `resolveTemplate`
+   * falls back when a stored style does not suit the document, so the worst a hostile post
+   * achieves is its own document rendering in the default style. When a style ships that
+   * cannot present a CV, this check becomes worth its round trip.
+   */
   if (!isDocumentTemplateId(rawTemplate)) {
     redirect(`/documents/${documentId}?error=unknown-template`);
   }
@@ -121,5 +127,5 @@ export async function updateDocumentAction(formData: FormData) {
 }
 
 function isKnownSection(value: FormDataEntryValue): value is string {
-  return typeof value === "string" && sectionKeys.has(value);
+  return isDocumentSectionKey(value);
 }
