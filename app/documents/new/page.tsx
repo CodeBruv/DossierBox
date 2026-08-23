@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { authSessionConfiguration } from "@/auth/auth";
 import { getSession } from "@/auth/session";
 import { createDocumentAction } from "@/documents/actions";
+import { availableDocumentTypeList } from "@/documents/catalogue";
 import { Container } from "@/ui";
 import styles from "@/styles/pages/documents.module.css";
 
@@ -9,23 +10,11 @@ type NewDocumentPageProps = {
   searchParams: Promise<{ error?: string }>;
 };
 
-const choices = [
-  {
-    type: "professional_cv",
-    title: "Professional CV",
-    description: "A clear, general-purpose record of your experience.",
-  },
-  {
-    type: "professional_resume",
-    title: "Professional résumé",
-    description: "A focused, achievement-oriented document for an application.",
-  },
-  {
-    type: "academic_cv",
-    title: "Academic or international CV",
-    description: "A fuller document for academic, research, or cross-border contexts.",
-  },
-] as const;
+/**
+ * The choices come from the catalogue, so this screen cannot drift from what the engine
+ * can actually produce, and cannot offer a document type that does not exist yet.
+ */
+const choices = availableDocumentTypeList;
 
 export default async function NewDocumentPage({ searchParams }: NewDocumentPageProps) {
   if (!authSessionConfiguration) redirect("/auth/sign-in?callbackUrl=%2Fdocuments%2Fnew&error=Configuration");
@@ -43,10 +32,10 @@ export default async function NewDocumentPage({ searchParams }: NewDocumentPageP
         {query.error === "create-failed" ? <p className={styles.errorStatus} role="alert">We could not create the draft right now. Your dossier has not been changed. Please try again.</p> : null}
         <div className={styles.choiceList}>
           {choices.map((choice) => (
-            <form action={createDocumentAction} key={choice.type}>
-              <input name="type" type="hidden" value={choice.type} />
+            <form action={createDocumentAction} key={choice.key}>
+              <input name="type" type="hidden" value={choice.key} />
               <button className={styles.choice} type="submit">
-                <strong>{choice.title}</strong>
+                <strong>{choice.label}</strong>
                 <span>{choice.description}</span>
               </button>
             </form>
