@@ -45,6 +45,15 @@
       ],
       "@/documents/*": [
         "./src/documents/*"
+      ],
+      "@/entitlements/*": [
+        "./src/entitlements/*"
+      ],
+      "@/applications/*": [
+        "./src/applications/*"
+      ],
+      "@/writing/*": [
+        "./src/writing/*"
       ]
     },
     "plugins": [
