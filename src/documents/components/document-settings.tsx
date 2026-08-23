@@ -20,14 +20,22 @@
  */
 
 import { updateDocumentAction } from "../actions";
-import { documentTemplateList } from "../presentation";
+import { compatibleTemplates } from "../presentation";
 import type { ComposedSectionKey } from "../composition";
+import type { DocumentType } from "../schema";
 import styles from "@/styles/ui/document-settings.module.css";
 
 export type DocumentSettingsProps = {
   documentId: string;
   title: string;
   template: string;
+  /**
+   * Which document this is, so the style list can be the styles that suit it.
+   *
+   * Passed rather than derived from `template`: a style may present several kinds of
+   * document, so the style cannot tell us what the document is — only the other way round.
+   */
+  documentType: DocumentType;
   /** Every section this document could show, in the order it shows them. */
   sections: readonly { key: ComposedSectionKey; heading: string }[];
   hiddenSections: readonly string[];
@@ -37,10 +45,18 @@ export function DocumentSettings({
   documentId,
   title,
   template,
+  documentType,
   sections,
   hiddenSections,
 }: DocumentSettingsProps) {
   const hidden = new Set(hiddenSections);
+  /*
+   * Only the styles that can actually present this kind of document. Identical to the
+   * full list today — all three were measured from sectioned career documents, so all
+   * three serve both a résumé and a CV — and the point is that it stays correct without
+   * anyone remembering: the day a letter style ships, a CV stops being offered it.
+   */
+  const styleOptions = compatibleTemplates(documentType);
 
   return (
     <form action={updateDocumentAction} className={styles.settings}>
@@ -65,7 +81,7 @@ export function DocumentSettings({
       <fieldset className={styles.fieldset}>
         <legend className={styles.legend}>Style</legend>
         <div className={styles.templates}>
-          {documentTemplateList.map((option) => (
+          {styleOptions.map((option) => (
             <label className={styles.template} key={option.id}>
               <input
                 defaultChecked={option.id === template}
