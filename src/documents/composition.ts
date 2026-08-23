@@ -3,9 +3,14 @@
  *
  * This is the **configuration** layer in the chain
  * `dossier → composition → presentation`. It decides, for a given document
- * family, which sections appear, in what order, and what each entry's lines say.
+ * type, which sections appear, in what order, and what each entry's lines say.
  * It decides nothing about typography, spacing or markup — that belongs to the
  * presentation layer, which consumes only the plain data returned here.
+ *
+ * Which sections a type shows, in what order, and what each is called are *not*
+ * decided here either: they are declared in `./catalogue`, and this module reads that
+ * declaration. That separation is what lets a new document type be an entry in a
+ * registry rather than a new branch in this file.
  *
  * Three rules govern this module, and they are the reason it is pure:
  *
@@ -13,11 +18,13 @@
  *    text the user typed, a date they entered, or a label from this application's
  *    own vocabulary. No connective prose, no inferred seniority, no computed
  *    "years of experience", no filler where a field was left blank.
- * 2. **Nothing is silently dropped.** Every document family can present every
- *    section. Families differ by *order*, not by discarding a user's record —
- *    someone who entered publications should never find them missing from a
- *    résumé without being told. A section disappears for exactly one reason: it
- *    is empty. That matches what the review screen already promises.
+ * 2. **Nothing is silently dropped.** A section disappears for exactly two reasons:
+ *    it is empty, or the user hid it. The three shipping document types each list
+ *    every section the dossier can fill, so they differ by *order*, not by
+ *    discarding a user's record — someone who entered publications should never find
+ *    them missing from a résumé without being told. (A future letter or statement
+ *    type will legitimately list only the sections it has; that is a declaration in
+ *    the catalogue, not a silent drop here.)
  * 3. **The output is deterministic.** The same dossier composes to the same
  *    document every time, which is why the snapshot reads sections in a fixed
  *    order and why nothing here reads a clock or a random source.
@@ -42,14 +49,25 @@ import type {
 } from "@/profile/dossier";
 import { profileSectionMap } from "@/profile/sections";
 import { skillTypes, type ProfileSectionKey } from "@/profile/types";
-import type { DocumentType } from "./schema";
+import {
+  documentHeadingOverrides,
+  documentSectionOrder,
+  sectionHeading,
+  type DocumentSectionKey,
+  type DocumentTypeKey,
+} from "./catalogue";
 
 /**
- * `summary` is not a profile section — it is the career direction the user wrote
- * on their basics. It is modelled as a section anyway so it can take part in
- * per-family ordering instead of being hard-coded above everything else.
+ * The sections a composed document can contain.
+ *
+ * An alias of the catalogue's vocabulary, kept as a named export because the
+ * presentation layer and the workspace both refer to it. It used to be defined here as
+ * `ProfileSectionKey | "summary"`, which welded documents to the dossier's shape and
+ * made a letter or a statement — which have sections the dossier has never heard of —
+ * impossible to express. The catalogue owns this vocabulary now.
  */
-export type ComposedSectionKey = ProfileSectionKey | "summary";
+export type ComposedSectionKey = DocumentSectionKey;
+
 
 /**
  * The user's own free text, split into the lines they wrote.
@@ -70,19 +88,8 @@ export type ComposedEntry = {
   title: string;
   /** The organisation, institution, issuer or publisher behind the title. */
   subtitle: string | null;
-  /**
-   * When it happened, as a document would state it.
-   *
-   * Kept apart from the other qualifiers because a date is a different kind of
-   * fact and career documents treat it differently: one style sets it on its own
-   * line in italic, another folds it into a metadata row, another pushes it to the
-   * right edge of the measure. Pre-joining them into one string would force every
-   * style to print them the same way, and re-splitting a joined string in the
-   * renderer would be guesswork. `null` when the user gave no dates.
-   */
-  period: string | null;
-  /** Short qualifiers other than the dates — place, kind, identifier — joined. */
-  qualifiers: string | null;
+  /** Dates, location and other short qualifiers, already joined. */
+  meta: string | null;
   /** The user's own free text, verbatim. */
   detail: ComposedDetail | null;
   /** A link the user supplied, if any. Never derived from other fields. */
@@ -112,92 +119,9 @@ export type ComposedHeader = {
 };
 
 export type ComposedDocument = {
-  type: DocumentType;
+  type: DocumentTypeKey;
   header: ComposedHeader;
   sections: ComposedSection[];
-};
-
-/**
- * Section order per document family.
- *
- * This is where a document family's judgement actually lives. A résumé leads with
- * what a hiring decision turns on; a general CV keeps the conventional
- * experience-then-education spine; an academic or international CV leads with
- * education and published work.
- *
- * Every family lists every key exactly once — enforced by test, because a
- * dropped key here would quietly remove a section from someone's document.
- */
-const sectionOrder: Record<DocumentType, readonly ComposedSectionKey[]> = {
-  professional_cv: [
-    "summary",
-    "experience",
-    "education",
-    "skills",
-    "projects",
-    "credentials",
-    "achievements",
-    "publications",
-    "memberships",
-    "languages",
-    "links",
-  ],
-  professional_resume: [
-    "summary",
-    "experience",
-    "skills",
-    "achievements",
-    "projects",
-    "education",
-    "credentials",
-    "languages",
-    "links",
-    "memberships",
-    "publications",
-  ],
-  academic_cv: [
-    "summary",
-    "education",
-    "publications",
-    "experience",
-    "credentials",
-    "achievements",
-    "projects",
-    "memberships",
-    "skills",
-    "languages",
-    "links",
-  ],
-};
-
-/**
- * Document headings, which are deliberately not the profile's own labels.
- *
- * The workspace calls a section "Portfolio and professional links" because that
- * explains what to put there. A finished document says "Links", because the
- * reader does not need to be taught the field. `summary` is titled "Career
- * objective" rather than "Professional summary" for an accuracy reason: the
- * basics form asks for "the kind of work, field, level, or direction you are
- * pursuing", which is an objective, not a précis of past work. Calling it a
- * summary would misdescribe the user's own words.
- *
- * Per-family heading conventions (an academic CV's "Appointments", for instance)
- * are deliberately left out for now. They only pay off alongside encoded
- * reference layouts, and guessing at them risks labelling a retail job an
- * "appointment".
- */
-const headings: Record<ComposedSectionKey, string> = {
-  summary: "Career objective",
-  experience: "Experience",
-  education: "Education",
-  skills: "Skills",
-  projects: "Projects",
-  credentials: "Certifications and credentials",
-  achievements: "Awards and achievements",
-  publications: "Publications",
-  memberships: "Memberships",
-  languages: "Languages",
-  links: "Links",
 };
 
 /** `·` between short facts on one line; the presentation layer never re-splits these. */
@@ -243,20 +167,20 @@ export type DocumentConfiguration = {
 };
 
 export function composeDocument(
-  type: DocumentType,
+  type: DocumentTypeKey,
   snapshot: DossierSnapshot,
   configuration: DocumentConfiguration = {},
 ): ComposedDocument {
-  const built = buildSections(snapshot);
+  const built = buildSections(snapshot, documentHeadingOverrides(type));
   const hidden = new Set(configuration.hiddenSections ?? []);
 
   return {
     type,
     header: composeHeader(snapshot),
     /**
-     * `flatMap` over the family's order, rather than filtering the built map,
-     * so order is expressed in exactly one place and an empty section simply
-     * yields nothing.
+     * `flatMap` over the type's catalogue order, rather than filtering the built
+     * map, so order is expressed in exactly one place — the catalogue — and an
+     * empty section simply yields nothing.
      *
      * Hiding is applied here, at the last step, for the same reason: a hidden
      * section is absent from the document but its data is untouched, so
@@ -264,7 +188,9 @@ export function composeDocument(
      * choice, and nothing downstream can tell a hidden section from an empty one
      * — the presentation layer renders what it is given either way.
      */
-    sections: sectionOrder[type].flatMap((key) => (hidden.has(key) ? [] : built[key] ?? [])),
+    sections: documentSectionOrder(type).flatMap((key) =>
+      hidden.has(key) ? [] : built[key] ?? [],
+    ),
   };
 }
 
@@ -273,13 +199,13 @@ export function composeDocument(
  * the user has hidden them.
  *
  * This is what the section-visibility control lists. It has to come from the same
- * `sectionOrder` and `buildSections` the document itself uses, or the control
+ * catalogue order and `buildSections` the document itself uses, or the control
  * would eventually offer a toggle for something the document cannot show — so it
  * composes with no configuration and reads the result rather than reimplementing
  * the rules.
  */
 export function composableSections(
-  type: DocumentType,
+  type: DocumentTypeKey,
   snapshot: DossierSnapshot,
 ): readonly { key: ComposedSectionKey; heading: string }[] {
   return composeDocument(type, snapshot).sections.map((section) => ({
@@ -320,36 +246,52 @@ function composeHeader({ identity }: DossierSnapshot): ComposedHeader {
 /**
  * Every non-empty section, keyed for lookup. Built once so `composeDocument`
  * only has to order it.
+ *
+ * `overrides` is the document type's heading conventions, threaded in rather than
+ * looked up here so this function stays independent of which type asked for it. No
+ * shipping type sets any, so every heading is the catalogue default today.
  */
 function buildSections(
   snapshot: DossierSnapshot,
+  overrides?: Readonly<Partial<Record<ComposedSectionKey, string>>>,
 ): Partial<Record<ComposedSectionKey, ComposedSection>> {
   const built: Partial<Record<ComposedSectionKey, ComposedSection>> = {};
+  const heading = (key: ComposedSectionKey) => sectionHeading(key, overrides);
   const summary = detailFrom(snapshot.identity.careerDirection);
 
   if (summary) {
-    built.summary = { key: "summary", heading: headings.summary, layout: "prose", body: summary };
+    built.summary = {
+      key: "summary",
+      heading: heading("summary"),
+      layout: "prose",
+      body: summary,
+    };
   }
 
-  entrySection(built, "experience", snapshot.experience, experienceEntry);
-  entrySection(built, "education", snapshot.education, educationEntry);
-  entrySection(built, "projects", snapshot.projects, projectEntry);
-  entrySection(built, "credentials", snapshot.credentials, credentialEntry);
-  entrySection(built, "achievements", snapshot.achievements, achievementEntry);
-  entrySection(built, "publications", snapshot.publications, publicationEntry);
-  entrySection(built, "memberships", snapshot.memberships, membershipEntry);
-  entrySection(built, "links", snapshot.links, linkEntry);
+  entrySection(built, "experience", snapshot.experience, experienceEntry, heading);
+  entrySection(built, "education", snapshot.education, educationEntry, heading);
+  entrySection(built, "projects", snapshot.projects, projectEntry, heading);
+  entrySection(built, "credentials", snapshot.credentials, credentialEntry, heading);
+  entrySection(built, "achievements", snapshot.achievements, achievementEntry, heading);
+  entrySection(built, "publications", snapshot.publications, publicationEntry, heading);
+  entrySection(built, "memberships", snapshot.memberships, membershipEntry, heading);
+  entrySection(built, "links", snapshot.links, linkEntry, heading);
 
   const skills = skillGroups(snapshot.skills);
   if (skills.length) {
-    built.skills = { key: "skills", heading: headings.skills, layout: "grouped", groups: skills };
+    built.skills = {
+      key: "skills",
+      heading: heading("skills"),
+      layout: "grouped",
+      groups: skills,
+    };
   }
 
   const languages = snapshot.languages.map(languageItem).filter(isPresent);
   if (languages.length) {
     built.languages = {
       key: "languages",
-      heading: headings.languages,
+      heading: heading("languages"),
       layout: "inline",
       items: languages,
     };
@@ -363,10 +305,11 @@ function entrySection<T>(
   key: ComposedSectionKey,
   rows: readonly T[],
   toEntry: (row: T) => ComposedEntry | null,
+  heading: (key: ComposedSectionKey) => string,
 ) {
   const entries = rows.map(toEntry).filter(isPresent);
   if (!entries.length) return;
-  built[key] = { key, heading: headings[key], layout: "entries", entries };
+  built[key] = { key, heading: heading(key), layout: "entries", entries };
 }
 
 /* Entry builders ----------------------------------------------------------
@@ -384,13 +327,14 @@ function experienceEntry(row: DossierExperience): ComposedEntry | null {
   return {
     title,
     subtitle: clean(row.organization),
-    period: formatPeriod(row),
     /**
-     * The type qualifier is omitted for plain employment, where saying so adds
-     * nothing to a line that already names a role and an employer.
+     * The type qualifier trails the dates because it is a footnote on an
+     * otherwise self-describing line, and it is omitted for plain employment,
+     * where saying so adds nothing.
      */
-    qualifiers: join(
+    meta: join(
       [
+        formatPeriod(row),
         clean(row.location),
         row.type === "employment" ? null : optionLabel("experience", "type", row.type),
       ],
