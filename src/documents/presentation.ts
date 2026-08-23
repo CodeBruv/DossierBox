@@ -1,448 +1,386 @@
 /**
- * How a document looks.
+ * Document templates — the **presentation** layer's vocabulary.
  *
- * This is the **presentation** layer in the chain
- * `dossier → composition → presentation`. Composition decided which sections a
- * document shows and what each entry's lines say; nothing here can change that.
- * What lives here is the visual identity of a document family: its paper, its
- * type, its rhythm, and — new in this pass — the *architecture* of its header,
- * its section headings and its entries.
+ * A template controls how a document looks. It does not control what the document
+ * says: that is the composition layer, and it does not control the facts, which are
+ * the dossier's. So a template holds no career information and cannot add, remove or
+ * reorder a section. Any of these can render any document family, which is what lets
+ * one dossier produce several genuinely different documents.
  *
- * ---------------------------------------------------------------------------
- * Why this file grew structural fields
- * ---------------------------------------------------------------------------
- * The first version of this layer expressed a template as a bag of CSS custom
- * properties and two behaviour flags. It worked, and it was not enough: the three
- * styles differed almost entirely by scalar type values — 11pt against 10.5pt,
- * 1.34 line-height against 1.4, 20mm of margin against 17mm — and deltas that
- * small sit below the threshold at which anyone notices a change. Two of the three
- * shared a font. All three rendered a byte-identical header. Only one of the three
- * differed structurally from the others at all.
+ * ## Where these came from
  *
- * A template is now allowed to change *shape*, not just size. Three named
- * architectures per axis (header, section heading, entry) give the styles
- * differences a reader sees before they read a word, which is the actual product
- * requirement: switching style must feel like choosing a different document, not
- * like nudging a slider.
+ * Three real career documents in `My Templates/` were measured — page size, margins,
+ * type family, every paragraph's point size and weight, rule colours, and the
+ * before/after spacing on each style — and the measurements are recorded against
+ * each template below. That inventory lives here, in the code that uses it, rather
+ * than in a separate manifest: the `.docx` files never need parsing again, and a
+ * number nobody reads is a number that goes stale.
  *
- * The data does not move. `ComposedDocument` is identical for all three styles —
- * same sections, same order, same facts, same strings. A style may re-arrange
- * those facts on the page and may decline to print a *convention* of its own
- * (a document title, a section number); it may never add or drop a fact.
+ * They were not reproduced. Copying one would produce a single hard-coded layout,
+ * which is the thing the product must not be. What was taken instead is the
+ * *variance* between them, because that variance is the design space:
  *
- * ---------------------------------------------------------------------------
- * What the three reference documents actually do
- * ---------------------------------------------------------------------------
- * Measured from the founder's own CV, International CV and résumé (`My Templates`),
- * read from `word/document.xml` rather than from appearance. Recorded here so those
- * files never need parsing again and are never a runtime dependency.
+ * | axis          | Classic          | International      | Compact                 |
+ * | ------------- | ---------------- | ------------------ | ----------------------- |
+ * | paper         | A4               | A4                 | US Letter               |
+ * | margins       | 10mm             | 16/17mm            | 15mm                    |
+ * | family        | serif            | sans               | sans                    |
+ * | body          | 11.5pt           | 10.5pt             | 10.5pt                  |
+ * | headings       | numbered, ruled  | ruled, grey        | ruled, navy             |
+ * | dates         | own line, italic | own line, grey     | right-aligned, inline   |
+ * | rhythm        | tight            | even               | tight                   |
+ * | ink           | black            | black + grey       | navy accent             |
  *
- * | dimension        | CV (formal)                     | International CV (modern)      | Résumé (executive)              |
- * | ---------------- | ------------------------------- | ------------------------------ | ------------------------------- |
- * | paper            | A4 11906×16838tw                | A4 11906×16838tw               | US Letter 12240×15840tw         |
- * | margins          | 560tw ≈ 9.9mm, all round        | 893/936tw ≈ 15.7/16.5mm        | 851tw ≈ 15mm                    |
- * | face             | document default (serif set)    | Aptos (sans)                   | Aptos (sans)                    |
- * | body             | 11.5pt (sz 23)                  | 10.5pt (sz 21)                 | 10.5pt (sz 21), line 1.15       |
- * | header           | centred: "CURRICULUM VITAE"     | centred: name 17pt, tracked    | centred: name 17pt **navy**,    |
- * |                  | kicker, name 12.5pt caps,       | 0.11em caps, contact line,     | bold caps tagline in grey,      |
- * |                  | location line, contact line     | second line in grey #555       | then two contact lines          |
- * | section headings | `N.` + caps label, full rule    | caps, tracking 0.13em, 0.5pt   | caps **navy**, 0.75pt navy      |
- * |                  | 0.75pt #2C5282                  | #999 rule                      | rule                            |
- * | entries          | role / organisation / **dates   | **role — organisation** on one | **role — organisation** left,   |
- * |                  | on their own line, italic #444**| line, dates+location #555 next | **dates bold flush right** at a |
- * |                  |                                 |                                | 10960tw tab, italic #444 line   |
- * | rhythm           | tight (2pt between bullets)     | even (7.2pt after everything)  | medium (1.2pt/1.5pt)            |
- * | ink              | black                           | black + #555 metadata          | navy + #444/#555 metadata       |
+ * ## Why it is shaped like this
  *
- * They are references, not specifications. Where the product's own direction
- * differs — Template 1 is serif-led and pure black ink, its rule is document ink
- * rather than the reference's slate blue, and its margins are 12mm because 9.9mm
- * is inside the unprintable edge of many desktop printers — the product wins.
+ * Nearly every axis is a value rather than a behaviour, so most of a template is a
+ * set of CSS custom properties applied to the sheet element. That is not a trick:
+ * `document-preview.module.css` already redefines inherited properties on the sheet
+ * to pin the document palette, and because custom properties inherit, a template can
+ * redirect type and spacing through the same mechanism without a single global rule
+ * being edited or duplicated. Adding a fourth template is then a data change.
+ *
+ * Only the two axes that cannot be expressed as a value — where the date sits in the
+ * entry, and whether headings are numbered — are flags. They are flags because they
+ * change document structure, and `numberedSections` in particular is a real editorial
+ * convention rather than decoration.
+ *
+ * This is deliberately not a general template schema. There is no layout DSL, no
+ * column model, no per-section override map, because two of the three references are
+ * single-column and the third differs only in date placement. The abstraction stops
+ * where the evidence stops; the next reference can widen it.
+ *
+ * ## Which style may present which document
+ *
+ * A style declares the *style categories* it serves and a document type declares the
+ * categories it accepts; a user chooses from the intersection. Both sides speak the
+ * catalogue's vocabulary, so neither has to know the other's list.
+ *
+ * That is what keeps this layer independent of the document catalogue rather than
+ * enumerating it. The pairing a document *starts* on is derived from the same two
+ * declarations plus a family preference, so registering a document type does not mean
+ * editing a table of defaults here — and registering a style does not mean editing the
+ * catalogue.
+ *
+ * It also states an honest gap. All three styles were measured from sectioned career
+ * documents, so all three serve `resume` and `cv` and none serves `letter` or
+ * `statement`. A cover letter therefore has *no* compatible style today, which is
+ * exactly why it is a `planned` type. `presentation.test.ts` asserts that every *shipping*
+ * type has at least one compatible style — asserted from this side, because the catalogue
+ * must not import the presentation layer — so the day a letter ships is the day a test
+ * demands a letter style rather than the day a user meets a broken page.
  */
 
+import {
+  documentTypeFamily,
+  documentTypeStyleCategories,
+  type DocumentFamilyKey,
+  type DocumentStyleCategory,
+  type DocumentTypeKey,
+} from "./catalogue";
 import type { DocumentType } from "./schema";
 
-/**
- * Stable identifiers. These are stored in the database, so they are vocabulary,
- * not labels: renaming one would change the style of every document already
- * saved with it. Renaming what the *user* reads is what `label` is for.
- */
-export const documentTemplateIds = ["formal", "modern", "executive"] as const;
+export const documentTemplateIds = ["classic", "international", "compact"] as const;
 
 export type DocumentTemplateId = (typeof documentTemplateIds)[number];
 
 /**
- * Ids this build has retired, mapped to the style that carries on their design.
+ * Where an entry's dates and location sit.
  *
- * `classic` was the serif, numbered, black-ink style — now `formal`. `international`
- * was the sans, grey-metadata style — now `modern`. `compact` was the navy US-Letter
- * style — now `executive`. Documents saved under the old names therefore keep the
- * style their owner chose instead of silently falling back to a family default,
- * which is the whole reason this map exists rather than a migration: presentation
- * vocabulary should not require a schema change to evolve.
- */
-const retiredTemplateIds: Readonly<Record<string, DocumentTemplateId>> = {
-  classic: "formal",
-  international: "modern",
-  compact: "executive",
-};
-
-/**
- * The header architecture. Not a colour scheme — three different compositions.
+ * `stacked` gives the title, the organisation and the dates a line each — the
+ * traditional CV arrangement, and the one that survives long titles, because
+ * nothing has to share a line.
  *
- * - `formal` — centred, led by the document's own title, name in tracked capitals,
- *   place and contact details on separate lines, closed by a double rule. The
- *   convention of an institutional or government submission.
- * - `modern` — ranged left, name at conversational scale, headline directly beneath,
- *   contact details as one quiet metadata row. No rule at all; whitespace separates.
- * - `executive` — ranged left, name large and in the accent ink, headline as a
- *   tracked capitals tagline, an accent hairline across the measure, contact details
- *   below the rule as secondary information.
+ * `split` puts the dates hard right on the title's line, as a résumé does, so a
+ * reader can scan the chronology down the right edge. It costs horizontal room,
+ * which is why it is a choice and not the default.
  */
-export type DocumentHeaderStyle = "formal" | "modern" | "executive";
-
-/**
- * The section-heading architecture — where the rule goes, which is what a reader
- * registers first.
- *
- * - `numbered` — an automatic number, then the label, underlined across the measure.
- * - `understated` — the label alone over a short stub of a rule, with generous air
- *   above it.
- * - `banded` — a rule *above* the heading, in the accent ink, so the rule reads as a
- *   divider introducing the section rather than as an underline.
- */
-export type DocumentSectionStyle = "numbered" | "understated" | "banded";
-
-/**
- * The entry architecture.
- *
- * - `stacked` — every fact on its own line, dates last and set apart in italic.
- * - `runOn` — title and organisation share one line; dates and place follow beneath
- *   as one metadata row.
- * - `split` — title and organisation left, dates flush right on the same baseline,
- *   remaining qualifiers beneath.
- */
-export type DocumentEntryStyle = "stacked" | "runOn" | "split";
-
-export type DocumentPaper = "a4" | "us-letter";
-
-/**
- * The custom properties a style may set.
- *
- * Typed as a union rather than `Record<string, string>` so a typo is a compile
- * error instead of a property that silently does nothing, and so this list doubles
- * as the inventory of every design dimension a style can reach. Each corresponding
- * rule in `styles/typography.css` or `styles/ui/document-preview.module.css` reads
- * its property with the untemplated value as the fallback, so a style supplies only
- * what it changes and no rule is ever written twice.
- */
-type DocumentVariable =
-  /* Page and type */
-  | "--doc-family"
-  | "--doc-margin"
-  | "--doc-body-size"
-  | "--doc-line-height"
-  /* Masthead */
-  | "--doc-header-align"
-  | "--doc-header-gap"
-  | "--doc-header-rule"
-  | "--doc-kicker-size"
-  | "--doc-kicker-tracking"
-  | "--doc-name-size"
-  | "--doc-name-tracking"
-  | "--doc-name-transform"
-  | "--doc-name-ink"
-  | "--doc-headline-size"
-  | "--doc-headline-weight"
-  | "--doc-headline-tracking"
-  | "--doc-headline-transform"
-  | "--doc-headline-ink"
-  | "--doc-contact-size"
-  | "--doc-contact-ink"
-  /* Sections */
-  | "--doc-section-size"
-  | "--doc-section-tracking"
-  | "--doc-section-ink"
-  | "--doc-section-rule"
-  | "--doc-section-rule-length"
-  | "--doc-section-gap"
-  | "--doc-section-lead"
-  | "--doc-summary-align"
-  /* Entries */
-  | "--doc-entry-gap"
-  | "--doc-entry-title-size"
-  | "--doc-entry-subtitle-weight"
-  | "--doc-entry-subtitle-ink"
-  | "--doc-meta-size"
-  | "--doc-meta-style"
-  | "--doc-meta-ink"
-  | "--doc-period-weight"
-  | "--doc-detail-gap"
-  | "--doc-bullet-glyph"
-  | "--doc-bullet-indent"
-  | "--doc-bullet-gap";
-
-/**
- * The dimensions with no sensible cross-style default: paper geometry and the
- * type it is set in. A style that omitted any of these would inherit another
- * style's rhythm by accident, so the compiler insists on them.
- */
-type RequiredVariable =
-  | "--doc-family"
-  | "--doc-margin"
-  | "--doc-body-size"
-  | "--doc-line-height"
-  | "--doc-name-size"
-  | "--doc-section-size"
-  | "--doc-section-gap"
-  | "--doc-entry-gap";
-
-export type DocumentVariables = Readonly<Record<RequiredVariable, string>> &
-  Readonly<Partial<Record<Exclude<DocumentVariable, RequiredVariable>, string>>>;
+export type DocumentEntryLayout = "stacked" | "split";
 
 export type DocumentTemplate = {
   id: DocumentTemplateId;
-  /** What the user reads. Names a purpose, not a number. */
+  /** Shown when choosing. Describes the look, never the file it came from. */
   label: string;
-  /** One line, in the user's terms, describing the document it produces. */
+  /** One line, in the product's voice: what this is for, not what it contains. */
   description: string;
-  /** Who it is for. Shown alongside the description so the choice is informed. */
-  suitedTo: string;
-  paper: DocumentPaper;
-  header: DocumentHeaderStyle;
-  sections: DocumentSectionStyle;
-  entries: DocumentEntryStyle;
+  paper: "a4" | "us-letter";
+  entryLayout: DocumentEntryLayout;
+  numberedSections: boolean;
   /**
-   * Whether the document prints its own title above the name — "Curriculum Vitae".
-   * A convention of formal submissions, and one this product owns: it is not a fact
-   * about the user, so a style may add or drop it without touching their dossier.
+   * The style categories this system may present.
+   *
+   * Intersected with a document type's own `styleCategories` to decide what a user may
+   * choose. Declaring more than one is normal and not a compromise: the difference
+   * between these three is density and date placement, and a reader would accept any of
+   * them for either a résumé or a CV.
    */
-  showsDocumentTitle: boolean;
-  variables: DocumentVariables;
+  styleCategories: readonly DocumentStyleCategory[];
+  /**
+   * The categories this system was designed *around* — always a subset of
+   * `styleCategories`.
+   *
+   * The distinction is what makes a default derivable. All three serve a résumé; only
+   * one was measured from a résumé and puts the dates where a résumé reader looks for
+   * them. Without this, "compatible" and "the obvious choice" would be the same
+   * question and every new document type would need a hand-written pairing.
+   */
+  bestFor: readonly DocumentStyleCategory[];
+  /**
+   * Families this system suits, used only to settle a tie between styles that are
+   * equally well designed for the category.
+   *
+   * A professional CV and an academic CV are both `cv`, so category alone cannot explain
+   * why one starts formal and the other starts on the even rhythm. Family can, and it is
+   * declared here — on the style, which knows what it was built for — rather than in a
+   * table keyed by document type, which would need editing every time the catalogue grows.
+   */
+  preferredFamilies: readonly DocumentFamilyKey[];
+  /**
+   * Custom properties set on the sheet. Every one has a fallback in
+   * `document-preview.module.css`, so a property omitted here is inherited rather
+   * than empty, and a template can be partial.
+   */
+  variables: Readonly<Record<string, string>>;
 };
 
 /**
- * The traditional title a formal document carries at the top of the first page.
+ * Classic — measured from the numbered A4 CV.
  *
- * Our own vocabulary, like the section headings — not something inferred about the
- * user. Only the formal style prints it.
+ * Source metrics: A4 210×297mm, 10mm margins all round, Times New Roman, body
+ * 11.5pt, headings 11–12pt bold uppercase over a 0.5pt rule, 105/48 twentieths
+ * before/after, role bold then organisation then italic dates.
+ *
+ * The 10mm margin was not carried across. On paper it is a deliberate choice to win
+ * a page; on screen it makes the measure far too long to read comfortably, and this
+ * view is read on screen far more often than it is printed. 20mm keeps the density
+ * without the eye strain.
  */
-export function documentTitleConvention(type: DocumentType) {
-  switch (type) {
-    case "professional_resume":
-      return "Résumé";
-    case "professional_cv":
-    case "academic_cv":
-      return "Curriculum Vitae";
-  }
-}
-
-export const documentTemplates: Readonly<Record<DocumentTemplateId, DocumentTemplate>> = {
-  /**
-   * Formal international CV.
-   *
-   * The traditional editorial document: serif, black ink, numbered sections ruled
-   * across the measure, dates set apart from the role rather than folded into it,
-   * and a compact 12mm margin carrying a larger 11.5pt body — dense, but organised
-   * so tightly that the density reads as thoroughness. Nothing is decorative.
-   */
-  formal: {
-    id: "formal",
-    label: "International",
-    description: "Formal international CV — numbered sections, serif type, full career history.",
-    suitedTo: "International applications, government and institutional submissions, academic use.",
-    paper: "a4",
-    header: "formal",
-    sections: "numbered",
-    entries: "stacked",
-    showsDocumentTitle: true,
-    variables: {
-      "--doc-family": "var(--ds-font-document)",
-      "--doc-margin": "12mm",
-      "--doc-body-size": "11.5pt",
-      "--doc-line-height": "1.3",
-
-      "--doc-header-align": "center",
-      "--doc-header-gap": "1.1em",
-      /* Thick over thin: the closing device of a formal title page. */
-      "--doc-header-rule": "3pt double var(--ds-document-ink)",
-      "--doc-kicker-size": "10pt",
-      "--doc-kicker-tracking": "0.18em",
-      "--doc-name-size": "15pt",
-      "--doc-name-tracking": "0.07em",
-      "--doc-name-transform": "uppercase",
-      "--doc-headline-size": "10.5pt",
-      "--doc-contact-size": "10pt",
-      "--doc-contact-ink": "var(--ds-document-ink)",
-
-      "--doc-section-size": "11.5pt",
-      "--doc-section-tracking": "0.05em",
-      "--doc-section-rule": "0.75pt solid var(--ds-document-ink)",
-      "--doc-section-gap": "1.05em",
-      "--doc-section-lead": "0.45em",
-
-      "--doc-entry-gap": "0.6em",
-      "--doc-entry-title-size": "11.5pt",
-      "--doc-entry-subtitle-weight": "400",
-      "--doc-meta-size": "10.5pt",
-      "--doc-meta-style": "italic",
-      "--doc-detail-gap": "0.3em",
-      "--doc-bullet-indent": "1em",
-      "--doc-bullet-gap": "0.18em",
-    },
-  },
-
-  /**
-   * Contemporary corporate résumé.
-   *
-   * Sans-serif, ranged left, and deliberately light: no rule under the name, a
-   * short stub of a rule under each heading, a full em of air above every section,
-   * and every secondary fact — organisation, dates, place — set in grey so the
-   * roles carry the page on their own. Less dense than the formal style by design.
-   */
-  modern: {
-    id: "modern",
-    label: "Modern",
-    description: "Clean professional résumé — light rules, grey metadata, generous spacing.",
-    suitedTo: "Corporate, technology, consulting and general professional applications.",
-    paper: "a4",
-    header: "modern",
-    sections: "understated",
-    entries: "runOn",
-    showsDocumentTitle: false,
-    variables: {
-      "--doc-family": "var(--ds-font-document-sans)",
-      "--doc-margin": "18mm",
-      "--doc-body-size": "10.5pt",
-      "--doc-line-height": "1.45",
-
-      "--doc-header-align": "left",
-      "--doc-header-gap": "1.9em",
-      "--doc-name-size": "20pt",
-      "--doc-name-tracking": "-0.015em",
-      "--doc-headline-size": "11pt",
-      "--doc-headline-weight": "500",
-      "--doc-contact-size": "9.5pt",
-
-      "--doc-section-size": "9.5pt",
-      "--doc-section-tracking": "0.14em",
-      "--doc-section-ink": "var(--ds-document-ink-weak)",
-      "--doc-section-rule": "0.5pt solid var(--ds-document-rule)",
-      /* A stub, not an underline: the heading is separated by air, not by a line. */
-      "--doc-section-rule-length": "3.5em",
-      "--doc-section-gap": "2.1em",
-      "--doc-section-lead": "0.7em",
-
-      "--doc-entry-gap": "1.25em",
-      "--doc-entry-title-size": "10.5pt",
-      "--doc-entry-subtitle-weight": "400",
-      "--doc-entry-subtitle-ink": "var(--ds-document-ink-weak)",
-      "--doc-meta-size": "9.5pt",
-      "--doc-detail-gap": "0.45em",
-      "--doc-bullet-indent": "1.15em",
-      "--doc-bullet-gap": "0.3em",
-    },
-  },
-
-  /**
-   * Editorial executive résumé.
-   *
-   * US Letter, navy, and the only style with a real first-page identity: the name
-   * at 26pt, a tracked capitals tagline beneath it, an accent hairline across the
-   * measure, and section rules that sit *above* their headings so each section
-   * opens like a chapter. Dates are pushed to the right edge, which is what makes a
-   * long career scan as a chronology. Editorial rather than administrative.
-   */
-  executive: {
-    id: "executive",
-    label: "Executive",
-    description: "Editorial executive résumé — accent headings, right-aligned dates, strong name.",
-    suitedTo: "Senior professionals, leadership and consulting roles, portfolio presentation.",
-    paper: "us-letter",
-    header: "executive",
-    sections: "banded",
-    entries: "split",
-    showsDocumentTitle: false,
-    variables: {
-      "--doc-family": "var(--ds-font-document-sans)",
-      "--doc-margin": "15mm",
-      "--doc-body-size": "10.5pt",
-      "--doc-line-height": "1.38",
-
-      "--doc-header-align": "left",
-      "--doc-header-gap": "1.5em",
-      "--doc-header-rule": "1pt solid var(--ds-document-accent)",
-      "--doc-name-size": "26pt",
-      "--doc-name-tracking": "-0.02em",
-      "--doc-name-ink": "var(--ds-document-accent)",
-      "--doc-headline-size": "9.5pt",
-      "--doc-headline-weight": "600",
-      "--doc-headline-tracking": "0.16em",
-      "--doc-headline-transform": "uppercase",
-      "--doc-headline-ink": "var(--ds-document-ink-weak)",
-      "--doc-contact-size": "9.5pt",
-
-      "--doc-section-size": "10.5pt",
-      "--doc-section-tracking": "0.1em",
-      "--doc-section-ink": "var(--ds-document-accent)",
-      "--doc-section-rule": "1pt solid var(--ds-document-accent)",
-      "--doc-section-gap": "1.7em",
-      "--doc-section-lead": "0.55em",
-      "--doc-summary-align": "justify",
-
-      "--doc-entry-gap": "0.95em",
-      "--doc-entry-title-size": "11pt",
-      "--doc-entry-subtitle-weight": "400",
-      "--doc-meta-size": "9.5pt",
-      "--doc-meta-style": "italic",
-      "--doc-period-weight": "600",
-      "--doc-detail-gap": "0.4em",
-      /* An en dash rather than a bullet: the editorial convention. */
-      "--doc-bullet-glyph": '"–"',
-      "--doc-bullet-indent": "1.05em",
-      "--doc-bullet-gap": "0.22em",
-    },
+const classic: DocumentTemplate = {
+  id: "classic",
+  label: "Classic",
+  description: "Serif type and numbered sections. Formal, dense, and familiar to any reader.",
+  paper: "a4",
+  entryLayout: "stacked",
+  numberedSections: true,
+  /* Numbered serif sections read as a CV; a résumé reader would find them ceremonious. */
+  styleCategories: ["cv", "resume"],
+  bestFor: ["cv"],
+  preferredFamilies: ["career"],
+  variables: {
+    "--doc-family": "var(--ds-font-document)",
+    "--doc-margin": "20mm",
+    "--doc-body-size": "11pt",
+    "--doc-line-height": "1.34",
+    "--doc-name-size": "17pt",
+    "--doc-name-tracking": "0",
+    "--doc-section-size": "11pt",
+    "--doc-section-tracking": "0.04em",
+    /* The reference's rule is a blue-grey at 0.5pt; kept, at document-ink strength. */
+    "--doc-section-rule": "0.75pt solid var(--ds-document-ink)",
+    "--doc-section-gap": "1.35em",
+    "--doc-entry-gap": "0.8em",
+    "--doc-meta-style": "italic",
   },
 };
 
-/** Presentation order for the style picker: formal, then modern, then executive. */
+/**
+ * International — measured from the three-page international CV.
+ *
+ * Source metrics: A4, 16mm top/bottom and 17mm left/right, Calibri, body 10.5pt,
+ * headings 11.5pt bold uppercase over a #999999 rule, name 17pt with heavy
+ * letter-spacing, and — the characteristic detail — a uniform 144 twentieths (7.2pt)
+ * of space after almost every paragraph.
+ *
+ * That uniform spacing is the whole identity of this one. It reads as unhurried and
+ * evenly weighted, which suits a document that will be read by someone unfamiliar
+ * with the writer's market and given more than a six-second scan.
+ */
+const international: DocumentTemplate = {
+  id: "international",
+  label: "International",
+  description: "Even spacing and a wide margin. Built to be read carefully, across markets.",
+  paper: "a4",
+  entryLayout: "stacked",
+  numberedSections: false,
+  styleCategories: ["cv", "resume"],
+  bestFor: ["cv"],
+  /* The unhurried rhythm is for a reader outside the writer's own market. */
+  preferredFamilies: ["academic", "international"],
+  variables: {
+    "--doc-family": "var(--ds-font-document-sans)",
+    "--doc-margin": "17mm",
+    "--doc-body-size": "10.5pt",
+    "--doc-line-height": "1.4",
+    "--doc-name-size": "17pt",
+    "--doc-name-tracking": "0.06em",
+    "--doc-section-size": "11pt",
+    "--doc-section-tracking": "0.06em",
+    "--doc-section-rule": "0.5pt solid var(--ds-document-rule)",
+    "--doc-section-gap": "1.6em",
+    "--doc-entry-gap": "1em",
+    "--doc-meta-style": "normal",
+  },
+};
+
+/**
+ * Compact — measured from the two-page US Letter résumé.
+ *
+ * Source metrics: US Letter 8.5×11in, 15mm margins, Calibri, body 10.5pt, name 17pt
+ * in navy #1F3864, headings 11.5pt over a navy rule, a bold headline line under the
+ * name, technical skills placed above experience, and dates set flush right on the
+ * role line via a right tab stop at 7.61in.
+ *
+ * The navy is the only colour in any of the three references, and it is doing real
+ * work: it marks the name and every section rule without adding a second typeface or
+ * a background. It is kept as an accent on those two things alone — body text stays
+ * black, because a coloured paragraph reads as a web page.
+ *
+ * Section order is not set here. Which sections appear and in what order belongs to
+ * the composition layer, and `professional_resume` already leads with skills.
+ */
+const compact: DocumentTemplate = {
+  id: "compact",
+  label: "Compact",
+  description: "Tight rhythm with dates set flush right. Made to be scanned quickly.",
+  paper: "us-letter",
+  entryLayout: "split",
+  numberedSections: false,
+  styleCategories: ["resume", "cv"],
+  /* The only one measured from a résumé, and the only one that sets dates flush right. */
+  bestFor: ["resume"],
+  preferredFamilies: ["career"],
+  variables: {
+    "--doc-family": "var(--ds-font-document-sans)",
+    "--doc-margin": "15mm",
+    "--doc-body-size": "10.5pt",
+    "--doc-line-height": "1.32",
+    "--doc-name-size": "18pt",
+    "--doc-name-tracking": "0.01em",
+    "--doc-name-ink": "var(--ds-document-accent)",
+    "--doc-section-size": "10.5pt",
+    "--doc-section-tracking": "0.05em",
+    "--doc-section-rule": "0.75pt solid var(--ds-document-accent)",
+    "--doc-section-ink": "var(--ds-document-accent)",
+    "--doc-section-gap": "1.15em",
+    "--doc-entry-gap": "0.7em",
+    "--doc-meta-style": "normal",
+  },
+};
+
+export const documentTemplates: Readonly<Record<DocumentTemplateId, DocumentTemplate>> = {
+  classic,
+  international,
+  compact,
+};
+
+/** In the order they are offered. Stable, so the choice list does not reshuffle. */
 export const documentTemplateList: readonly DocumentTemplate[] = documentTemplateIds.map(
   (id) => documentTemplates[id],
 );
 
+/**
+ * A `Set`, not `value in documentTemplates`.
+ *
+ * `in` walks the prototype chain, so it answered `true` for `"constructor"` — and this
+ * guard is the only check on the template a document-configuration form posts. A posted
+ * `"constructor"` therefore passed validation, was stored in a plain `text` column, and
+ * came back out of `documentTemplates` as `Object`, whose `variables` is `undefined`:
+ * the document page then threw on every subsequent view. A user could put their own
+ * document permanently beyond reach, and a shared preview would have carried the same
+ * fault to its reader.
+ */
+const templateIdSet: ReadonlySet<string> = new Set(documentTemplateIds);
+
 export function isDocumentTemplateId(value: unknown): value is DocumentTemplateId {
-  return typeof value === "string" && documentTemplateIds.includes(value as DocumentTemplateId);
+  return typeof value === "string" && templateIdSet.has(value);
+}
+
+/** Whether a style may present a type at all — the categories they share. */
+export function templateSuitsType(id: DocumentTemplateId, type: DocumentTypeKey): boolean {
+  const accepted = documentTypeStyleCategories(type);
+
+  return documentTemplates[id].styleCategories.some((category) => accepted.includes(category));
 }
 
 /**
- * The style a family gets when the user has not chosen one.
+ * The styles a user may choose for a document type, in the order they are offered.
  *
- * A general CV opens formal because that is the safest default for an unknown
- * destination; a résumé opens executive because that is the register a competitive
- * application is read in; an academic or international CV opens formal for the same
- * reason as the CV. The user can change it, and the choice is stored.
+ * Empty is a legitimate answer, and an informative one: it means no style has been built
+ * for that kind of document yet. Callers must handle it rather than assume a first
+ * element — which is why nothing offers a `planned` type in the first place.
+ */
+export function compatibleTemplates(type: DocumentTypeKey): readonly DocumentTemplate[] {
+  return documentTemplateList.filter((template) => templateSuitsType(template.id, type));
+}
+
+/**
+ * The style a document type starts on, derived rather than tabulated.
+ *
+ * Three declarations decide it, in order: the categories a style serves narrow the field
+ * to what *may* present this document; `bestFor` narrows it to what was designed for it;
+ * `preferredFamilies` settles a remaining tie. Whatever survives first in offering order
+ * wins.
+ *
+ * `null` when nothing is compatible. That is a real state — no style presents a letter
+ * today — and returning it plainly is better than inventing a pairing that would render a
+ * letter as though it had sections.
+ */
+export function defaultTemplateIdFor(type: DocumentTypeKey): DocumentTemplateId | null {
+  const compatible = compatibleTemplates(type);
+  if (compatible.length === 0) return null;
+
+  const accepted = documentTypeStyleCategories(type);
+  const designed = compatible.filter((template) =>
+    template.bestFor.some((category) => accepted.includes(category)),
+  );
+  const shortlist = designed.length > 0 ? designed : compatible;
+  const family = documentTypeFamily(type).key;
+  const chosen = shortlist.find((template) => template.preferredFamilies.includes(family));
+
+  return (chosen ?? shortlist[0]).id;
+}
+
+/**
+ * The style used when a document's own type yields nothing.
+ *
+ * Deliberately the same value as the `documents.template` column default, so a row
+ * written before a template was chosen and a row whose type has no style resolve to the
+ * same document rather than to two different ones.
+ */
+export const fallbackTemplateId: DocumentTemplateId = "classic";
+
+/**
+ * The template a storable document type starts on.
+ *
+ * Narrower than {@link defaultTemplateIdFor} on purpose: this is the signature the
+ * repository and the create flow use, and they need a template rather than a `null` to
+ * handle. Every type they can pass has a compatible style — `presentation.test.ts` fails
+ * if one ever does not — so the fallback is unreachable in practice and present only so a
+ * data slip degrades the look of a document instead of preventing it from opening.
  */
 export function defaultTemplateFor(type: DocumentType): DocumentTemplateId {
-  switch (type) {
-    case "professional_cv":
-      return "formal";
-    case "professional_resume":
-      return "executive";
-    case "academic_cv":
-      return "formal";
-  }
+  return defaultTemplateIdFor(type) ?? fallbackTemplateId;
 }
 
 /**
- * The style for a stored value — falling back rather than throwing.
+ * Resolves a stored template id.
  *
- * A document must open. If the stored style was retired it resolves to the style
- * that carries on its design; if it is unrecognisable it resolves to the family
- * default. Neither case is an error the user should be shown, because neither is
- * anything they did.
+ * Falls back rather than throwing, because the id comes out of a database column
+ * that a later migration could widen or a rolled-back deployment could narrow. An
+ * unrecognised value means the document renders in a different style than intended;
+ * an exception here would mean the user cannot open their document at all.
+ *
+ * A *recognised* id that does not suit the document's type falls back too. Nothing can
+ * produce that pairing today — all three styles suit all three storable types — but a
+ * document stored against a style that later stops serving its category would otherwise
+ * render as the wrong kind of document, and silently correcting the presentation is far
+ * milder than showing a letter with numbered sections.
  */
-export function resolveTemplate(value: string | null | undefined, type: DocumentType) {
-  if (isDocumentTemplateId(value)) return documentTemplates[value];
-  const retired = value ? retiredTemplateIds[value] : undefined;
-  return documentTemplates[retired ?? defaultTemplateFor(type)];
+export function resolveTemplate(
+  value: unknown,
+  type: DocumentType,
+): DocumentTemplate {
+  const stored = isDocumentTemplateId(value) && templateSuitsType(value, type) ? value : null;
+
+  return documentTemplates[stored ?? defaultTemplateFor(type)];
 }
