@@ -11,10 +11,9 @@ export default async function ProfileSectionsPage() {
   const user = await requireProfileUser();
   const profile = await getOrCreateProfile(user.id, user);
   /*
-   * The counts are what stop this screen offering to hide information the user has
-   * already saved. It used to read the chosen-section registry alone, so a section
-   * holding entries could be presented unchecked — an invitation to remove
-   * something this form has no power to remove.
+   * The counts are what let each row state its own consequence: a section holding six
+   * jobs says so, and says that unticking it takes it out of the build order without
+   * touching the entries. The registry decides the tick; the count decides the wording.
    */
   const { registered, counts } = await getDossierSectionState(profile.id);
   const selected = registered.filter(isProfileSection);
