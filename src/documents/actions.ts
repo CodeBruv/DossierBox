@@ -4,7 +4,7 @@ import { redirect, unstable_rethrow } from "next/navigation";
 import { requireProfileUser } from "@/profile/authorization";
 import { isAvailableDocumentType, isDocumentSectionKey } from "./catalogue";
 import { isDocumentTemplateId } from "./presentation";
-import { createDocument, updateDocumentConfiguration } from "./repository";
+import { createDocument, deleteOwnedDocument, updateDocumentConfiguration } from "./repository";
 
 /**
  * A document title has to fit a heading and a filename, and nothing useful is
@@ -128,4 +128,43 @@ export async function updateDocumentAction(formData: FormData) {
 
 function isKnownSection(value: FormDataEntryValue): value is string {
   return isDocumentSectionKey(value);
+}
+
+/**
+ * Deletes a document.
+ *
+ * The document is a derived artifact: the dossier it was composed from is untouched, so
+ * this removes a title, a chosen style and a set of hidden sections — not the user's
+ * career history. That is the whole reason it is safe to offer, and the confirmation the
+ * user sees says so, because "delete" next to a CV reads as "delete my work".
+ *
+ * Ownership is enforced in the delete's `where` clause. A document that is not this
+ * user's simply matches no row, and the outcome is the same page either way, so nothing
+ * here tells a caller whether an id they guessed exists.
+ */
+export async function deleteDocumentAction(formData: FormData) {
+  const documentId = formData.get("documentId");
+  if (typeof documentId !== "string" || documentId.length === 0) {
+    redirect("/documents?error=unknown-document");
+  }
+
+  const user = await requireProfileUser();
+
+  try {
+    const deleted = await deleteOwnedDocument(user.id, documentId);
+
+    /*
+     * Nothing matched: either no such document, or not this user's. Answered as the
+     * list with a neutral notice rather than a 404 on the id, which keeps documents
+     * non-enumerable — and is honest, because from the user's side the document they
+     * asked about is indeed not there.
+     */
+    if (!deleted) redirect("/documents?error=unknown-document");
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error(`[documents] Failed to delete document ${documentId}`, error);
+    redirect(`/documents/${documentId}?error=delete-failed`);
+  }
+
+  redirect("/documents?status=deleted");
 }
