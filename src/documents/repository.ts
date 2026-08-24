@@ -1,6 +1,7 @@
 import "server-only";
 
 import { and, desc, eq } from "drizzle-orm";
+import type { ApplicationObjective } from "@/applications";
 import { db } from "@/auth/database";
 import { documentTypeLabel as catalogueDocumentTypeLabel } from "./catalogue";
 import { defaultTemplateFor } from "./presentation";
@@ -23,7 +24,24 @@ export async function getOwnedDocument(userId: string, documentId: string) {
   return document ?? null;
 }
 
-export async function createDocument(userId: string, type: DocumentType) {
+/**
+ * What the create flow decided, beyond the document's type.
+ *
+ * Both optional, because a document is valid without either: the type alone is enough
+ * to compose a page, and the create screen fills these in when the user has told it
+ * more. `template` unset falls back to the family default rather than a global one, so
+ * an academic CV never silently opens in a résumé's style.
+ */
+export type DocumentCreationInput = {
+  template?: string;
+  objective?: ApplicationObjective | null;
+};
+
+export async function createDocument(
+  userId: string,
+  type: DocumentType,
+  input: DocumentCreationInput = {},
+) {
   const [document] = await db
     .insert(documents)
     .values({
@@ -31,7 +49,8 @@ export async function createDocument(userId: string, type: DocumentType) {
       type,
       title: documentTitle(type),
       status: "draft",
-      template: defaultTemplateFor(type),
+      template: input.template ?? defaultTemplateFor(type),
+      objective: input.objective ?? null,
     })
     .returning();
 
@@ -46,6 +65,7 @@ export type DocumentConfigurationPatch = {
   title: string;
   template: string;
   hiddenSections: string[];
+  sectionOrder: string[];
 };
 
 /**
@@ -62,9 +82,9 @@ export type DocumentConfigurationPatch = {
  * "no such document" from "not yours", which is deliberate: documents stay
  * non-enumerable.
  *
- * Only these three columns are writable. `type`, `userId` and the timestamps are
- * not in the patch type at all, so no caller can reach them by passing extra
- * keys through from a form.
+ * Only these four columns are writable. `type`, `userId`, `objective` and the
+ * timestamps are not in the patch type at all, so no caller can reach them by passing
+ * extra keys through from a form.
  */
 export async function updateDocumentConfiguration(
   userId: string,
@@ -77,6 +97,7 @@ export async function updateDocumentConfiguration(
       title: patch.title,
       template: patch.template,
       hiddenSections: patch.hiddenSections,
+      sectionOrder: patch.sectionOrder,
       updatedAt: new Date(),
     })
     .where(and(eq(documents.userId, userId), eq(documents.id, documentId)))
