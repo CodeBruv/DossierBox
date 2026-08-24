@@ -57,6 +57,9 @@ export type DossierEducation = Period & {
   institution: string;
   qualification: string | null;
   field: string | null;
+  level: string | null;
+  gradingSystem: string | null;
+  grade: string | null;
   location: string | null;
   description: string | null;
 };
