@@ -17,10 +17,18 @@ import { openZip, ZipFormatError } from "./extract/zip";
  * How large an upload may be.
  *
  * A career document is a few hundred kilobytes; the reference CVs are under 40 kB as Word
- * files and under 200 kB as PDFs. Eight megabytes is generous enough for a design-heavy CV
+ * files and under 200 kB as PDFs. Four megabytes is generous enough for a design-heavy CV
  * full of embedded images and small enough that nothing downstream has to stream.
+ *
+ * The ceiling is not arbitrary. The document arrives through a server action, whose body is
+ * capped in next.config.js, and that cap has to sit under the deploy platform's own hard
+ * request-body limit (~4.5 MB on Vercel's serverless functions). So the file limit here, the
+ * `serverActions.bodySizeLimit`, and the platform ceiling are one decision made in three
+ * places: keep this the smallest, leave the body limit a little larger for multipart overhead,
+ * and keep both under the platform's hard limit. Raising this alone would only move the
+ * rejection from a message the user can read to a platform error they cannot.
  */
-export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
+export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 
 /** Enough bytes to find a header in, without reading a file we are going to reject. */
 const HEADER_SCAN = 1024;
