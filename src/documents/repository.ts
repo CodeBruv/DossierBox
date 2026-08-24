@@ -86,6 +86,27 @@ export async function updateDocumentConfiguration(
 }
 
 /**
+ * Deletes one of this user's documents.
+ *
+ * Ownership lives in the `where` clause for the same reason it does in the update above:
+ * a document belonging to someone else matches no row rather than taking a different code
+ * path, so nothing here reveals whether an id exists.
+ *
+ * What this deletes is a derived artifact — a title, a chosen style, a set of hidden
+ * sections. The career information it was composed from is in the profile tables and is
+ * not touched, which is why deleting a document is a safe thing to offer at all. Returns
+ * whether a row was removed so the caller can tell a real deletion from a no-op.
+ */
+export async function deleteOwnedDocument(userId: string, documentId: string) {
+  const deleted = await db
+    .delete(documents)
+    .where(and(eq(documents.userId, userId), eq(documents.id, documentId)))
+    .returning({ id: documents.id });
+
+  return deleted.length > 0;
+}
+
+/**
  * The document's label, from the catalogue.
  *
  * Re-exported through the repository because call sites already import it from here.
