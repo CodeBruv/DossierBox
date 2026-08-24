@@ -295,6 +295,24 @@ export function isDocumentTemplateId(value: unknown): value is DocumentTemplateI
   return typeof value === "string" && templateIdSet.has(value);
 }
 
+/**
+ * The page box a template prints on, as design-token references.
+ *
+ * Stated once, here, because three places need it and they must agree: the preview sets
+ * the sheet's measure from `width`, the create flow's miniature needs both to keep a page
+ * the right shape at a reduced size, and the PDF page box will need both again. A second
+ * `paper === "us-letter" ? … : …` somewhere else is how a US Letter document ends up
+ * rendered on A4 in one view and not the other.
+ */
+export function templatePaperMetrics(template: DocumentTemplate): {
+  width: string;
+  height: string;
+} {
+  return template.paper === "us-letter"
+    ? { width: "var(--ds-page-us-letter-w)", height: "var(--ds-page-us-letter-h)" }
+    : { width: "var(--ds-page-a4-w)", height: "var(--ds-page-a4-h)" };
+}
+
 /** Whether a style may present a type at all — the categories they share. */
 export function templateSuitsType(id: DocumentTemplateId, type: DocumentTypeKey): boolean {
   const accepted = documentTypeStyleCategories(type);
