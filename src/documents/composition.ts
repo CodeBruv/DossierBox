@@ -52,7 +52,7 @@ import { skillTypes, type ProfileSectionKey } from "@/profile/types";
 import { experienceTypeOptions } from "@/profile/vocabularies";
 import {
   documentHeadingOverrides,
-  documentSectionOrder,
+  orderSections,
   sectionHeading,
   type DocumentSectionKey,
   type DocumentTypeKey,
@@ -165,6 +165,16 @@ export type DocumentConfiguration = {
    * document.
    */
   hiddenSections?: readonly string[];
+  /**
+   * The order the user arranged this document's sections into.
+   *
+   * Raw strings for the same reason as `hiddenSections`, and empty means "the order
+   * the type declares" — so an untouched document is not pinned to whatever the
+   * catalogue happened to say on the day it was created. Sections the order does not
+   * mention are not dropped; they keep their catalogue neighbours. See
+   * `orderSections`.
+   */
+  sectionOrder?: readonly string[];
 };
 
 export function composeDocument(
@@ -179,17 +189,20 @@ export function composeDocument(
     type,
     header: composeHeader(snapshot),
     /**
-     * `flatMap` over the type's catalogue order, rather than filtering the built
-     * map, so order is expressed in exactly one place — the catalogue — and an
-     * empty section simply yields nothing.
+     * `flatMap` over the resolved running order, rather than filtering the built
+     * map, so an empty section simply yields nothing. With no stored order this is
+     * the catalogue order, unchanged; with one it is the user's arrangement, and
+     * either way the ordering rules live in exactly one place — the catalogue's
+     * `orderSections` — rather than being restated here.
      *
      * Hiding is applied here, at the last step, for the same reason: a hidden
      * section is absent from the document but its data is untouched, so
-     * un-hiding it restores it exactly. Nothing upstream knows the user made a
-     * choice, and nothing downstream can tell a hidden section from an empty one
-     * — the presentation layer renders what it is given either way.
+     * un-hiding it restores it exactly — and to its original place, because the
+     * order is stored separately and still mentions it. Nothing upstream knows the
+     * user made a choice, and nothing downstream can tell a hidden section from an
+     * empty one — the presentation layer renders what it is given either way.
      */
-    sections: documentSectionOrder(type).flatMap((key) =>
+    sections: orderSections(type, configuration.sectionOrder ?? []).flatMap((key) =>
       hidden.has(key) ? [] : built[key] ?? [],
     ),
   };
@@ -199,17 +212,19 @@ export function composeDocument(
  * The sections this dossier could show in this family, in order, whether or not
  * the user has hidden them.
  *
- * This is what the section-visibility control lists. It has to come from the same
- * catalogue order and `buildSections` the document itself uses, or the control
- * would eventually offer a toggle for something the document cannot show — so it
- * composes with no configuration and reads the result rather than reimplementing
- * the rules.
+ * This is what the section-visibility and reordering control lists. It has to come
+ * from the same order resolution and `buildSections` the document itself uses, or the
+ * control would eventually offer a toggle for something the document cannot show, or
+ * list the sections in an order the page does not use — so it composes with the
+ * document's own order and no hiding, and reads the result rather than
+ * reimplementing the rules.
  */
 export function composableSections(
   type: DocumentTypeKey,
   snapshot: DossierSnapshot,
+  sectionOrder: readonly string[] = [],
 ): readonly { key: ComposedSectionKey; heading: string }[] {
-  return composeDocument(type, snapshot).sections.map((section) => ({
+  return composeDocument(type, snapshot, { sectionOrder }).sections.map((section) => ({
     key: section.key,
     heading: section.heading,
   }));
