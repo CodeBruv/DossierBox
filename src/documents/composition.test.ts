@@ -5,6 +5,7 @@ import {
   type DossierSnapshot,
 } from "@/profile/dossier";
 import { profileSectionKeys } from "@/profile/types";
+import { experienceTypeOptions } from "@/profile/vocabularies";
 import type { DocumentType } from "./schema";
 import {
   composableSections,
@@ -36,6 +37,19 @@ const noPeriod = {
   endMonth: null,
   endYear: null,
   current: false,
+};
+
+/** An education row with nothing stated but the parts a test names. */
+const bareEducation = {
+  ...noPeriod,
+  institution: "",
+  qualification: null,
+  field: null,
+  level: null,
+  gradingSystem: null,
+  grade: null,
+  location: null,
+  description: null,
 };
 
 function snapshot(overrides: Partial<DossierSnapshot> = {}): DossierSnapshot {
@@ -93,7 +107,7 @@ function fullSnapshot(): DossierSnapshot {
   return snapshot({
     identity: { ...blankIdentity, careerDirection: "Seeking research work" },
     experience: [{ ...noPeriod, type: "employment", organization: "Org", role: "Analyst", location: null, description: null }],
-    education: [{ ...noPeriod, institution: "University", qualification: "BSc", field: null, location: null, description: null }],
+    education: [{ ...bareEducation, institution: "University", qualification: "BSc" }],
     projects: [{ ...noPeriod, name: "Atlas", role: null, context: null, url: null, description: null }],
     skills: [{ name: "SQL", type: "technical", notes: null }],
     credentials: [{ type: "certification", name: "PMP", issuer: null, identifier: null, url: null, issueMonth: null, issueYear: null, expiryMonth: null, expiryYear: null, description: null }],
@@ -125,7 +139,7 @@ describe("document families", () => {
   it("orders each family around what its reader looks for first", () => {
     const rows = snapshot({
       experience: [{ ...noPeriod, type: "employment", organization: "Org", role: "Analyst", location: null, description: null }],
-      education: [{ ...noPeriod, institution: "University", qualification: "BSc", field: null, location: null, description: null }],
+      education: [{ ...bareEducation, institution: "University", qualification: "BSc" }],
       skills: [{ name: "SQL", type: "technical", notes: null }],
       publications: [{ title: "A paper", publisher: null, month: null, year: null, url: null, description: null }],
     });
@@ -178,7 +192,7 @@ describe("document configuration", () => {
   const rows = () =>
     snapshot({
       experience: [{ ...noPeriod, type: "employment", organization: "Org", role: "Analyst", location: null, description: null }],
-      education: [{ ...noPeriod, institution: "University", qualification: "BSc", field: null, location: null, description: null }],
+      education: [{ ...bareEducation, institution: "University", qualification: "BSc" }],
       skills: [{ name: "SQL", type: "technical", notes: null }],
     });
 
@@ -315,7 +329,7 @@ describe("fabrication safeguards", () => {
   it("prints nothing beyond the user's values and the product's own labels", () => {
     const document = composeDocument("professional_cv", snapshot({
       experience: [{ ...noPeriod, type: "freelance", organization: "ORG", role: "ROLE", location: null, description: null }],
-      education: [{ ...noPeriod, institution: "INSTITUTION", qualification: null, field: null, location: null, description: null }],
+      education: [{ ...bareEducation, institution: "INSTITUTION" }],
       credentials: [{ type: "license", name: "NAME", issuer: null, identifier: null, url: null, issueMonth: null, issueYear: null, expiryMonth: null, expiryYear: null, description: null }],
     }));
 
@@ -327,8 +341,14 @@ describe("fabrication safeguards", () => {
       "Experience",
       "Education",
       "Certifications and credentials",
-      "Freelance work",
       "Licence",
+      /*
+        The arrangement qualifier is one of the product's own words, so it is permitted —
+        but only the exact words the vocabulary offers. Listing them from the vocabulary
+        rather than spelling them again keeps this test measuring what it claims to
+        measure: text that came from neither the user nor a curated list is invented.
+      */
+      ...experienceTypeOptions.map((option) => option.label),
     ]);
 
     for (const text of allText(document)) {
@@ -354,8 +374,8 @@ describe("entries", () => {
   it("names the qualification, and does not repeat the institution when it does", () => {
     const document = composeDocument("professional_cv", snapshot({
       education: [
-        { ...noPeriod, institution: "LSE", qualification: "BSc", field: "Economics", location: null, description: null },
-        { ...noPeriod, institution: "Open University", qualification: null, field: null, location: null, description: null },
+        { ...bareEducation, institution: "LSE", qualification: "BSc", field: "Economics" },
+        { ...bareEducation, institution: "Open University" },
       ],
     }));
 
@@ -379,7 +399,9 @@ describe("entries", () => {
     const [employment, volunteering] = entriesOf(document, "experience");
 
     expect(employment?.meta).toBe("2020 – 2022 · Leeds");
-    expect(volunteering?.meta).toBe("2019 – 2020 · Volunteering");
+    // The qualifier is the word the picker offered, so the document says back what the
+    // user chose rather than a synonym of it.
+    expect(volunteering?.meta).toBe("2019 – 2020 · Volunteer");
   });
 
   it("labels credential dates so a bare year is never ambiguous", () => {
