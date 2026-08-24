@@ -9,6 +9,7 @@ import {
 } from "@/documents/composition";
 import { DocumentPreview } from "@/documents/components/document-preview";
 import { DocumentSettings } from "@/documents/components/document-settings";
+import { DeleteDocument } from "@/documents/components/delete-document";
 import { resolveTemplate } from "@/documents/presentation";
 import { documentTypeLabel, getOwnedDocument } from "@/documents/repository";
 import { getDossierSnapshot } from "@/profile/repository";
@@ -34,6 +35,8 @@ const errorMessages: Record<string, string> = {
     "We couldn't save your changes right now. Nothing was altered — please try again.",
   "title-required": "A document needs a name. Your other changes were not saved.",
   "unknown-template": "That style isn't available. Your changes were not saved.",
+  "delete-failed":
+    "We couldn't delete this document right now. It is still here, and nothing else was changed.",
 };
 
 export default async function DocumentPage({ params, searchParams }: DocumentPageProps) {
@@ -179,6 +182,16 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
             </div>
           </div>
         )}
+
+        {/*
+          Outside both branches above, and therefore always reachable. A draft created
+          before the dossier had anything in it renders the empty state — which has no
+          settings panel — so a delete control living beside the settings would be
+          exactly unavailable for the drafts a user is most likely to want rid of.
+        */}
+        <div className={styles.narrow} data-print-skip>
+          <DeleteDocument documentId={document.id} title={document.title} />
+        </div>
       </Container>
     </div>
   );
