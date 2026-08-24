@@ -1,4 +1,13 @@
 import type { ProfileSectionKey } from "./types";
+import {
+  countryNames,
+  educationLevelOptions,
+  gradingSystemOptions,
+  languageNames,
+  languageProficiencyOptions,
+  offeredExperienceTypeOptions,
+  workArrangementOptions,
+} from "./vocabularies";
 
 export type ProfileFieldOption = {
   value: string;
@@ -8,10 +17,52 @@ export type ProfileFieldOption = {
 export type ProfileField = {
   name: string;
   label: string;
-  type?: "text" | "email" | "url" | "tel" | "number" | "textarea" | "select" | "checkbox";
+  /**
+   * Which control the field becomes. Beyond the HTML input types:
+   *
+   * - `month` — the twelve months by name, stored as the integer the column holds.
+   * - `year` — a bounded numeric year.
+   * - `combobox` — a text input with suggestions. Structured where the answer is known,
+   *   open where it is not, which is what a global list of places or languages needs.
+   * - `grade` — a control chosen by the grading system named in `dependsOn`, so the form
+   *   asks one precise question instead of every possible variant of it at once. Named for
+   *   what it is rather than dressed up as a general dependency mechanism, because it has
+   *   exactly one use and pretending otherwise would be architecture nobody asked for.
+   */
+  type?:
+    | "text"
+    | "email"
+    | "url"
+    | "tel"
+    | "number"
+    | "textarea"
+    | "select"
+    | "checkbox"
+    | "month"
+    | "year"
+    | "combobox"
+    | "grade";
   required?: boolean;
   options?: readonly ProfileFieldOption[];
+  /** Suggestions for a `combobox`. Not a constraint — the user can always type their own. */
+  suggestions?: readonly string[];
+  /**
+   * Adds a controlled "Something else" branch to a `select`, revealing a text input that
+   * takes over the field name. So the stored value is either a curated option or the
+   * user's own words, never a sentinel, and no curated list can become a dead end.
+   */
+  allowCustom?: boolean;
+  customLabel?: string;
+  /** For `grade`: the field holding the grading system this grade is expressed in. */
+  dependsOn?: string;
+  /**
+   * Hidden, and therefore cleared, while the named checkbox is ticked. "Currently working
+   * here" should mean the end date stops being a question, not that the user has to
+   * remember to blank two boxes.
+   */
+  clearedBy?: string;
   hint?: string;
+  placeholder?: string;
   autocomplete?: string;
 };
 
@@ -23,13 +74,30 @@ export type ProfileSectionDefinition = {
   fields: readonly ProfileField[];
 };
 
-const monthFields: readonly ProfileField[] = [
-  { name: "startMonth", label: "Start month", type: "number" },
-  { name: "startYear", label: "Start year", type: "number" },
-  { name: "endMonth", label: "End month", type: "number" },
-  { name: "endYear", label: "End year", type: "number" },
-  { name: "current", label: "This is current", type: "checkbox" },
+/**
+ * A start/end period.
+ *
+ * End fields are `clearedBy: "current"` so ticking the checkbox removes them from the form
+ * *and* from the saved row, which is the only reading of "current" that stays true after an
+ * edit. The checkbox comes first because it decides whether the end date is a question at
+ * all, and its wording is per-section: "I currently work here" is a sentence, "This is
+ * current" is a database column.
+ */
+const period = (currentLabel: string): readonly ProfileField[] => [
+  { name: "current", label: currentLabel, type: "checkbox" },
+  { name: "startMonth", label: "Start month", type: "month" },
+  { name: "startYear", label: "Start year", type: "year" },
+  { name: "endMonth", label: "End month", type: "month", clearedBy: "current" },
+  { name: "endYear", label: "End year", type: "year", clearedBy: "current" },
 ];
+
+const countryField: ProfileField = {
+  name: "location",
+  label: "Location",
+  type: "combobox",
+  suggestions: countryNames,
+  hint: "City, country — or pick a country and add the city.",
+};
 
 const descriptionField: ProfileField = {
   name: "description",
@@ -47,21 +115,19 @@ export const profileSections: readonly ProfileSectionDefinition[] = [
     fields: [
       {
         name: "type",
-        label: "Experience type",
+        label: "Employment type",
         type: "select",
         required: true,
-        options: [
-          { value: "employment", label: "Employment" },
-          { value: "freelance", label: "Freelance work" },
-          { value: "internship", label: "Internship" },
-          { value: "volunteering", label: "Volunteering" },
-          { value: "other", label: "Other relevant experience" },
-        ],
+        options: offeredExperienceTypeOptions,
       },
       { name: "role", label: "Role or position", required: true },
       { name: "organization", label: "Organization or client", required: true },
-      { name: "location", label: "Location" },
-      ...monthFields,
+      {
+        ...countryField,
+        suggestions: [...workArrangementOptions.map((option) => option.value), ...countryNames],
+        hint: "A place, or how the role was arranged — Remote, Hybrid, On-site.",
+      },
+      ...period("I currently work here"),
       descriptionField,
     ],
   },
@@ -71,11 +137,29 @@ export const profileSections: readonly ProfileSectionDefinition[] = [
     singular: "education record",
     description: "Any relevant school, college, university, vocational, or other learning record.",
     fields: [
+      {
+        name: "level",
+        label: "Level of study",
+        type: "select",
+        options: educationLevelOptions,
+        allowCustom: true,
+        customLabel: "Another level",
+      },
       { name: "institution", label: "Institution or learning provider", required: true },
       { name: "qualification", label: "Qualification or programme" },
       { name: "field", label: "Field of study" },
-      { name: "location", label: "Location" },
-      ...monthFields,
+      countryField,
+      ...period("I am still studying here"),
+      {
+        name: "gradingSystem",
+        label: "Grading system",
+        type: "select",
+        options: gradingSystemOptions,
+        allowCustom: true,
+        customLabel: "Another system",
+        hint: "Optional. Choosing one asks for your grade in the right form.",
+      },
+      { name: "grade", label: "Grade or classification", type: "grade", dependsOn: "gradingSystem" },
       descriptionField,
     ],
   },
@@ -89,7 +173,7 @@ export const profileSections: readonly ProfileSectionDefinition[] = [
       { name: "role", label: "Your role" },
       { name: "context", label: "Organization or context" },
       { name: "url", label: "Project link", type: "url" },
-      ...monthFields,
+      ...period("This project is ongoing"),
       descriptionField,
     ],
   },
@@ -144,10 +228,10 @@ export const profileSections: readonly ProfileSectionDefinition[] = [
       { name: "issuer", label: "Issuer or provider" },
       { name: "identifier", label: "Credential ID" },
       { name: "url", label: "Credential link", type: "url" },
-      { name: "issueMonth", label: "Issue month", type: "number" },
-      { name: "issueYear", label: "Issue year", type: "number" },
-      { name: "expiryMonth", label: "Expiry month", type: "number" },
-      { name: "expiryYear", label: "Expiry year", type: "number" },
+      { name: "issueMonth", label: "Issue month", type: "month" },
+      { name: "issueYear", label: "Issue year", type: "year" },
+      { name: "expiryMonth", label: "Expiry month", type: "month" },
+      { name: "expiryYear", label: "Expiry year", type: "year" },
       descriptionField,
     ],
   },
@@ -169,8 +253,8 @@ export const profileSections: readonly ProfileSectionDefinition[] = [
       },
       { name: "title", label: "Title", required: true },
       { name: "issuer", label: "Issuer or context" },
-      { name: "month", label: "Month", type: "number" },
-      { name: "year", label: "Year", type: "number" },
+      { name: "month", label: "Month", type: "month" },
+      { name: "year", label: "Year", type: "year" },
       descriptionField,
     ],
   },
@@ -180,8 +264,21 @@ export const profileSections: readonly ProfileSectionDefinition[] = [
     singular: "language",
     description: "Languages you use and the proficiency you choose to describe.",
     fields: [
-      { name: "language", label: "Language", required: true },
-      { name: "proficiency", label: "Proficiency" },
+      {
+        name: "language",
+        label: "Language",
+        type: "combobox",
+        required: true,
+        suggestions: languageNames,
+      },
+      {
+        name: "proficiency",
+        label: "Proficiency",
+        type: "select",
+        options: languageProficiencyOptions,
+        allowCustom: true,
+        customLabel: "Describe it differently",
+      },
       { name: "notes", label: "Supporting detail", type: "textarea" },
     ],
   },
@@ -193,8 +290,8 @@ export const profileSections: readonly ProfileSectionDefinition[] = [
     fields: [
       { name: "title", label: "Publication title", required: true },
       { name: "publisher", label: "Publisher or venue" },
-      { name: "month", label: "Publication month", type: "number" },
-      { name: "year", label: "Publication year", type: "number" },
+      { name: "month", label: "Publication month", type: "month" },
+      { name: "year", label: "Publication year", type: "year" },
       { name: "url", label: "Publication link", type: "url" },
       descriptionField,
     ],
@@ -207,7 +304,7 @@ export const profileSections: readonly ProfileSectionDefinition[] = [
     fields: [
       { name: "organization", label: "Organization", required: true },
       { name: "role", label: "Membership or role" },
-      ...monthFields,
+      ...period("This membership is current"),
       descriptionField,
     ],
   },
