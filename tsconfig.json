@@ -52,6 +52,9 @@
       "@/applications/*": [
         "./src/applications/*"
       ],
+      "@/applications": [
+        "./src/applications"
+      ],
       "@/writing/*": [
         "./src/writing/*"
       ],
