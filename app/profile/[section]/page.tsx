@@ -5,7 +5,7 @@ import { requireProfileUser } from "@/profile/authorization";
 import { DossierRail, SectionFlowFooter } from "@/profile/components/dossier-flow-nav";
 import { buildDossierFlow, currentStep } from "@/profile/flow";
 import {
-  getEnabledSectionKeys,
+  getDossierSectionState,
   getOrCreateProfile,
   listSectionEntries,
 } from "@/profile/repository";
@@ -51,14 +51,20 @@ export default async function ProfileSectionPage({ params, searchParams }: Secti
 
   const user = await requireProfileUser();
   const profile = await getOrCreateProfile(user.id, user);
-  const [entries, enabled, query] = await Promise.all([
+  const [entries, state, query] = await Promise.all([
     listSectionEntries(section, profile.id),
-    getEnabledSectionKeys(profile.id),
+    getDossierSectionState(profile.id),
     searchParams,
   ]);
 
   const definition = profileSectionMap[section];
-  const flow = buildDossierFlow(enabled);
+  /*
+   * The rail and footer here must show the same sequence as the hub, so this builds
+   * the flow from the same two facts. The eyebrow below still reads "Optional
+   * section" when this section is neither chosen nor populated — accurate, because
+   * saving the first entry is what makes it part of the dossier.
+   */
+  const flow = buildDossierFlow(state.registered, state.counts);
   const step = currentStep(flow, section);
   const status = query.status ? statusMessages[query.status] : undefined;
 
