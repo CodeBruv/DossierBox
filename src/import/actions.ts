@@ -49,15 +49,6 @@ import { initialImportFormState, type ImportFormState } from "./state";
  * document.
  */
 
-/**
- * The field name a row-level issue is filed under.
- *
- * A cross-field rule — "a grade needs the system it is expressed in" — raises an issue with
- * no single field to blame. It is attached to the row under this name rather than dropped, so
- * the review screen has somewhere to show it. Shared with the review model so the screen reads
- * it under the same name it was written.
- */
-
 const uploadFailureMessage =
   "We could not read that document just now. Nothing in your dossier was changed. Try again.";
 
