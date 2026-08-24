@@ -58,10 +58,35 @@ export const documents = pgTable(
      * expects. It also means the column is empty for the common case.
      *
      * JSONB is appropriate here: this is a short, unordered set read only with its
-     * own document, never joined or filtered on. Section *order* is not stored,
-     * because it belongs to the document family in the composition layer.
+     * own document, never joined or filtered on.
      */
     hiddenSections: jsonb("hiddenSections").$type<string[]>().notNull().default([]),
+    /**
+     * The order the user arranged this document's sections into.
+     *
+     * Empty means "the order this document type declares", which is why the default is
+     * `[]` rather than a copy of the catalogue order. Freezing today's ordering into
+     * every new row would mean a type whose running order improves later improves for
+     * nobody, and it would make an unmodified document indistinguishable from one the
+     * user deliberately arranged.
+     *
+     * Per document, never per dossier: two documents built from the same career history
+     * can lead with different sections, which is most of what makes them different
+     * documents. Unrecognised or missing keys are resolved at composition time rather
+     * than constrained here, so a stale order cannot make a document unopenable.
+     */
+    sectionOrder: jsonb("sectionOrder").$type<string[]>().notNull().default([]),
+    /**
+     * What the user is applying for, as recorded on the create screen.
+     *
+     * Nullable: documents created before objectives existed have none, and a document
+     * with no stated purpose is still a valid document — every fact on the page comes
+     * from the dossier either way. Stored as JSON because it is a small, self-contained
+     * record read only with its own document; `@/applications` owns its shape and
+     * re-validates it on read, so a value written by an older build degrades to "no
+     * objective" instead of breaking the page.
+     */
+    objective: jsonb("objective").$type<unknown>(),
     createdAt: timestamp("createdAt", { mode: "date", withTimezone: true })
       .$defaultFn(() => new Date())
       .notNull(),
