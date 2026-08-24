@@ -4,6 +4,7 @@ import {
   documentSectionOrder,
   documentTypeKeys,
   hideableSections,
+  orderSections,
   permittedSections,
   requiredSections,
   resolveSectionSelection,
@@ -216,5 +217,65 @@ describe("the default selection", () => {
       expect(result.rejected).toEqual([]);
       expect(result.restored).toEqual([]);
     }
+  });
+});
+
+/*
+ * Order is the other half of the same decision and behaves differently on one point that
+ * matters: a section missing from a requested *order* has not been hidden, it has simply
+ * not been mentioned. Dropping it would remove a section from someone's document as a side
+ * effect of a later build adding one, so these tests pin that down.
+ */
+describe("resolving a requested order", () => {
+  it("uses the type's own order when nothing is requested", () => {
+    for (const key of documentTypeKeys) {
+      expect(orderSections(key, [])).toEqual(documentSectionOrder(key));
+    }
+  });
+
+  it("honours the requested order", () => {
+    const order = orderSections("professional_cv", ["education", "summary"]);
+
+    /*
+     * Relative order, not absolute position. `experience` was not mentioned, so it keeps
+     * its catalogue neighbours and can land ahead of both — which is the right outcome for
+     * the case this arises in: an order stored before a section existed. What the request
+     * does control is that education now precedes summary, reversing the type's own order.
+     */
+    expect(order.indexOf("education")).toBeLessThan(order.indexOf("summary"));
+  });
+
+  it("keeps every section the type permits, exactly once", () => {
+    for (const key of documentTypeKeys) {
+      const permitted = permittedSections(key);
+      const requested = [...permitted].reverse().slice(0, 2);
+      const order = orderSections(key, [...requested, ...requested]);
+
+      expect([...order].sort()).toEqual([...permitted].sort());
+      expect(new Set(order).size).toBe(order.length);
+    }
+  });
+
+  it("places an unmentioned section among its catalogue neighbours, not at the end", () => {
+    const permitted = permittedSections("professional_cv");
+    const [first, second, third] = permitted;
+    /* A stored order from a build that did not know about `second`. */
+    const order = orderSections("professional_cv", [first!, third!]);
+
+    expect(order.indexOf(second!)).toBeLessThan(order.indexOf(third!));
+  });
+
+  it("reproduces a full arrangement exactly — the case the control posts", () => {
+    for (const key of documentTypeKeys) {
+      const arrangement = [...permittedSections(key)].reverse();
+
+      expect(orderSections(key, arrangement)).toEqual(arrangement);
+    }
+  });
+
+  it("ignores keys the type does not permit", () => {
+    const order = orderSections("professional_resume", ["publications", "constructor", ""]);
+
+    expect(order).toEqual(permittedSections("professional_resume"));
   });
 });
