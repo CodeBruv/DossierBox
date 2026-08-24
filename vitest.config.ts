@@ -47,6 +47,10 @@ export default defineConfig({
         replacement: resolve(__dirname, "src/writing"),
       },
       {
+        find: "@/import",
+        replacement: resolve(__dirname, "src/import"),
+      },
+      {
         find: "@/ui",
         replacement: resolve(__dirname, "src/ui"),
       },
