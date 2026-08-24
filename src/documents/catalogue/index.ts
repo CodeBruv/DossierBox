@@ -93,6 +93,7 @@ export {
   allSectionKeys,
   defaultSectionSelection,
   hideableSections,
+  orderSections,
   permittedSections,
   requiredSections,
   resolveSectionSelection,
