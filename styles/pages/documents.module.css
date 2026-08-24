@@ -278,8 +278,13 @@
 @media (min-width: 64rem) {
   .workspace {
     /* `minmax(0, …)` on both tracks: without it a long unbroken string in
-       either column can force the grid wider than its container. */
-    grid-template-columns: minmax(0, 18rem) minmax(0, 1fr);
+       either column can force the grid wider than its container.
+
+       20rem rather than 18: the section rows carry a grip, a checkbox, a
+       position and two move buttons alongside the heading, and at 18rem a
+       heading like "Professional memberships" was truncated in a control whose
+       purpose is to tell the user what is on the page. */
+    grid-template-columns: minmax(0, 20rem) minmax(0, 1fr);
     align-items: start;
   }
 
