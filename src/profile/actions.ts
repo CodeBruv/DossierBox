@@ -6,7 +6,7 @@ import { requireProfileUser } from "./authorization";
 import {
   createSectionEntry,
   deleteOwnedSectionEntry,
-  getEnabledSectionKeys,
+  getDossierSectionState,
   getOrCreateProfile,
   replaceEnabledSections,
   updateOwnedSectionEntry,
@@ -53,7 +53,7 @@ export async function saveProfileBasicsAction(
        * user selected. When they have not chosen any sections yet, the useful
        * next screen is the picker rather than a dead end.
        */
-      const flow = buildDossierFlow(await getEnabledSectionKeys(profile.id));
+      const flow = await dossierFlowFor(profile.id);
       destination = flow.steps[1]
         ? `${flow.steps[1].href}?status=basics-saved`
         : "/profile/sections?status=basics-saved";
@@ -135,10 +135,7 @@ export async function createProfileEntryAction(
      * is loaded solely for the intent that asks that question. Saving in place
      * or adding another entry stays at one round trip.
      */
-    const flow =
-      intent === "continue"
-        ? buildDossierFlow(await getEnabledSectionKeys(profile.id))
-        : undefined;
+    const flow = intent === "continue" ? await dossierFlowFor(profile.id) : undefined;
 
     destination = resolveEntryDestination(flow, sectionValue, intent);
   } catch (error) {
@@ -185,7 +182,7 @@ export async function updateProfileEntryAction(
     }
 
     if (intent === "continue") {
-      const flow = buildDossierFlow(await getEnabledSectionKeys(profile.id));
+      const flow = await dossierFlowFor(profile.id);
       destination = resolveEntryDestination(flow, sectionValue, intent, "updated");
     } else {
       destination = resolveEntryDestination(undefined, sectionValue, intent, "updated");
@@ -227,12 +224,41 @@ function failureState(formData: FormData, message: string): ProfileFormState {
   return formStateFromSubmission(formData, message);
 }
 
+/**
+ * The flow exactly as the Dossier screens see it.
+ *
+ * Built from the same read those screens use, because "what comes next?" answering
+ * differently here would send the user somewhere other than the sequence they are
+ * looking at. While this read the chosen-section registry alone, saving an entry in
+ * a section the user had not explicitly picked reported no next step and bounced
+ * them to the review screen mid-way through their dossier.
+ */
+async function dossierFlowFor(profileId: string) {
+  const { registered, counts } = await getDossierSectionState(profileId);
+  return buildDossierFlow(registered, counts);
+}
+
+/**
+ * Every cached route whose content is derived from the dossier.
+ *
+ * `/documents` and the document workspace are on this list because a document is
+ * composed from the dossier on every render and holds no copy of it. Leaving them
+ * out meant a saved entry could be live on the profile screens and absent from the
+ * document built out of it — the same symptom as losing the data, from the half of
+ * the product where it matters most.
+ *
+ * The document route is revalidated by path, which covers every document id: the
+ * profile has no idea which documents exist, and finding out would cost a query on
+ * a path that runs after every single save.
+ */
 function revalidateProfilePaths(section?: ProfileSectionKey) {
   revalidatePath("/profile");
   revalidatePath("/profile/basics");
   revalidatePath("/profile/sections");
   revalidatePath("/profile/review");
   revalidatePath("/home");
+  revalidatePath("/documents");
+  revalidatePath("/documents/[documentId]", "page");
 
   if (section) {
     revalidatePath(`/profile/${section}`);
