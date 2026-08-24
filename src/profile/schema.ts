@@ -91,6 +91,19 @@ export const education = pgTable("profileEducation", {
   institution: text("institution").notNull(),
   qualification: text("qualification"),
   field: text("field"),
+  /**
+   * Level of study, stored as the display name rather than a code. Free text because no
+   * single national framework covers a global user base: the picker offers a recognisable
+   * set and accepts anything else the user names.
+   */
+  level: text("level"),
+  /**
+   * Which grading system the grade is expressed in — a key from `gradingSystemOptions`, or
+   * whatever system the user named. Stored beside the grade because "3.8" and "5.5" mean
+   * nothing without it, and a document that prints a bare number is misleading.
+   */
+  gradingSystem: text("gradingSystem"),
+  grade: text("grade"),
   location: text("location"),
   startMonth: integer("startMonth"),
   startYear: integer("startYear"),
