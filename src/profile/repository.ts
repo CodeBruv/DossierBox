@@ -516,32 +516,48 @@ export async function createSectionEntry(
   profileId: string,
   values: Record<string, unknown>,
 ) {
-  const position = await nextPosition(section, profileId);
+  const position = await nextPosition(db, section, profileId);
 
-  const safeValues = withoutProtectedFields(values);
+  await insertSectionEntry(db, section, profileId, position, values);
+}
 
-  switch (section) {
-    case "experience":
-      await db.insert(experiences).values({ ...(safeValues as typeof experiences.$inferInsert), profileId, position }); break;
-    case "education":
-      await db.insert(education).values({ ...(safeValues as typeof education.$inferInsert), profileId, position }); break;
-    case "projects":
-      await db.insert(projects).values({ ...(safeValues as typeof projects.$inferInsert), profileId, position }); break;
-    case "skills":
-      await db.insert(skills).values({ ...(safeValues as typeof skills.$inferInsert), profileId, position }); break;
-    case "credentials":
-      await db.insert(credentials).values({ ...(safeValues as typeof credentials.$inferInsert), profileId, position }); break;
-    case "achievements":
-      await db.insert(achievements).values({ ...(safeValues as typeof achievements.$inferInsert), profileId, position }); break;
-    case "languages":
-      await db.insert(languages).values({ ...(safeValues as typeof languages.$inferInsert), profileId, position }); break;
-    case "publications":
-      await db.insert(publications).values({ ...(safeValues as typeof publications.$inferInsert), profileId, position }); break;
-    case "memberships":
-      await db.insert(memberships).values({ ...(safeValues as typeof memberships.$inferInsert), profileId, position }); break;
-    case "links":
-      await db.insert(profileLinks).values({ ...(safeValues as typeof profileLinks.$inferInsert), profileId, position }); break;
-  }
+export type SectionEntryInput = {
+  readonly section: ProfileSectionKey;
+  readonly values: Record<string, unknown>;
+};
+
+/**
+ * Several entries, across several sections, or none of them.
+ *
+ * This exists for importing, where one confirmation can add twenty entries at once, and
+ * where landing half of them is the worst possible outcome: the user cannot tell which half,
+ * and trying again would duplicate whatever did land. One transaction makes the whole
+ * confirmation a single event — it either becomes their dossier or it does not.
+ *
+ * Positions are read once per section and then counted forward in memory, so a section
+ * receiving eight entries costs one aggregate rather than eight. Entries keep the order they
+ * arrive in, which is the order the user was looking at when they confirmed them.
+ */
+export async function createSectionEntries(
+  profileId: string,
+  entries: readonly SectionEntryInput[],
+): Promise<void> {
+  if (entries.length === 0) return;
+
+  await db.transaction(async (transaction) => {
+    const nextBySection = new Map<ProfileSectionKey, number>();
+
+    for (const entry of entries) {
+      let position = nextBySection.get(entry.section);
+
+      if (position === undefined) {
+        position = await nextPosition(transaction, entry.section, profileId);
+      }
+
+      nextBySection.set(entry.section, position + 1);
+      await insertSectionEntry(transaction, entry.section, profileId, position, entry.values);
+    }
+  });
 }
 
 export async function updateOwnedSectionEntry(
@@ -609,6 +625,48 @@ export async function deleteOwnedSectionEntry(
 type SectionTable = (typeof sectionTables)[ProfileSectionKey];
 
 /**
+ * A database handle, or a transaction on one.
+ *
+ * Writing helpers against this rather than against `db` is what lets one entry and twenty
+ * entries share the same insert: a single write runs on the connection, a batch runs inside
+ * a transaction, and neither needs a second copy of the section switch.
+ */
+type Executor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+async function insertSectionEntry(
+  executor: Executor,
+  section: ProfileSectionKey,
+  profileId: string,
+  position: number,
+  values: Record<string, unknown>,
+) {
+  const safeValues = withoutProtectedFields(values);
+
+  switch (section) {
+    case "experience":
+      await executor.insert(experiences).values({ ...(safeValues as typeof experiences.$inferInsert), profileId, position }); break;
+    case "education":
+      await executor.insert(education).values({ ...(safeValues as typeof education.$inferInsert), profileId, position }); break;
+    case "projects":
+      await executor.insert(projects).values({ ...(safeValues as typeof projects.$inferInsert), profileId, position }); break;
+    case "skills":
+      await executor.insert(skills).values({ ...(safeValues as typeof skills.$inferInsert), profileId, position }); break;
+    case "credentials":
+      await executor.insert(credentials).values({ ...(safeValues as typeof credentials.$inferInsert), profileId, position }); break;
+    case "achievements":
+      await executor.insert(achievements).values({ ...(safeValues as typeof achievements.$inferInsert), profileId, position }); break;
+    case "languages":
+      await executor.insert(languages).values({ ...(safeValues as typeof languages.$inferInsert), profileId, position }); break;
+    case "publications":
+      await executor.insert(publications).values({ ...(safeValues as typeof publications.$inferInsert), profileId, position }); break;
+    case "memberships":
+      await executor.insert(memberships).values({ ...(safeValues as typeof memberships.$inferInsert), profileId, position }); break;
+    case "links":
+      await executor.insert(profileLinks).values({ ...(safeValues as typeof profileLinks.$inferInsert), profileId, position }); break;
+  }
+}
+
+/**
  * `count(*)` for one section, correlated to the profile row being selected.
  * Cast to `int` so the driver hands back a JS number rather than a bigint
  * string.
@@ -660,10 +718,14 @@ function jsonRowsFor<T>(table: SectionTable, columns: Record<string, AnyPgColumn
  * `position`, which meant an insert cost grew with the size of the section.
  * `max(position)` answers the same question with one aggregate.
  */
-async function nextPosition(section: ProfileSectionKey, profileId: string) {
+async function nextPosition(
+  executor: Executor,
+  section: ProfileSectionKey,
+  profileId: string,
+) {
   const table = sectionTables[section];
 
-  const [row] = await db
+  const [row] = await executor
     .select({
       next: sql<number>`(
         select coalesce(max(${table.position}), -1) + 1
