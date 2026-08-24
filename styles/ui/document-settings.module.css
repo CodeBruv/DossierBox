@@ -120,47 +120,12 @@
   font-size: var(--ds-text-sm);
 }
 
-/* ---- Section visibility ----------------------------------------------- */
-
-.sections {
-  list-style: none;
-  margin: var(--ds-space-xs) 0 0;
-  padding: 0;
-  border-top: 1px solid var(--ds-color-border-default);
-}
+/* ---- Section visibility and order -------------------------------------- */
 
 /*
-   A row rather than a card. These are toggles over a list the user already
-   knows, so the borders that help distinguish three style choices would only
-   add noise across a dozen sections.
+   The rows themselves live in section-arrangement.module.css, next to the
+   component that owns them. Nothing is duplicated here.
 */
-.section {
-  display: flex;
-  min-height: 2.75rem;
-  align-items: center;
-  gap: var(--ds-space-xs);
-  padding: var(--ds-space-2xs) 0;
-  border-bottom: 1px solid var(--ds-color-border-default);
-  cursor: pointer;
-}
-
-.section:hover {
-  color: var(--ds-color-brand-primary);
-}
-
-.section:has(input:focus-visible) {
-  outline: var(--ds-focus-ring);
-  outline-offset: 0.125rem;
-}
-
-/*
-   A cleared section is still legible, not greyed to the edge of readability:
-   the user has to be able to read what they turned off in order to turn it
-   back on.
-*/
-.section:has(input:not(:checked)) span {
-  color: var(--ds-color-text-secondary);
-}
 
 .save {
   min-height: 2.75rem;
