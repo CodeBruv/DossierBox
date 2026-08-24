@@ -192,3 +192,82 @@
     width: 100%;
   }
 }
+
+/* ---- Delete ------------------------------------------------------------- */
+
+/*
+   Deliberately quiet. Deleting a document is a legitimate thing to want, so it is
+   not hidden — but it is the least likely reason anyone opened this page, and a red
+   button competing with the document itself would be an odd thing to design.
+
+   Closed, it reads as one line of text. Open, it explains itself and shows the one
+   button that acts.
+*/
+.deletePanel {
+  padding-top: var(--ds-space-md);
+  border-top: 1px solid var(--ds-color-border-default);
+}
+
+.deleteSummary {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  color: var(--ds-color-text-secondary);
+  cursor: pointer;
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.deleteSummary:hover {
+  color: var(--ds-color-destructive);
+}
+
+.deleteSummary:focus-visible {
+  outline: var(--ds-focus-ring);
+  outline-offset: 0.125rem;
+  border-radius: var(--ds-border-radius-sm);
+}
+
+.deleteBody {
+  display: grid;
+  gap: var(--ds-space-sm);
+  max-width: 42rem;
+  padding: var(--ds-space-sm) 0 var(--ds-space-2xs);
+}
+
+.deleteBody p {
+  margin: 0;
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-text-sm);
+}
+
+.deleteBody strong {
+  color: var(--ds-color-text-primary);
+}
+
+/*
+   The only red in the workspace, on the only control that destroys something. It is
+   outlined rather than filled: this is the action being confirmed, not the action
+   being encouraged.
+*/
+.deleteConfirm {
+  min-height: 2.75rem;
+  padding: 0.65rem 1rem;
+  border: 1px solid var(--ds-color-destructive);
+  border-radius: var(--ds-border-radius-sm);
+  background: var(--ds-color-surface);
+  color: var(--ds-color-destructive);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.deleteConfirm:hover {
+  background: var(--ds-color-destructive-surface);
+}
+
+.deleteConfirm:focus-visible {
+  outline: var(--ds-focus-ring);
+  outline-offset: 0.125rem;
+}
