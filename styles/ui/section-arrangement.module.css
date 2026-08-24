@@ -1,0 +1,162 @@
+/* =============================================================================
+   Section arrangement — which sections a document shows, and in what order
+   =============================================================================
+   Shares the row language of `.section` in document-settings.module.css: a
+   ruled list rather than a stack of cards, because these are toggles over a list
+   the user already knows and a dozen bordered boxes would be noise.
+
+   What is added here is the grip, the position number and the two move buttons.
+   The grip is a visual affordance only — the buttons are what a keyboard user
+   operates, and they are always present rather than revealed on hover, so the
+   control does not depend on a pointer to be discoverable.
+
+   Application UI, so it themes normally. Nothing here touches `--ds-document-*`.
+============================================================================ */
+
+.arrangement {
+  display: grid;
+  gap: var(--ds-space-2xs);
+}
+
+.list {
+  list-style: none;
+  margin: var(--ds-space-xs) 0 0;
+  padding: 0;
+  border-top: 1px solid var(--ds-color-border-default);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  min-height: 3rem;
+  align-items: center;
+  gap: var(--ds-space-2xs);
+  padding: var(--ds-space-3xs) 0;
+  border-bottom: 1px solid var(--ds-color-border-default);
+  background: var(--ds-color-surface);
+}
+
+/* A row carrying a section this build no longer offers: its inputs still post. */
+.carried {
+  display: none;
+}
+
+.row:hover {
+  background: var(--ds-color-surface-subtle);
+}
+
+/*
+   The row being dragged. Kept subtle — the list itself reorders live under the
+   pointer, so the user is already getting the strongest possible feedback and a
+   heavier treatment would only add flicker.
+*/
+.rowDragging {
+  opacity: 0.55;
+}
+
+.grip {
+  display: flex;
+  width: 1.25rem;
+  align-items: center;
+  justify-content: center;
+  color: var(--ds-color-text-secondary);
+  cursor: grab;
+}
+
+.row:active .grip {
+  cursor: grabbing;
+}
+
+.visibility {
+  display: flex;
+  min-width: 0;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: var(--ds-space-xs);
+  cursor: pointer;
+}
+
+.visibility:has(input:focus-visible) {
+  outline: var(--ds-focus-ring);
+  outline-offset: 0.125rem;
+}
+
+.heading {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+   A cleared section stays legible rather than being greyed to the edge of
+   readability: the user has to be able to read what they turned off in order to
+   turn it back on.
+*/
+.rowHidden .heading {
+  color: var(--ds-color-text-secondary);
+  text-decoration: line-through;
+  text-decoration-color: var(--ds-color-border-control);
+}
+
+/*
+   The position number. Present because "third" is the thing the user is actually
+   deciding, and because after a move it is the confirmation that the move landed.
+*/
+.position {
+  min-width: 1.25rem;
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-text-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.moves {
+  display: flex;
+  gap: 0.125rem;
+}
+
+.move {
+  display: flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--ds-border-radius-sm);
+  background: none;
+  color: var(--ds-color-text-secondary);
+  cursor: pointer;
+}
+
+.move:hover:not(:disabled) {
+  border-color: var(--ds-color-border-control);
+  color: var(--ds-color-brand-primary);
+}
+
+.move:focus-visible {
+  outline: var(--ds-focus-ring);
+  outline-offset: 0.125rem;
+}
+
+/*
+   Disabled at the ends of the list rather than hidden, so the two buttons do not
+   move between rows — a control that shifts under the pointer as you use it is
+   the reason repeated nudging feels unreliable.
+*/
+.move:disabled {
+  color: var(--ds-color-border-control);
+  cursor: default;
+}
+
+/* The live region. Announced, never seen. */
+.status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
