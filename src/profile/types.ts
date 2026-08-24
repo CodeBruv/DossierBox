@@ -13,12 +13,26 @@ export const profileSectionKeys = [
 
 export type ProfileSectionKey = (typeof profileSectionKeys)[number];
 
+/**
+ * How a piece of experience was arranged.
+ *
+ * `employment` is kept for rows written before the arrangement was asked about. Nothing
+ * creates it any more — the picker offers the precise values — but dropping it from the
+ * union would make existing rows fail validation on their next edit, which would look to
+ * the user like their record had broken.
+ *
+ * This is a `text` column, not a pgEnum, so extending this list needs no migration.
+ */
 export const experienceTypes = [
-  "employment",
+  "full-time",
+  "part-time",
+  "contract",
   "freelance",
   "internship",
   "volunteering",
+  "apprenticeship",
   "other",
+  "employment",
 ] as const;
 
 export const skillTypes = [
