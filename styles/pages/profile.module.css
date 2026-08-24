@@ -84,6 +84,43 @@
   font-size: var(--ds-heading-size-md);
 }
 
+/*
+ * A quieter band than the identity one above it: an offer rather than a step. The tinted
+ * surface separates it from the dossier's own sections without turning it into a promotion.
+ */
+.importBand {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--ds-space-md);
+  margin-top: var(--ds-space-lg);
+  padding: var(--ds-space-lg);
+  border: var(--ds-border);
+  border-radius: var(--ds-border-radius-md);
+  background: var(--ds-color-surface-subtle);
+}
+
+.importBand h2 {
+  margin: 0;
+  font-size: var(--ds-heading-size-sm);
+  letter-spacing: 0;
+}
+
+.importBand p {
+  margin: var(--ds-space-2xs) 0 0;
+  color: var(--ds-ink-weak);
+  font-size: var(--ds-text-sm);
+  max-width: 46ch;
+}
+
+@media (min-width: 48rem) {
+  .importBand {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
 .sectionHeading {
   display: flex;
   flex-direction: column;
