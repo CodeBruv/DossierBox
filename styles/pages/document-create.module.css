@@ -1,0 +1,389 @@
+/* =============================================================================
+   Create a document — purpose → document → presentation
+   =============================================================================
+   Three steps sharing one visual language: a heading, a trail, and a grid of
+   choices. Page furniture (buttons, error text, back links) is reused from
+   documents.module.css rather than restated, so the create flow and the
+   workspace stay recognisably the same product.
+
+   The document is the visual hero throughout. Nothing here has a gradient, a
+   shadow beyond the sheet's own, or a colour that competes with the paper.
+============================================================================ */
+
+.header {
+  max-width: 42rem;
+  margin-top: var(--ds-space-lg);
+}
+
+.header h1 {
+  font-size: var(--ds-heading-size-xl);
+}
+
+/* ---- The step trail ----------------------------------------------------- */
+
+/*
+   Where the user is, and what they have already answered. A completed step
+   shows its answer, which is what makes this a summary rather than decoration:
+   on step three the user can see they said "Applying for a job" without going
+   back to check.
+*/
+.trail {
+  margin-top: var(--ds-space-lg);
+}
+
+.trailList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: trail;
+}
+
+.trailStep {
+  counter-increment: trail;
+  padding-top: var(--ds-space-2xs);
+  border-top: 2px solid var(--ds-color-border-default);
+  min-width: 8rem;
+  flex: 1 1 8rem;
+}
+
+.trailStepDone {
+  border-top-color: var(--ds-color-brand-primary);
+}
+
+.trailStepCurrent {
+  border-top-color: var(--ds-color-text-primary);
+}
+
+.trailLink,
+.trailStatic {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.trailLink:hover .trailValue {
+  color: var(--ds-color-brand-primary);
+}
+
+.trailLink:focus-visible {
+  outline: var(--ds-focus-ring);
+  outline-offset: 0.25rem;
+}
+
+/*
+   The number is drawn by CSS rather than written into the markup, so a screen
+   reader hears "Purpose", "Document", "Presentation" — the actual steps —
+   instead of counting to three.
+*/
+.trailLabel {
+  display: block;
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.trailLabel::before {
+  content: counter(trail) ". ";
+}
+
+.trailValue {
+  display: block;
+  margin-top: var(--ds-space-3xs);
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-secondary);
+  overflow-wrap: break-word;
+}
+
+/* ---- Choice grids ------------------------------------------------------- */
+
+/*
+   Rules rather than cards. Ten objectives as ten boxed panels reads as a
+   settings screen; ten ruled rows reads as a list of things a person might be
+   doing, which is what it is.
+
+   `auto-fill` with a 17rem floor rather than a fixed column count: one column
+   on a phone, two on a tablet, three or four on a wide screen, with no
+   breakpoint doing the arithmetic.
+*/
+.optionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: 0 var(--ds-space-xl);
+  margin: var(--ds-space-lg) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+   The whole row is the target, not just the words. The link is stretched over
+   its list item with a pseudo-element so the description and the length note
+   are clickable too, while the accessible name stays the document's name alone
+   rather than three sentences of prose.
+*/
+.option {
+  position: relative;
+  padding: var(--ds-space-md) 0;
+  border-top: 1px solid var(--ds-color-border-default);
+}
+
+.optionLink {
+  display: inline-block;
+  color: var(--ds-color-text-primary);
+  font-size: var(--ds-text-lg);
+  font-weight: var(--ds-font-weight-semibold);
+  text-decoration: none;
+}
+
+.optionLink::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.option:hover .optionLink,
+.optionLink:focus-visible {
+  color: var(--ds-color-brand-primary);
+}
+
+.optionLink:focus-visible {
+  outline: var(--ds-focus-ring);
+  outline-offset: 0.25rem;
+}
+
+.optionNote {
+  margin: var(--ds-space-3xs) 0 0;
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-text-sm);
+}
+
+.optionMeta {
+  margin: var(--ds-space-2xs) 0 0;
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-text-xs);
+}
+
+/*
+   A quiet mark, not a ribbon. It says "this is the conventional choice" and
+   must not read as "the others are wrong" — the product's position is that an
+   unusual choice may well be the right one for a user who knows their panel.
+*/
+.badge {
+  display: inline-block;
+  margin-left: var(--ds-space-2xs);
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--ds-color-brand-primary);
+  border-radius: var(--ds-border-radius-sm);
+  color: var(--ds-color-brand-primary);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: 0.1em;
+}
+
+/* ---- Groups and disclosures -------------------------------------------- */
+
+.group {
+  margin-top: var(--ds-space-xl);
+}
+
+.groupHeading {
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ds-color-text-muted);
+}
+
+.note {
+  max-width: 42rem;
+  margin-top: var(--ds-space-lg);
+  padding-left: var(--ds-space-sm);
+  border-left: 2px solid var(--ds-color-border-default);
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-text-sm);
+}
+
+.more {
+  max-width: 46rem;
+  margin-top: var(--ds-space-xl);
+  padding-top: var(--ds-space-md);
+  border-top: 1px solid var(--ds-color-border-default);
+}
+
+.moreSummary {
+  color: var(--ds-color-text-secondary);
+  cursor: pointer;
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.moreSummary:hover {
+  color: var(--ds-color-brand-primary);
+}
+
+.moreSummary:focus-visible {
+  outline: var(--ds-focus-ring);
+  outline-offset: 0.25rem;
+}
+
+.moreNote {
+  max-width: 38rem;
+  margin: var(--ds-space-xs) 0 0;
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-text-sm);
+}
+
+/* ---- Step 3: templates -------------------------------------------------- */
+
+/*
+   Side by side wherever there is room, because the comparison is the point.
+   The miniature is a fixed physical width, so the track floor matches it
+   rather than guessing: too narrow a column would crop a page the user is
+   trying to judge.
+*/
+.templateGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: var(--ds-space-lg);
+  margin: var(--ds-space-lg) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.template {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-sm);
+  align-items: flex-start;
+  padding-bottom: var(--ds-space-md);
+  border-bottom: 2px solid transparent;
+}
+
+.templateSelected {
+  border-bottom-color: var(--ds-color-brand-primary);
+}
+
+.templateBody {
+  min-width: 0;
+}
+
+.templateLink {
+  color: var(--ds-color-text-primary);
+  font-size: var(--ds-text-lg);
+  font-weight: var(--ds-font-weight-semibold);
+  text-decoration: none;
+}
+
+/*
+   Stretched over the whole cell, so the miniature itself is the target — the
+   sheet is `inert`, so the click lands here rather than on a link inside the
+   user's own document.
+*/
+.templateLink::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.template:hover .templateLink,
+.templateLink:focus-visible {
+  color: var(--ds-color-brand-primary);
+}
+
+.templateLink:focus-visible {
+  outline: var(--ds-focus-ring);
+  outline-offset: 0.25rem;
+}
+
+/*
+   Stands in for the miniature when there is nothing composed to show. Sized in
+   the same proportion as a page so the choices stay in a row rather than
+   collapsing to a line of labels.
+*/
+.templatePlaceholder {
+  width: 16rem;
+  max-width: 100%;
+  aspect-ratio: 210 / 297;
+  border: 1px dashed var(--ds-color-border-default);
+  border-radius: var(--ds-border-radius-sm);
+  background: var(--ds-color-surface-subtle);
+}
+
+.emptyNotice {
+  max-width: 42rem;
+  margin-top: var(--ds-space-xl);
+  padding: var(--ds-space-lg) 0;
+  border-top: 3px solid var(--ds-color-brand-primary);
+  border-bottom: 1px solid var(--ds-color-border-default);
+}
+
+.emptyNotice h2 {
+  max-width: 26rem;
+  font-size: var(--ds-heading-size-md);
+}
+
+.emptyNotice p {
+  max-width: 38rem;
+  margin-top: var(--ds-space-xs);
+  color: var(--ds-color-text-secondary);
+}
+
+.createForm {
+  margin-top: var(--ds-space-xl);
+  padding-top: var(--ds-space-lg);
+  border-top: 1px solid var(--ds-color-border-default);
+}
+
+.createNote {
+  max-width: 38rem;
+  margin-top: var(--ds-space-xs);
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-text-sm);
+}
+
+/*
+   The chosen template at full size, under the button rather than above it.
+   Someone who already knows which look they want should not have to scroll
+   past a whole page of document to press Create; someone who wants to check
+   scrolls on and finds it.
+*/
+.fullPreview {
+  margin-top: var(--ds-space-2xl);
+}
+
+.fullPreviewHeading {
+  margin-bottom: var(--ds-space-sm);
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.stepFooter {
+  margin-top: var(--ds-space-xl);
+  padding-top: var(--ds-space-md);
+  border-top: 1px solid var(--ds-color-border-default);
+}
+
+@media (max-width: 22rem) {
+  .createForm button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .optionLink,
+  .templateLink,
+  .template {
+    transition: color var(--ds-motion-duration) var(--ds-motion-ease),
+      border-color var(--ds-motion-duration) var(--ds-motion-ease);
+  }
+}
