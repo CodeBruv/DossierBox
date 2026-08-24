@@ -54,9 +54,7 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
     /*
      * The dossier is only read once the document is known to exist and to belong
      * to this session, so an unauthorised id never causes a career-history read.
-     * Loading it after the document rather than alongside it costs nothing: the
-     * connection ceiling is one, so a `Promise.all` here would queue on the same
-     * connection and look parallel without being parallel.
+     * That ordering is the point; the second round trip is the price of it.
      */
     if (document) {
       snapshot = await getDossierSnapshot(session.user.id);
@@ -92,17 +90,23 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
    * reproducible versions are a separate concern from this live view.
    */
   const composed = snapshot
-    ? composeDocument(document.type, snapshot, { hiddenSections: document.hiddenSections })
+    ? composeDocument(document.type, snapshot, {
+        hiddenSections: document.hiddenSections,
+        sectionOrder: document.sectionOrder,
+      })
     : null;
   const isEmpty = !composed || isComposedDocumentEmpty(composed);
 
   /*
-   * The visibility control lists every section this dossier *could* show, which
+   * The arrangement control lists every section this dossier *could* show, which
    * is not the same as what the document currently shows — a hidden section has
-   * to stay in the list or there would be no way to bring it back. Composed
-   * without configuration for exactly that reason.
+   * to stay in the list or there would be no way to bring it back. Composed with
+   * the document's order but no hiding, for exactly that reason: the user needs to
+   * see a cleared section sitting in the place it will reappear in.
    */
-  const offeredSections = snapshot ? composableSections(document.type, snapshot) : [];
+  const offeredSections = snapshot
+    ? composableSections(document.type, snapshot, document.sectionOrder)
+    : [];
 
   return (
     <div className={styles.page}>
