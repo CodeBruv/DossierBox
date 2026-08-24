@@ -54,6 +54,9 @@
       ],
       "@/writing/*": [
         "./src/writing/*"
+      ],
+      "@/import/*": [
+        "./src/import/*"
       ]
     },
     "plugins": [
