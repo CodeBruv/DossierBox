@@ -49,6 +49,7 @@ import type {
 } from "@/profile/dossier";
 import { profileSectionMap } from "@/profile/sections";
 import { skillTypes, type ProfileSectionKey } from "@/profile/types";
+import { experienceTypeOptions } from "@/profile/vocabularies";
 import {
   documentHeadingOverrides,
   documentSectionOrder,
@@ -333,11 +334,7 @@ function experienceEntry(row: DossierExperience): ComposedEntry | null {
      * where saying so adds nothing.
      */
     meta: join(
-      [
-        formatPeriod(row),
-        clean(row.location),
-        row.type === "employment" ? null : optionLabel("experience", "type", row.type),
-      ],
+      [formatPeriod(row), clean(row.location), experienceQualifier(row.type)],
       META_SEPARATOR,
     ),
     detail: detailFrom(row.description),
@@ -345,24 +342,78 @@ function experienceEntry(row: DossierExperience): ComposedEntry | null {
   };
 }
 
+/**
+ * The arrangement, when stating it tells the reader something.
+ *
+ * Full-time is the assumption a reader already brings to an experience section, so
+ * printing it is noise; `employment` is the same assumption in the older vocabulary.
+ * Everything else — Contract, Internship, Volunteer, Apprenticeship — changes how the
+ * entry should be read and is printed.
+ *
+ * Reads the full vocabulary rather than the section's picker options, because the picker
+ * deliberately no longer offers `employment` while stored rows still hold it.
+ */
+function experienceQualifier(type: string) {
+  if (type === "full-time" || type === "employment") return null;
+  return experienceTypeOptions.find((option) => option.value === type)?.label ?? type;
+}
+
 function educationEntry(row: DossierEducation): ComposedEntry | null {
   const institution = clean(row.institution);
   /**
    * Qualification and field are joined with a comma — arrangement, not invented
-   * prose ("BSc, Economics"). When neither exists the institution becomes the
-   * title, and is then not repeated as the subtitle.
+   * prose ("BSc, Economics"). When neither exists the level answers the same
+   * question ("Bachelor's degree"), and when nothing does, the institution
+   * becomes the title and is then not repeated as the subtitle.
    */
-  const qualification = join([row.qualification, row.field], ", ");
+  const qualification = join([row.qualification, row.field], ", ") ?? clean(row.level);
   const title = qualification ?? institution;
   if (!title) return null;
 
   return {
     title,
     subtitle: qualification ? institution : null,
-    meta: join([formatPeriod(row), clean(row.location)], META_SEPARATOR),
+    meta: join(
+      [formatPeriod(row), clean(row.location), formatGrade(row.gradingSystem, row.grade)],
+      META_SEPARATOR,
+    ),
     detail: detailFrom(row.description),
     url: null,
   };
+}
+
+/**
+ * A grade, stated so a reader in another country can interpret it.
+ *
+ * A bare "3.8" is ambiguous and a bare "5.5" is actively misleading, so a numeric grade
+ * is always printed against its scale. A named classification carries its own meaning and
+ * is printed as the user recorded it. A system we do not model is named alongside the
+ * grade, because the user's own words about their own award are better than silence.
+ *
+ * Returns `null` when there is no grade — the scale alone states nothing.
+ */
+function formatGrade(gradingSystem: string | null, grade: string | null) {
+  const value = clean(grade);
+  if (!value) return null;
+
+  switch (gradingSystem) {
+    case "gpa-4":
+      return `GPA ${value}/4.0`;
+    case "gpa-5":
+      return `GPA ${value}/5.0`;
+    case "gpa-10":
+      return `GPA ${value}/10.0`;
+    case "percentage":
+      return `${value}%`;
+    case "classification":
+    case "credit":
+    case "letter":
+    case "passfail":
+    case null:
+      return value;
+    default:
+      return `${gradingSystem}: ${value}`;
+  }
 }
 
 function projectEntry(row: DossierProject): ComposedEntry | null {
