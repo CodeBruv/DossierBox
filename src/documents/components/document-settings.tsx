@@ -1,9 +1,9 @@
 /**
  * The document's controls.
  *
- * A server component wrapping one plain `<form>` that posts to a server action.
- * There is no client JavaScript here at all, which is a deliberate choice rather
- * than an omission:
+ * A server component wrapping one plain `<form>` that posts to a server action. The
+ * title and the style choice ship no client JavaScript at all, which is a deliberate
+ * choice rather than an omission:
  *
  * - The alternative is a client component, and a live template switch would mean
  *   shipping the composition layer and the whole document's contents to the
@@ -15,6 +15,10 @@
  * - It works before JavaScript loads, and on a slow connection that is not a
  *   hypothetical.
  *
+ * The one exception is the section arrangement, which is a small client island because
+ * reordering cannot be expressed without it — see `section-arrangement`. It carries only
+ * the section headings, never the document's contents, so the reasoning above holds.
+ *
  * The cost is honest and small: the preview updates when the user saves rather
  * than as they click. Everything here works; nothing is decorative.
  */
@@ -23,6 +27,7 @@ import { updateDocumentAction } from "../actions";
 import { compatibleTemplates } from "../presentation";
 import type { ComposedSectionKey } from "../composition";
 import type { DocumentType } from "../schema";
+import { SectionArrangement } from "./section-arrangement";
 import styles from "@/styles/ui/document-settings.module.css";
 
 export type DocumentSettingsProps = {
@@ -49,7 +54,6 @@ export function DocumentSettings({
   sections,
   hiddenSections,
 }: DocumentSettingsProps) {
-  const hidden = new Set(hiddenSections);
   /*
    * Only the styles that can actually present this kind of document. Identical to the
    * full list today — all three were measured from sectioned career documents, so all
@@ -107,31 +111,21 @@ export function DocumentSettings({
         <fieldset className={styles.fieldset}>
           <legend className={styles.legend}>Sections</legend>
           <p className={styles.hint}>
-            Everything you have recorded is included. Clear a section to leave it out of
-            this document — it stays in your dossier.
+            Everything you have recorded is included, in this order. Drag a section — or use
+            the arrows — to move it. Clear one to leave it out of this document; it stays in
+            your dossier.
           </p>
-          <ul className={styles.sections}>
-            {sections.map((section) => (
-              <li key={section.key}>
-                <label className={styles.section}>
-                  {/*
-                    An unchecked box posts nothing, so the server cannot tell a
-                    cleared section from one this form never offered. `offered`
-                    carries the full list alongside it, which is what lets the
-                    action work out the difference.
-                  */}
-                  <input type="hidden" name="offered" value={section.key} />
-                  <input
-                    defaultChecked={!hidden.has(section.key)}
-                    name="visible"
-                    type="checkbox"
-                    value={section.key}
-                  />
-                  <span>{section.heading}</span>
-                </label>
-              </li>
-            ))}
-          </ul>
+          {/*
+            Keyed on the saved arrangement, so after a save the control is rebuilt from
+            what the server stored rather than keeping the state it had before the post.
+            Without this, a save that the server adjusted — a section restored, a stale
+            key dropped — would leave the list showing something the document is not.
+          */}
+          <SectionArrangement
+            hiddenSections={hiddenSections}
+            key={`${sections.map((section) => section.key).join("|")}::${[...hiddenSections].join("|")}`}
+            sections={sections}
+          />
         </fieldset>
       ) : null}
 
