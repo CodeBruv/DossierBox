@@ -1,5 +1,5 @@
 import { profileSectionMap } from "./sections";
-import type { ProfileSectionKey } from "./types";
+import { profileSectionKeys, type ProfileSectionKey } from "./types";
 
 /**
  * DossierBox — Dossier building flow.
@@ -12,6 +12,25 @@ import type { ProfileSectionKey } from "./types";
  * These are pure functions over data the caller already loaded. They perform no
  * I/O, which keeps the ordering rules unit-testable and keeps the page
  * components free of navigation arithmetic.
+ *
+ * ## A section that holds information is always part of the dossier
+ *
+ * This is the rule the rest of this module exists to enforce, and it was learned
+ * the hard way. `profileSections` records which sections the user *chose* on the
+ * structure screen. For a while that registry was the only thing the Dossier
+ * screens read, which made it a second, hand-maintained answer to "what is in
+ * this dossier?" — and the entry tables were the first. The two could disagree,
+ * because nothing that writes an entry registers its section and the section
+ * screens are reachable whether or not a section was ever chosen. When they
+ * disagreed the registry won, so a user could save an experience, see it listed
+ * on the section screen, be told it already existed when they tried to add it
+ * again, and still find their dossier reporting that section as "Not started".
+ *
+ * So the registry is no longer authoritative about existence. It orders the
+ * sections the user chose; anything holding saved information is part of the
+ * dossier regardless, and appears after the chosen ones in the product's own
+ * declared order. A registry row can now be missing, stale, or dropped by the
+ * structure screen without a single saved entry becoming unreachable.
  */
 
 /** Identity is always the first step; the remaining steps are user-selected. */
@@ -29,6 +48,14 @@ export type DossierStep = {
   position: number;
   /** Identity behaves differently: it is a single record, not a list. */
   isBasics: boolean;
+  /**
+   * Whether the user picked this section on the structure screen.
+   *
+   * `false` means the step is here only because it holds saved information. The
+   * distinction is for wording — "you also have entries here" — never for
+   * deciding whether to show the step. Identity is always chosen.
+   */
+  chosen: boolean;
 };
 
 export type DossierFlow = {
@@ -37,15 +64,27 @@ export type DossierFlow = {
   total: number;
 };
 
+/** How many entries each section holds. Missing or zero means empty. */
+export type SectionEntryCounts = Readonly<Partial<Record<ProfileSectionKey, number>>>;
+
 /**
  * Builds the ordered flow.
  *
- * `enabled` is expected in the user's chosen order (the repository sorts by
+ * `registered` is expected in the user's chosen order (the repository sorts by
  * `position`). Unknown keys are dropped rather than throwing, because a section
  * could be removed from the product while a stale row still references it.
  * Duplicates are collapsed so a corrupt row cannot produce a step twice.
+ *
+ * `counts` is optional, and omitting it means "I do not know what is saved" — not
+ * "nothing is saved". The two callers that omit it are resolving where to send the
+ * user after a save, which only needs the step *after* a known one. Every screen
+ * that renders the dossier passes it, because a screen that did not would be back
+ * to reporting a populated section as absent.
  */
-export function buildDossierFlow(enabled: readonly string[]): DossierFlow {
+export function buildDossierFlow(
+  registered: readonly string[],
+  counts: SectionEntryCounts = {},
+): DossierFlow {
   const seen = new Set<ProfileSectionKey>();
   const steps: DossierStep[] = [
     {
@@ -54,20 +93,12 @@ export function buildDossierFlow(enabled: readonly string[]): DossierFlow {
       href: "/profile/basics",
       position: 1,
       isBasics: true,
+      chosen: true,
     },
   ];
 
-  for (const candidate of enabled) {
-    if (!(candidate in profileSectionMap)) {
-      continue;
-    }
-
-    const key = candidate as ProfileSectionKey;
-
-    if (seen.has(key)) {
-      continue;
-    }
-
+  const append = (key: ProfileSectionKey, chosen: boolean) => {
+    if (seen.has(key)) return;
     seen.add(key);
     steps.push({
       key,
@@ -75,10 +106,44 @@ export function buildDossierFlow(enabled: readonly string[]): DossierFlow {
       href: `/profile/${key}`,
       position: steps.length + 1,
       isBasics: false,
+      chosen,
     });
+  };
+
+  for (const candidate of registered) {
+    /*
+     * `Object.hasOwn`, not `in`: `in` walks the prototype chain, so a stale or
+     * hostile registry row reading `constructor` would answer `true` and then
+     * index `profileSectionMap` into `Object`'s constructor, whose `.label` is
+     * undefined. The dossier would render a step with no name that leads nowhere.
+     */
+    if (!Object.hasOwn(profileSectionMap, candidate)) continue;
+    append(candidate as ProfileSectionKey, true);
+  }
+
+  /*
+   * Anything holding information that the user did not pick. Walked in the
+   * product's declared order rather than the counts object's key order, so the
+   * result cannot depend on how the caller built its record.
+   */
+  for (const key of profileSectionKeys) {
+    if ((counts[key] ?? 0) > 0) append(key, false);
   }
 
   return { steps, total: steps.length };
+}
+
+/**
+ * The sections of a dossier, in flow order, excluding identity.
+ *
+ * Every screen that lists sections wants exactly this, and each one was deriving
+ * it with its own `filter`/`map` over `flow.steps` — three copies of one rule, and
+ * the reason the fix above had to be applied in three places rather than one.
+ */
+export function dossierSections(flow: DossierFlow): readonly ProfileSectionKey[] {
+  return flow.steps
+    .filter((step) => !step.isBasics)
+    .map((step) => step.key as ProfileSectionKey);
 }
 
 /** Index of a step, or -1 when the key is not part of the flow. */
