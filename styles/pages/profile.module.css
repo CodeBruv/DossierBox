@@ -318,15 +318,37 @@
   gap: var(--ds-space-md);
 }
 
+/*
+ * A period is one fact, not four. On a wide screen the month and year controls pair up so
+ * "September 2021" reads as a single answer; everything else keeps the full row. Narrow
+ * screens stay one column, because two half-width selects at 320px is the cramped form
+ * this layout exists to avoid.
+ */
+@media (min-width: 48rem) {
+  .formFields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .field,
+  .fieldWide,
+  .checkboxField,
+  .errorSummary {
+    grid-column: 1 / -1;
+  }
+}
+
 .field,
-.fieldWide {
+.fieldWide,
+.fieldNarrow {
   display: grid;
   gap: var(--ds-space-2xs);
   min-width: 0;
+  align-content: start;
 }
 
 .field label,
 .fieldWide label,
+.fieldNarrow label,
 .sectionPicker legend {
   color: var(--ds-ink);
   font-weight: var(--ds-font-weight-semibold);
@@ -334,8 +356,10 @@
 
 .field input,
 .fieldWide input,
+.fieldNarrow input,
 .field select,
 .fieldWide select,
+.fieldNarrow select,
 .field textarea,
 .fieldWide textarea {
   width: 100%;
@@ -357,8 +381,10 @@
 
 .field input:focus-visible,
 .fieldWide input:focus-visible,
+.fieldNarrow input:focus-visible,
 .field select:focus-visible,
 .fieldWide select:focus-visible,
+.fieldNarrow select:focus-visible,
 .field textarea:focus-visible,
 .fieldWide textarea:focus-visible {
   border-color: var(--ds-color-focus);
@@ -368,11 +394,40 @@
 
 .field input[aria-invalid="true"],
 .fieldWide input[aria-invalid="true"],
+.fieldNarrow input[aria-invalid="true"],
 .field select[aria-invalid="true"],
 .fieldWide select[aria-invalid="true"],
+.fieldNarrow select[aria-invalid="true"],
 .field textarea[aria-invalid="true"],
 .fieldWide textarea[aria-invalid="true"] {
   border-color: var(--ds-error);
+}
+
+/*
+ * The way back out of a custom value. A quiet text button rather than a second control,
+ * because it undoes a choice rather than making one.
+ */
+.inlineReset {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ds-ink-weak);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--ds-text-sm);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.inlineReset:hover {
+  color: var(--ds-ink);
+}
+
+.inlineReset:focus-visible {
+  outline: 3px solid var(--ds-color-brand-surface);
+  outline-offset: 2px;
+  border-radius: var(--ds-border-radius-sm);
 }
 
 .fieldHint,
