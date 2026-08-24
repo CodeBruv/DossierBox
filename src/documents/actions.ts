@@ -1,6 +1,11 @@
 "use server";
 
 import { redirect, unstable_rethrow } from "next/navigation";
+import {
+  isApplicationObjectiveKind,
+  validateApplicationObjective,
+  type ApplicationObjective,
+} from "@/applications";
 import { requireProfileUser } from "@/profile/authorization";
 import { isAvailableDocumentType, isDocumentSectionKey } from "./catalogue";
 import { isDocumentTemplateId } from "./presentation";
@@ -26,11 +31,22 @@ export async function createDocumentAction(formData: FormData) {
     redirect("/documents/new?error=unsupported-type");
   }
 
+  /*
+   * A style the user picked on the last step of the create flow, or nothing.
+   *
+   * Unrecognised is treated as absent rather than as an error: the fallback is the
+   * type's own default style, which is a perfectly good document, and refusing the
+   * whole creation over a stale style id would lose everything else the user chose.
+   */
+  const rawTemplate = formData.get("template");
+  const template = isDocumentTemplateId(rawTemplate) ? rawTemplate : undefined;
+  const objective = readObjective(formData);
+
   const user = await requireProfileUser();
   let document: Awaited<ReturnType<typeof createDocument>>;
 
   try {
-    document = await createDocument(user.id, type);
+    document = await createDocument(user.id, type, { template, objective });
   } catch (error) {
     /**
      * `redirect()` and `notFound()` signal control flow by throwing. Any such
@@ -51,7 +67,41 @@ export async function createDocumentAction(formData: FormData) {
 }
 
 /**
- * Saves the document's title, style and section visibility.
+ * What the user said they are applying for, or `null`.
+ *
+ * The kind is the only field the create flow asks for outright; the two free-text
+ * fields are offered as "if you already know". A posted kind this build does not
+ * recognise yields `null` rather than a rejection, because an objective is
+ * supplementary — every fact in the document comes from the dossier either way, and a
+ * user should not lose a document over it.
+ *
+ * The values still go through `validateApplicationObjective`, so the lengths and shape
+ * stored in the JSON column are the ones `@/applications` guarantees rather than
+ * whatever was posted.
+ */
+function readObjective(formData: FormData): ApplicationObjective | null {
+  const kind = formData.get("objective");
+  if (!isApplicationObjectiveKind(kind)) return null;
+
+  const result = validateApplicationObjective({
+    kind,
+    targetRole: optionalText(formData.get("targetRole")),
+    organisation: optionalText(formData.get("organisation")),
+    requestedDocuments: [],
+  });
+
+  return result.success ? result.data : null;
+}
+
+function optionalText(value: FormDataEntryValue | null): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+/**
+ * Saves the document's title, style, section visibility and section order.
  *
  * Everything arriving here is treated as untrusted, including the document id:
  * a server action is a public endpoint, and the form it was rendered into proves
@@ -102,6 +152,20 @@ export async function updateDocumentAction(formData: FormData) {
   const visible = new Set(formData.getAll("visible").filter(isKnownSection));
   const hiddenSections = offered.filter((key) => !visible.has(key));
 
+  /*
+   * The running order, as the reordering control left it.
+   *
+   * `getAll` preserves the order the inputs appear in the submitted form, which is what
+   * makes this work: the control moves the whole row in the DOM rather than writing an
+   * index into it, so the browser posts the arrangement the user is looking at with no
+   * position numbers to get out of step.
+   *
+   * Hidden sections stay in the order. That is deliberate — it is what lets someone hide
+   * a section, save, and un-hide it later to find it back in the place they put it,
+   * rather than at the bottom of the page.
+   */
+  const sectionOrder = formData.getAll("order").filter(isKnownSection);
+
   const user = await requireProfileUser();
 
   try {
@@ -109,6 +173,7 @@ export async function updateDocumentAction(formData: FormData) {
       title,
       template: rawTemplate,
       hiddenSections,
+      sectionOrder,
     });
 
     /*
