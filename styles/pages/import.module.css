@@ -1,0 +1,766 @@
+/*
+ * Import — reading an existing document into the dossier.
+ *
+ * Two screens share this sheet: choosing a file, and checking what we read out of it. They are
+ * one task split across two requests, so they share a page frame, a button vocabulary and a
+ * field vocabulary with the dossier's own forms — a person moving between them should not feel
+ * they have arrived somewhere else in the product.
+ *
+ * The review screen is the reason this is a separate sheet rather than more rules in
+ * profile.module.css. It is the only place in the product that shows machine-proposed content
+ * awaiting a human decision, and that needs a visual grammar the dossier does not have: a
+ * per-item tick, a confidence badge, and a way to say "we did not recognise this" without
+ * making it look like the user did something wrong.
+ */
+
+.page {
+  min-height: 60vh;
+  padding: var(--ds-space-lg) 0 var(--ds-space-2xl);
+  background: var(--ds-color-background);
+}
+
+.narrow {
+  width: min(100%, 44rem);
+  margin: 0 auto;
+}
+
+/* The review is denser than the upload screen and earns more width. */
+.reviewLayout {
+  width: min(100%, 56rem);
+  margin: 0 auto;
+}
+
+.backLink {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  margin-bottom: var(--ds-space-sm);
+  color: var(--ds-accent);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.backLink:focus-visible {
+  outline: var(--ds-focus-ring);
+  outline-offset: 3px;
+}
+
+.editorHeader {
+  margin-bottom: var(--ds-space-lg);
+  padding-bottom: var(--ds-space-md);
+  border-bottom: var(--ds-border);
+}
+
+.editorHeader h1 {
+  margin: 0;
+  font-size: var(--ds-heading-size-lg);
+  letter-spacing: 0;
+}
+
+.editorHeader p {
+  margin: var(--ds-space-2xs) 0 0;
+  max-width: 60ch;
+  color: var(--ds-ink-weak);
+}
+
+.eyebrow {
+  margin: 0 0 var(--ds-space-2xs);
+  color: var(--ds-color-brand-primary);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Upload -------------------------------------------------------------------- */
+
+.uploadForm {
+  display: grid;
+  gap: var(--ds-space-md);
+  margin-top: var(--ds-space-lg);
+}
+
+/*
+ * A generous target rather than a bare file input. The whole block is the label, so the
+ * hit area is the panel and not the twelve pixels of a browser's default button.
+ */
+.dropField {
+  display: grid;
+  gap: var(--ds-space-sm);
+  padding: var(--ds-space-lg);
+  border: 1px dashed var(--ds-color-border-control);
+  border-radius: var(--ds-border-radius-md);
+  background: var(--ds-color-surface-subtle);
+}
+
+.dropField:focus-within {
+  border-color: var(--ds-color-focus);
+  border-style: solid;
+}
+
+.fileLabel {
+  display: grid;
+  gap: var(--ds-space-3xs);
+  cursor: pointer;
+}
+
+.fileLabelTitle {
+  color: var(--ds-ink);
+  font-size: var(--ds-heading-size-sm);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.fileLabelHint {
+  color: var(--ds-ink-weak);
+  font-size: var(--ds-text-sm);
+}
+
+.fileInput {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid var(--ds-color-border-control);
+  border-radius: var(--ds-border-radius-sm);
+  background: var(--ds-color-surface);
+  color: var(--ds-color-text-primary);
+  font: inherit;
+  font-size: var(--ds-text-sm);
+}
+
+.fileInput:focus-visible {
+  border-color: var(--ds-color-focus);
+  outline: 3px solid var(--ds-color-brand-surface);
+  outline-offset: 1px;
+}
+
+.chosenFile {
+  margin: 0;
+  color: var(--ds-ink);
+  font-size: var(--ds-text-sm);
+  overflow-wrap: anywhere;
+}
+
+.uploadActions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-2xs);
+}
+
+.pendingNote {
+  margin: 0;
+  color: var(--ds-ink-weak);
+  font-size: var(--ds-text-sm);
+}
+
+/*
+ * Resuming a scan someone walked away from. Informational, not celebratory — it reports a
+ * fact about their account rather than congratulating them on anything.
+ */
+.resumeCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--ds-space-md);
+  margin-top: var(--ds-space-lg);
+  padding: var(--ds-space-md);
+  border: var(--ds-border);
+  border-left: 3px solid var(--ds-color-info);
+  border-radius: var(--ds-border-radius-md);
+  background: var(--ds-color-info-surface);
+}
+
+.resumeCard p {
+  margin: var(--ds-space-2xs) 0 0;
+  color: var(--ds-ink-weak);
+  font-size: var(--ds-text-sm);
+  overflow-wrap: anywhere;
+}
+
+/* What happens to the uploaded file. Quiet, because it should reassure, not alarm. */
+.reassure {
+  margin-top: var(--ds-space-xl);
+  padding-top: var(--ds-space-md);
+  border-top: var(--ds-border);
+}
+
+.reassure h2 {
+  margin: 0;
+  font-size: var(--ds-heading-size-sm);
+  letter-spacing: 0;
+}
+
+.reassure p {
+  margin: var(--ds-space-2xs) 0 0;
+  max-width: 62ch;
+  color: var(--ds-ink-weak);
+  font-size: var(--ds-text-sm);
+}
+
+/* Review -------------------------------------------------------------------- */
+
+.reviewForm {
+  display: grid;
+  gap: var(--ds-space-lg);
+}
+
+.scanBanner {
+  padding: var(--ds-space-md);
+  border: var(--ds-border);
+  border-radius: var(--ds-border-radius-md);
+  background: var(--ds-color-surface-subtle);
+}
+
+.scanTitle {
+  margin: 0;
+  color: var(--ds-ink);
+  font-size: var(--ds-heading-size-md);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.scanDetail {
+  margin: var(--ds-space-2xs) 0 0;
+  max-width: 66ch;
+  color: var(--ds-ink-weak);
+  overflow-wrap: anywhere;
+}
+
+.scanCounts {
+  margin: var(--ds-space-sm) 0 0;
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.group {
+  display: grid;
+  gap: var(--ds-space-sm);
+}
+
+.groupHeading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--ds-space-xs);
+  margin: 0;
+  font-size: var(--ds-heading-size-sm);
+  letter-spacing: 0;
+}
+
+.groupCount {
+  color: var(--ds-ink-weak);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-font-weight-regular);
+}
+
+.rowList {
+  display: grid;
+  gap: var(--ds-space-sm);
+}
+
+/*
+ * One proposed item. Bordered rather than divided, because each card is a separate decision
+ * the user makes — unlike the dossier's own lists, which are a single body of saved fact.
+ */
+.card {
+  border: 1px solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-border-radius-md);
+  background: var(--ds-color-surface);
+}
+
+/* Where the submission was refused. Colour, not an icon, and the message sits inside. */
+.cardError {
+  border-color: var(--ds-color-destructive);
+}
+
+.cardHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ds-space-sm);
+  padding: var(--ds-space-md);
+  border-bottom: 1px solid var(--ds-color-border-subtle);
+}
+
+/*
+ * The tick and the title are one target: the item's name is the thing you are deciding
+ * about, so clicking it should decide.
+ */
+.include {
+  display: grid;
+  grid-template-columns: 1.75rem 1fr;
+  align-items: start;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.include input {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0.15rem 0 0;
+  accent-color: var(--ds-accent);
+}
+
+.include span {
+  display: grid;
+  gap: var(--ds-space-3xs);
+  min-width: 0;
+}
+
+.include strong {
+  color: var(--ds-ink);
+  overflow-wrap: anywhere;
+}
+
+.include small {
+  color: var(--ds-ink-weak);
+  font-size: var(--ds-text-sm);
+}
+
+.include:focus-within strong {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.badge {
+  flex: none;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-font-weight-semibold);
+  white-space: nowrap;
+}
+
+/*
+ * "Matched" is the quieter of the two. Most rows will carry it, and a page of green
+ * confirmations is noise; the badge that should catch the eye is the one asking for
+ * attention.
+ */
+.badgeMatched {
+  border-color: var(--ds-color-border-subtle);
+  background: var(--ds-color-surface-subtle);
+  color: var(--ds-color-text-secondary);
+}
+
+.badgeReview {
+  border-color: var(--ds-color-info);
+  background: var(--ds-color-info-surface);
+  color: var(--ds-color-info);
+}
+
+.cardBody {
+  display: grid;
+  gap: var(--ds-space-md);
+  padding: var(--ds-space-md);
+}
+
+/* Says what to do, not merely that something is wrong. */
+.needsDetail {
+  margin: 0;
+  padding: var(--ds-space-xs) var(--ds-space-sm);
+  border-left: 3px solid var(--ds-color-info);
+  background: var(--ds-color-info-surface);
+  color: var(--ds-color-info);
+  font-size: var(--ds-text-sm);
+}
+
+.notes {
+  display: grid;
+  gap: var(--ds-space-3xs);
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--ds-ink-weak);
+  font-size: var(--ds-text-sm);
+}
+
+.fields {
+  display: grid;
+  gap: var(--ds-space-md);
+}
+
+/*
+ * What the document actually said, kept out of the way. It is the evidence behind the
+ * proposal — useful when a value looks wrong, irrelevant the rest of the time.
+ */
+.source,
+.skipped {
+  border-top: var(--ds-border);
+  padding-top: var(--ds-space-xs);
+  color: var(--ds-ink-weak);
+  font-size: var(--ds-text-sm);
+}
+
+.source summary,
+.skipped summary {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2xs);
+  min-height: 2.75rem;
+  color: var(--ds-color-text-secondary);
+  cursor: pointer;
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.source summary:focus-visible,
+.skipped summary:focus-visible {
+  outline: var(--ds-focus-ring);
+  outline-offset: 3px;
+  border-radius: var(--ds-border-radius-sm);
+}
+
+.source ul {
+  display: grid;
+  gap: var(--ds-space-3xs);
+  margin: 0 0 var(--ds-space-2xs);
+  padding-left: 1.1rem;
+  overflow-wrap: anywhere;
+}
+
+.skipped {
+  border: var(--ds-border);
+  border-radius: var(--ds-border-radius-md);
+  padding: var(--ds-space-xs) var(--ds-space-md);
+}
+
+.skippedLead {
+  margin: 0 0 var(--ds-space-2xs);
+  max-width: 66ch;
+}
+
+.skippedList {
+  display: grid;
+  gap: var(--ds-space-3xs);
+  margin: 0 0 var(--ds-space-sm);
+  padding-left: 1.1rem;
+  overflow-wrap: anywhere;
+}
+
+.reviewActions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-2xs);
+  padding-top: var(--ds-space-md);
+  border-top: var(--ds-border);
+}
+
+.discardForm {
+  margin-top: var(--ds-space-lg);
+  color: var(--ds-ink-weak);
+  font-size: var(--ds-text-sm);
+}
+
+.discardForm p {
+  margin: 0;
+}
+
+/*
+ * Discarding is a real action but not a competing one, so it is a link rather than a third
+ * button. It is destructive only of a reading, never of dossier information.
+ */
+.linkButton {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ds-color-destructive);
+  cursor: pointer;
+  font: inherit;
+  font-weight: var(--ds-font-weight-medium);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.linkButton:focus-visible {
+  outline: var(--ds-focus-ring);
+  outline-offset: 3px;
+  border-radius: var(--ds-border-radius-sm);
+}
+
+/* Nothing usable was found in the document. */
+.emptyReview {
+  margin-top: var(--ds-space-lg);
+  padding: var(--ds-space-lg);
+  border: var(--ds-border);
+  border-radius: var(--ds-border-radius-md);
+  background: var(--ds-color-surface-subtle);
+}
+
+.emptyReview h1 {
+  margin: 0;
+  font-size: var(--ds-heading-size-md);
+  letter-spacing: 0;
+}
+
+.emptyReview p {
+  margin: var(--ds-space-2xs) 0 var(--ds-space-md);
+  max-width: 62ch;
+  color: var(--ds-ink-weak);
+  overflow-wrap: anywhere;
+}
+
+/* Fields -------------------------------------------------------------------- */
+
+.field,
+.fieldWide,
+.fieldNarrow {
+  display: grid;
+  gap: var(--ds-space-2xs);
+  min-width: 0;
+  align-content: start;
+}
+
+.field label,
+.fieldWide label,
+.fieldNarrow label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2xs);
+  color: var(--ds-ink);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.field input,
+.fieldWide input,
+.fieldNarrow input,
+.field select,
+.fieldWide select,
+.fieldNarrow select,
+.field textarea,
+.fieldWide textarea {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid var(--ds-color-border-control);
+  border-radius: var(--ds-border-radius-sm);
+  background: var(--ds-color-surface);
+  color: var(--ds-color-text-primary);
+  font: inherit;
+  transition: border-color var(--ds-motion-duration) var(--ds-motion-ease), box-shadow var(--ds-motion-duration) var(--ds-motion-ease);
+}
+
+.field textarea,
+.fieldWide textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+.field input:focus-visible,
+.fieldWide input:focus-visible,
+.fieldNarrow input:focus-visible,
+.field select:focus-visible,
+.fieldWide select:focus-visible,
+.fieldNarrow select:focus-visible,
+.field textarea:focus-visible,
+.fieldWide textarea:focus-visible {
+  border-color: var(--ds-color-focus);
+  outline: 3px solid var(--ds-color-brand-surface);
+  outline-offset: 1px;
+}
+
+.field input[aria-invalid="true"],
+.fieldWide input[aria-invalid="true"],
+.fieldNarrow input[aria-invalid="true"],
+.field select[aria-invalid="true"],
+.fieldWide select[aria-invalid="true"],
+.fieldNarrow select[aria-invalid="true"],
+.field textarea[aria-invalid="true"],
+.fieldWide textarea[aria-invalid="true"] {
+  border-color: var(--ds-error);
+}
+
+/*
+ * Sits beside the label of a required field the document did not state. Deliberately not
+ * an error colour: nobody made a mistake, we simply did not find it.
+ */
+.notRecognised {
+  padding: 0.1rem 0.45rem;
+  border: 1px solid var(--ds-color-border-control);
+  border-radius: 999px;
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-font-weight-medium);
+  white-space: nowrap;
+}
+
+.checkboxField {
+  display: grid;
+  grid-template-columns: 2rem 1fr;
+  align-items: center;
+  min-height: 3rem;
+}
+
+.checkboxField input {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  accent-color: var(--ds-accent);
+}
+
+.checkboxField .fieldError {
+  grid-column: 2;
+}
+
+/* The way back out of a custom value: undoes a choice rather than making one. */
+.inlineReset {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ds-ink-weak);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--ds-text-sm);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.inlineReset:hover {
+  color: var(--ds-ink);
+}
+
+.inlineReset:focus-visible {
+  outline: 3px solid var(--ds-color-brand-surface);
+  outline-offset: 2px;
+  border-radius: var(--ds-border-radius-sm);
+}
+
+.fieldHint,
+.fieldError {
+  margin: 0;
+  font-size: var(--ds-text-sm);
+}
+
+.fieldHint {
+  color: var(--ds-ink-weak);
+}
+
+.fieldError {
+  color: var(--ds-error);
+}
+
+/* Buttons and status -------------------------------------------------------- */
+
+.primaryButton,
+.secondaryButton {
+  display: inline-flex;
+  min-height: 3rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.7rem 1rem;
+  border: 1px solid transparent;
+  border-radius: var(--ds-border-radius-sm);
+  cursor: pointer;
+  font: inherit;
+  font-weight: var(--ds-font-weight-semibold);
+  text-align: center;
+  text-decoration: none;
+}
+
+.primaryButton {
+  background: var(--ds-color-brand-primary);
+  color: var(--ds-color-brand-foreground);
+}
+
+.primaryButton:hover:not(:disabled) {
+  background: var(--ds-color-brand-hover);
+}
+
+.primaryButton:active:not(:disabled) {
+  background: var(--ds-color-brand-active);
+}
+
+.primaryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.secondaryButton {
+  border-color: var(--ds-color-border-control);
+  background: var(--ds-color-surface);
+  color: var(--ds-color-text-primary);
+}
+
+.secondaryButton:hover {
+  border-color: var(--ds-color-border-control-hover);
+  background: var(--ds-color-interaction-hover);
+}
+
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible {
+  outline: var(--ds-focus-ring);
+  outline-offset: 3px;
+}
+
+.quietLink {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  color: var(--ds-color-text-secondary);
+  font-weight: var(--ds-font-weight-medium);
+  text-decoration: none;
+}
+
+.quietLink:hover {
+  color: var(--ds-color-text-primary);
+  text-decoration: underline;
+}
+
+.quietLink:focus-visible {
+  outline: var(--ds-focus-ring);
+  outline-offset: 3px;
+}
+
+.successStatus,
+.errorSummary {
+  margin: var(--ds-space-md) 0 0;
+  padding: var(--ds-space-sm);
+  border-left: 3px solid var(--ds-color-success);
+  background: var(--ds-color-success-surface);
+  color: var(--ds-color-success);
+}
+
+.errorSummary {
+  border-left-color: var(--ds-color-destructive);
+  background: var(--ds-color-destructive-surface);
+  color: var(--ds-color-destructive);
+}
+
+@media (min-width: 48rem) {
+  .page {
+    padding-top: var(--ds-space-xl);
+  }
+
+  .uploadActions,
+  .reviewActions {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--ds-space-sm);
+  }
+
+  .primaryButton,
+  .secondaryButton {
+    width: auto;
+  }
+
+  .resumeCard {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /*
+   * A period is one fact, not four: on a wide card the month and year controls pair up so
+   * "September 2021" reads as a single answer, while everything else keeps the full row.
+   * Narrow screens stay one column, because two half-width selects at 320px is the cramped
+   * form this layout exists to avoid.
+   */
+  .fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .field,
+  .fieldWide,
+  .checkboxField {
+    grid-column: 1 / -1;
+  }
+}
