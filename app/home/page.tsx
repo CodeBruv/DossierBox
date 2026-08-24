@@ -2,14 +2,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { authSessionConfiguration } from "@/auth/auth";
 import { getSession } from "@/auth/session";
+import { buildDossierFlow, dossierSections } from "@/profile/flow";
 import {
   getDossierFoundationReadiness,
-  getEnabledSections,
+  getDossierSectionState,
   getOrCreateProfile,
 } from "@/profile/repository";
 import type { DossierReadiness, DossierReadinessState } from "@/profile/readiness";
 import { profileSectionMap } from "@/profile/sections";
-import type { ProfileSectionKey } from "@/profile/types";
 import { Container } from "@/ui";
 import styles from "@/styles/pages/home.module.css";
 
@@ -35,8 +35,8 @@ export default async function HomePage() {
     name: session.user.name ?? null,
     email: session.user.email ?? null,
   });
-  const [enabledRows, readiness] = await Promise.all([
-    getEnabledSections(profile.id),
+  const [sectionState, readiness] = await Promise.all([
+    getDossierSectionState(profile.id),
     getDossierFoundationReadiness(profile.id, {
       displayName: profile.displayName,
       headline: profile.headline,
@@ -44,9 +44,15 @@ export default async function HomePage() {
     }),
   ]);
 
-  const enabled = enabledRows
-    .map((row) => row.section)
-    .filter((section): section is ProfileSectionKey => section in profileSectionMap);
+  /*
+   * Counted the same way the dossier itself counts: chosen sections plus anything
+   * holding information. Counting registry rows alone reported "no sections" to a
+   * user whose dossier was full, which is the same defect this page's note exists
+   * to reassure them about.
+   */
+  const sections = dossierSections(
+    buildDossierFlow(sectionState.registered, sectionState.counts),
+  );
   const trackedReadiness = [readiness.identity, ...foundationSections.map((section) => readiness[section])];
   const nextSection = trackedReadiness.some((item) => item.state !== "ready")
     ? !isReady(readiness.identity)
@@ -117,8 +123,12 @@ export default async function HomePage() {
           </section>
         </div>
 
-        {enabled.length > 0 ? (
-          <p className={styles.note}>{enabled.length} dossier sections are available in your workspace.</p>
+        {sections.length > 0 ? (
+          <p className={styles.note}>
+            {sections.length === 1
+              ? "1 dossier section is available in your workspace."
+              : `${sections.length} dossier sections are available in your workspace.`}
+          </p>
         ) : null}
       </Container>
     </div>
