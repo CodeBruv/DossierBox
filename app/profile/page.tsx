@@ -1,13 +1,8 @@
 import Link from "next/link";
 import { requireProfileUser } from "@/profile/authorization";
-import { buildDossierFlow } from "@/profile/flow";
-import {
-  getEnabledSectionKeys,
-  getOrCreateProfile,
-  getSectionCounts,
-} from "@/profile/repository";
+import { buildDossierFlow, dossierSections } from "@/profile/flow";
+import { getDossierSectionState, getOrCreateProfile } from "@/profile/repository";
 import { profileSectionMap } from "@/profile/sections";
-import type { ProfileSectionKey } from "@/profile/types";
 import { Container } from "@/ui";
 import styles from "@/styles/pages/profile.module.css";
 
@@ -23,16 +18,20 @@ const statusMessages: Record<string, string> = {
 export default async function ProfilePage({ searchParams }: ProfilePageProps) {
   const user = await requireProfileUser();
   const profile = await getOrCreateProfile(user.id, user);
-  const [enabledKeys, counts, query] = await Promise.all([
-    getEnabledSectionKeys(profile.id),
-    getSectionCounts(profile.id),
+  const [state, query] = await Promise.all([
+    getDossierSectionState(profile.id),
     searchParams,
   ]);
 
-  const flow = buildDossierFlow(enabledKeys);
-  const sections = flow.steps
-    .filter((step) => !step.isBasics)
-    .map((step) => step.key as ProfileSectionKey);
+  /*
+   * Both halves of the section state, together. The registry gives the running
+   * order; the counts make sure a section holding saved information is listed even
+   * when it was never picked. Passing only the registry is what made this screen
+   * report a populated dossier as empty.
+   */
+  const counts = state.counts;
+  const flow = buildDossierFlow(state.registered, counts);
+  const sections = dossierSections(flow);
   const status = query.status ? statusMessages[query.status] : undefined;
   const identityReady = Boolean(profile.displayName);
 
@@ -77,7 +76,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
         <div className={styles.sectionHeading}>
           <div>
             <h2>Dossier sections</h2>
-            <p>Only selected sections appear here. Saved information remains intact when a section is hidden.</p>
+            <p>The sections you chose, plus any section that already holds information.</p>
           </div>
           {sections.length ? (
             <Link className={styles.secondaryButton} href="/profile/sections">Change sections</Link>
