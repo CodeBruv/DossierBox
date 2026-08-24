@@ -27,7 +27,13 @@ export default async function NewDocumentPage({ searchParams }: NewDocumentPageP
       <Container>
         <p className={styles.eyebrow}>Create from your dossier</p>
         <h1>What are you creating?</h1>
-        <p className={styles.lead}>Choose a purpose first. A draft will be created and connected to your dossier.</p>
+        {/*
+          * Says "document", not "purpose". The two are different things — purpose is the
+          * opportunity being pursued, and it decides which documents are appropriate —
+          * and this screen only asks for the document. Calling a type list a purpose list
+          * is what made different choices feel like the same document with a new heading.
+          */}
+        <p className={styles.lead}>Choose the document you need. It is created as a draft connected to your dossier.</p>
         {query.error === "unsupported-type" ? <p className={styles.errorStatus} role="alert">That document type is not supported.</p> : null}
         {query.error === "create-failed" ? <p className={styles.errorStatus} role="alert">We could not create the draft right now. Your dossier has not been changed. Please try again.</p> : null}
         <div className={styles.choiceList}>
