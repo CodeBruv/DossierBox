@@ -1,13 +1,8 @@
 import Link from "next/link";
 import { requireProfileUser } from "@/profile/authorization";
-import { buildDossierFlow } from "@/profile/flow";
-import {
-  getEnabledSectionKeys,
-  getOrCreateProfile,
-  getSectionCounts,
-} from "@/profile/repository";
+import { buildDossierFlow, dossierSections } from "@/profile/flow";
+import { getDossierSectionState, getOrCreateProfile } from "@/profile/repository";
 import { profileSectionMap } from "@/profile/sections";
-import type { ProfileSectionKey } from "@/profile/types";
 import { Container } from "@/ui";
 import styles from "@/styles/pages/profile.module.css";
 
@@ -33,16 +28,20 @@ const statusMessages: Record<string, string> = {
 export default async function DossierReviewPage({ searchParams }: ReviewPageProps) {
   const user = await requireProfileUser();
   const profile = await getOrCreateProfile(user.id, user);
-  const [enabledKeys, counts, query] = await Promise.all([
-    getEnabledSectionKeys(profile.id),
-    getSectionCounts(profile.id),
+  const [state, query] = await Promise.all([
+    getDossierSectionState(profile.id),
     searchParams,
   ]);
 
-  const flow = buildDossierFlow(enabledKeys);
-  const sections = flow.steps
-    .filter((step) => !step.isBasics)
-    .map((step) => step.key as ProfileSectionKey);
+  /*
+   * The review screen is the one place a user checks that nothing they entered has
+   * gone missing, so it must derive its list from what is saved and not only from
+   * what was chosen. It read the chosen-section registry alone until an entry saved
+   * outside that registry proved it could show a complete dossier as empty.
+   */
+  const counts = state.counts;
+  const flow = buildDossierFlow(state.registered, counts);
+  const sections = dossierSections(flow);
   const status = query.status ? statusMessages[query.status] : undefined;
   const filled = sections.filter((key) => counts[key] > 0);
   const identity = profile.displayName ?? user.name ?? null;
