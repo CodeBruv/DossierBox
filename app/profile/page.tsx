@@ -7,13 +7,21 @@ import { Container } from "@/ui";
 import styles from "@/styles/pages/profile.module.css";
 
 type ProfilePageProps = {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; added?: string }>;
 };
 
 const statusMessages: Record<string, string> = {
   "basics-saved": "Personal and career direction information saved.",
   "sections-saved": "Profile sections updated.",
 };
+
+function importedMessage(added: string | undefined): string {
+  const count = Number(added);
+  if (!Number.isFinite(count) || count <= 0) {
+    return "Your imported information was added to your dossier.";
+  }
+  return `Added ${count} ${count === 1 ? "item" : "items"} from your document to your dossier.`;
+}
 
 export default async function ProfilePage({ searchParams }: ProfilePageProps) {
   const user = await requireProfileUser();
@@ -32,7 +40,12 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
   const counts = state.counts;
   const flow = buildDossierFlow(state.registered, counts);
   const sections = dossierSections(flow);
-  const status = query.status ? statusMessages[query.status] : undefined;
+  const status =
+    query.status === "imported"
+      ? importedMessage(query.added)
+      : query.status
+        ? statusMessages[query.status]
+        : undefined;
   const identityReady = Boolean(profile.displayName);
 
   /**
@@ -41,6 +54,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
    * so returning users are never left deciding where to click.
    */
   const firstEmpty = sections.find((key) => counts[key] === 0);
+  const dossierStarted = identityReady || sections.some((key) => counts[key] > 0);
   const resume = !identityReady
     ? { href: "/profile/basics", label: "Start with your identity" }
     : !sections.length
@@ -71,6 +85,28 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
             <p>{profile.headline || profile.careerDirection || profile.displayName || "Add the core information you want available across your career documents."}</p>
           </div>
           <Link className={styles.secondaryButton} href="/profile/basics">Edit identity and direction</Link>
+        </section>
+
+        {/*
+          * Offered on the hub rather than buried in a submenu, because the moment it saves the
+          * most work is the moment the dossier is emptiest — and a returning user adding a role
+          * they forgot needs it just as much. The copy adapts; the entry point does not move.
+          */}
+        <section className={styles.importBand} aria-labelledby="import-title">
+          <div>
+            <h2 id="import-title">Already have a CV or résumé?</h2>
+            <p>
+              {dossierStarted
+                ? "Upload another document to pull in anything your dossier is still missing. You review everything before it is added."
+                : "Upload it and we will read your experience, education, skills, and credentials into your dossier. You confirm everything before it is added."}
+            </p>
+          </div>
+          <Link
+            className={dossierStarted ? styles.secondaryButton : styles.primaryButton}
+            href="/profile/import"
+          >
+            Import a document
+          </Link>
         </section>
 
         <div className={styles.sectionHeading}>
