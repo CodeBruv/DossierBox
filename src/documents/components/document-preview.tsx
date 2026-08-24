@@ -27,7 +27,11 @@ import type {
   ComposedEntry,
   ComposedSection,
 } from "../composition";
-import type { DocumentEntryLayout, DocumentTemplate } from "../presentation";
+import {
+  templatePaperMetrics,
+  type DocumentEntryLayout,
+  type DocumentTemplate,
+} from "../presentation";
 import styles from "@/styles/ui/document-preview.module.css";
 
 /**
@@ -58,8 +62,7 @@ export function DocumentPreview({ document: composed, template }: DocumentPrevie
    */
   const sheetStyle = {
     ...template.variables,
-    "--doc-paper-width":
-      template.paper === "us-letter" ? "var(--ds-page-us-letter-w)" : "var(--ds-page-a4-w)",
+    "--doc-paper-width": templatePaperMetrics(template).width,
   } as CSSProperties;
 
   return (
