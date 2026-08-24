@@ -1,0 +1,53 @@
+/* =============================================================================
+   Document miniature — one page, reduced
+   =============================================================================
+   Two elements and one number. `--miniature-scale` is the only thing that
+   decides how big the miniature is, and both the frame and the sheet inside it
+   are derived from it, so they cannot disagree: the frame is the page at scale,
+   and the stage is the page at full measure being scaled by the same factor.
+
+   The paper dimensions arrive as custom properties from the component, because
+   A4 and US Letter are different shapes and the frame has to be whichever one
+   the template actually prints on.
+============================================================================ */
+
+.frame {
+  /*
+     0.32 of an A4 page is ~254px wide, so three fit across a laptop and one fits
+     on the narrowest phone. Small enough to compare at a glance, which is what a
+     miniature is for — the document is also presented at full size on the same
+     page, so nothing here has to be readable.
+  */
+  --miniature-scale: 0.32;
+
+  position: relative;
+  width: calc(var(--miniature-paper-width) * var(--miniature-scale));
+  height: calc(var(--miniature-paper-height) * var(--miniature-scale));
+  overflow: hidden;
+  background: var(--ds-document-paper);
+  border: 1px solid var(--ds-color-border-default);
+  border-radius: var(--ds-border-radius-sm);
+  /* Belt and braces with `inert`: the sheet is scenery, the control is around it. */
+  pointer-events: none;
+  user-select: none;
+}
+
+.stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--miniature-paper-width);
+  transform: scale(var(--miniature-scale));
+  transform-origin: top left;
+}
+
+/*
+   Printing a chooser should not print three miniatures of the same document.
+   print.css strips application furniture by attribute; this is belt and braces
+   for a page that happens to contain several sheets.
+*/
+@media print {
+  .frame {
+    display: none;
+  }
+}
