@@ -27,12 +27,29 @@ const maximumYear = currentYear + 20;
 const tooLong = (label: string, maximum: number) =>
   `${label} is too long. Keep it to ${maximum} characters or fewer.`;
 
+/**
+ * Makes an optional field tolerate not being submitted at all.
+ *
+ * Controls are rendered conditionally now — ticking "I currently work here" removes the
+ * end date rather than asking the user to blank it — so a missing key is an ordinary way
+ * for an unstated answer to arrive, not a malformed submission. Without this, an optional
+ * field that was never shown fails as though the user had typed something invalid into it:
+ * "End year must be a four-digit year", pointing at a box that was not on screen.
+ *
+ * Absence and emptiness therefore mean the same thing, which is what "optional" claims.
+ */
+const absentAs = <Schema extends z.ZodType>(empty: unknown, schema: Schema) =>
+  z.preprocess((value) => value ?? empty, schema);
+
 const optionalText = (label: string, maximum: number) =>
-  z
-    .string()
-    .trim()
-    .max(maximum, tooLong(label, maximum))
-    .transform((value) => value || null);
+  absentAs(
+    "",
+    z
+      .string()
+      .trim()
+      .max(maximum, tooLong(label, maximum))
+      .transform((value) => value || null),
+  );
 
 const requiredText = (label: string, maximum: number) =>
   z
@@ -96,13 +113,16 @@ function isPublicWebAddress(value: string): boolean {
   );
 }
 
-const optionalUrl = z
-  .string()
-  .trim()
-  .max(2048, "That web address is too long. Keep it to 2048 characters or fewer.")
-  .transform(normalizeUrlInput)
-  .refine((value) => !value || isPublicWebAddress(value), webAddressMessage)
-  .transform((value) => value || null);
+const optionalUrl = absentAs(
+  "",
+  z
+    .string()
+    .trim()
+    .max(2048, "That web address is too long. Keep it to 2048 characters or fewer.")
+    .transform(normalizeUrlInput)
+    .refine((value) => !value || isPublicWebAddress(value), webAddressMessage)
+    .transform((value) => value || null),
+);
 
 const requiredUrl = z
   .string()
@@ -118,27 +138,34 @@ const requiredUrl = z
  * and produced "Invalid input: expected number, received NaN".
  */
 const optionalMonth = (label: string) =>
-  z
-    .number({ error: `${label} must be a month between 1 and 12.` })
-    .int(`${label} must be a whole number.`)
-    .min(1, `${label} must be between 1 and 12.`)
-    .max(12, `${label} must be between 1 and 12.`)
-    .nullable();
+  absentAs(
+    null,
+    z
+      .number({ error: `${label} must be a month between 1 and 12.` })
+      .int(`${label} must be a whole number.`)
+      .min(1, `${label} must be between 1 and 12.`)
+      .max(12, `${label} must be between 1 and 12.`)
+      .nullable(),
+  );
 
 const optionalYear = (label: string) =>
-  z
-    .number({ error: `${label} must be a four-digit year.` })
-    .int(`${label} must be a whole number.`)
-    .min(minimumYear, `${label} must be ${minimumYear} or later.`)
-    .max(maximumYear, `${label} cannot be later than ${maximumYear}.`)
-    .nullable();
+  absentAs(
+    null,
+    z
+      .number({ error: `${label} must be a four-digit year.` })
+      .int(`${label} must be a whole number.`)
+      .min(minimumYear, `${label} must be ${minimumYear} or later.`)
+      .max(maximumYear, `${label} cannot be later than ${maximumYear}.`)
+      .nullable(),
+  );
 
 const dateRangeShape = {
   startMonth: optionalMonth("Start month"),
   startYear: optionalYear("Start year"),
   endMonth: optionalMonth("End month"),
   endYear: optionalYear("End year"),
-  current: z.boolean(),
+  /** Absent means unticked: an unchecked checkbox submits nothing. */
+  current: absentAs(false, z.boolean()),
 };
 
 const datedEntry = z.object(dateRangeShape).superRefine(validateDateRange);
@@ -182,11 +209,32 @@ export const educationSchema = z
     institution: requiredText("Institution or learning provider", 180),
     qualification: optionalText("Qualification", 180),
     field: optionalText("Field of study", 180),
+    /**
+     * Level, grading system and grade are all optional free text rather than enums.
+     *
+     * An enum here would reject every qualification framework we failed to anticipate,
+     * and the picker's whole point is that it offers the common answers while still
+     * accepting the user's own. The lengths are the constraint; the vocabulary is not.
+     */
+    level: optionalText("Level of study", 120),
+    gradingSystem: optionalText("Grading system", 120),
+    grade: optionalText("Grade or classification", 60),
     location: optionalText("Location", 180),
     description: optionalText("Description", 5000),
     ...dateRangeShape,
   })
-  .superRefine(validateDateRange);
+  .superRefine((value, context) => {
+    validateDateRange(value, context);
+
+    // A grade without its system prints as a bare number a reader cannot interpret.
+    if (value.grade && !value.gradingSystem) {
+      context.addIssue({
+        code: "custom",
+        path: ["gradingSystem"],
+        message: "Choose the grading system so your grade can be shown correctly.",
+      });
+    }
+  });
 
 export const projectSchema = z
   .object({
