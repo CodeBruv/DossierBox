@@ -272,7 +272,77 @@ describe("document configuration", () => {
 
     expect(offered.map((section) => section.key)).toEqual(["skills"]);
   });
+
+  /*
+   * Order is per document, and these are the properties that make it safe to store: it
+   * only rearranges, it composes with hiding rather than fighting it, and a value from a
+   * column written by an older build cannot break the page.
+   */
+  it("renders the sections in the order the user arranged", () => {
+    const document = composeDocument("professional_cv", rows(), {
+      sectionOrder: ["skills", "education", "experience"],
+    });
+
+    expect(keysOf(document.sections)).toEqual(["skills", "education", "experience"]);
+  });
+
+  it("changes nothing but the order", () => {
+    const inCatalogueOrder = composeDocument("professional_cv", rows());
+    const rearranged = composeDocument("professional_cv", rows(), {
+      sectionOrder: ["skills", "education", "experience"],
+    });
+
+    expect([...rearranged.sections].sort(byKey)).toEqual(
+      [...inCatalogueOrder.sections].sort(byKey),
+    );
+    expect(rearranged.header).toEqual(inCatalogueOrder.header);
+  });
+
+  it("keeps a hidden section's place in the order, so un-hiding restores it there", () => {
+    const arrangement = ["skills", "education", "experience"];
+    const withHidden = composeDocument("professional_cv", rows(), {
+      hiddenSections: ["education"],
+      sectionOrder: arrangement,
+    });
+    const restored = composeDocument("professional_cv", rows(), { sectionOrder: arrangement });
+
+    expect(keysOf(withHidden.sections)).toEqual(["skills", "experience"]);
+    expect(keysOf(restored.sections)).toEqual(arrangement);
+  });
+
+  it("ignores an unrecognised key in a stored order", () => {
+    const document = composeDocument("professional_cv", rows(), {
+      sectionOrder: ["not-a-section", "skills", "education", "experience"],
+    });
+
+    expect(keysOf(document.sections)).toEqual(["skills", "education", "experience"]);
+  });
+
+  it("treats an empty order as the type's own order", () => {
+    const withNothing = composeDocument("professional_resume", rows());
+    const withEmpty = composeDocument("professional_resume", rows(), { sectionOrder: [] });
+
+    expect(withEmpty).toEqual(withNothing);
+  });
+
+  it("lists the arrangement control's sections in the document's order", () => {
+    const offered = composableSections("professional_cv", rows(), [
+      "skills",
+      "experience",
+      "education",
+    ]);
+
+    expect(offered.map((section) => section.key)).toEqual([
+      "skills",
+      "experience",
+      "education",
+    ]);
+  });
 });
+
+function byKey(a: { key: string }, b: { key: string }) {
+  return a.key.localeCompare(b.key);
+}
 
 describe("an empty dossier", () => {
   it("composes to nothing rather than to a blank page of headings", () => {
