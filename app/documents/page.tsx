@@ -7,10 +7,32 @@ import { listDocuments, documentTypeLabel } from "@/documents/repository";
 import { Container } from "@/ui";
 import styles from "@/styles/pages/documents.module.css";
 
-export default async function DocumentsPage() {
+type DocumentsPageProps = {
+  searchParams: Promise<{ status?: string; error?: string }>;
+};
+
+/**
+ * Outcomes of an action that finished somewhere else.
+ *
+ * Mapped from a fixed set rather than echoed from the query string, which is
+ * attacker-controlled. "Unknown document" covers both a document that never existed and
+ * one belonging to another account: the same answer for both is what keeps documents
+ * non-enumerable, and it happens to be the true answer from this user's side.
+ */
+const noticeMessages: Record<string, string> = {
+  deleted: "Document deleted. Your dossier is unchanged.",
+};
+
+const errorMessages: Record<string, string> = {
+  "unknown-document": "That document is no longer here.",
+};
+
+export default async function DocumentsPage({ searchParams }: DocumentsPageProps) {
   if (!authSessionConfiguration) redirect("/auth/sign-in?callbackUrl=%2Fdocuments&error=Configuration");
   const session = await getSession();
   if (!session?.user?.id) redirect("/auth/sign-in?callbackUrl=%2Fdocuments&error=SessionRequired");
+
+  const { status, error } = await searchParams;
 
   let documents;
   try {
@@ -46,6 +68,15 @@ export default async function DocumentsPage() {
           </div>
           <Link className={styles.primaryButton} href="/documents/new">Create a document</Link>
         </div>
+
+        {error ? (
+          <p className={styles.errorStatus} role="alert">
+            {errorMessages[error] ?? "That action didn't complete. Please try again."}
+          </p>
+        ) : null}
+        {status && !error && noticeMessages[status] ? (
+          <p className={styles.successStatus} role="status">{noticeMessages[status]}</p>
+        ) : null}
 
         {documents.length ? (
           <div className={styles.documentList}>
