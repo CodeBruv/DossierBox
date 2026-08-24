@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   BASICS_STEP,
   buildDossierFlow,
+  dossierSections,
   nextStep,
   parseSaveIntent,
   previousStep,
@@ -50,6 +51,109 @@ describe("dossier flow construction", () => {
     const flow = buildDossierFlow(["experience", "experience"]);
 
     expect(flow.steps.map((step) => step.key)).toEqual([BASICS_STEP, "experience"]);
+  });
+
+  it("does not read a section key from the prototype chain", () => {
+    /* `in` would answer true for all three, and the step built from one would have no
+     * label and a route that 404s. The registry is stored data, so this is reachable
+     * from the database as well as from a hand-written request. */
+    const flow = buildDossierFlow(["constructor", "toString", "__proto__"]);
+
+    expect(flow.steps.map((step) => step.key)).toEqual([BASICS_STEP]);
+  });
+});
+
+/*
+ * The regression suite for the defect this module was rewritten to prevent: a user
+ * saved information, the section screen listed it, adding it again was refused as a
+ * duplicate — and the dossier reported the section as "Not started", because the
+ * only thing consulted was the registry of sections the user had explicitly chosen.
+ */
+describe("sections that hold information", () => {
+  it("includes a populated section the user never chose", () => {
+    const flow = buildDossierFlow([], { experience: 2 });
+
+    expect(flow.steps.map((step) => step.key)).toEqual([BASICS_STEP, "experience"]);
+  });
+
+  it("keeps a populated section after the structure screen drops it", () => {
+    /* Exactly the reported sequence: save entries, then save a narrower selection.
+     * The registry no longer mentions the section; the entries are still there. */
+    const flow = buildDossierFlow(["skills"], { skills: 1, languages: 3 });
+
+    expect(dossierSections(flow)).toEqual(["skills", "languages"]);
+  });
+
+  it("orders chosen sections first, then populated ones as the product declares them", () => {
+    const flow = buildDossierFlow(["skills", "experience"], {
+      links: 1,
+      education: 1,
+      skills: 4,
+    });
+
+    /* `education` precedes `links` because that is the canonical section order, not
+     * because of how the counts happened to be keyed. */
+    expect(dossierSections(flow)).toEqual(["skills", "experience", "education", "links"]);
+  });
+
+  it("does not add an empty section the user did not choose", () => {
+    const flow = buildDossierFlow(["experience"], { experience: 1, publications: 0 });
+
+    expect(dossierSections(flow)).toEqual(["experience"]);
+  });
+
+  it("keeps an empty section the user did choose", () => {
+    /* Chosen-and-empty is a plan to fill it in, and dropping it would remove the step
+     * the user is on. Only *presence* is derived from data; intent still counts. */
+    const flow = buildDossierFlow(["experience", "publications"], { experience: 1 });
+
+    expect(dossierSections(flow)).toEqual(["experience", "publications"]);
+  });
+
+  it("lists a section once when it is both chosen and populated", () => {
+    const flow = buildDossierFlow(["experience"], { experience: 5 });
+
+    expect(dossierSections(flow)).toEqual(["experience"]);
+    expect(flow.total).toBe(2);
+  });
+
+  it("records whether a step was chosen, for wording only", () => {
+    const flow = buildDossierFlow(["experience"], { experience: 1, achievements: 0, links: 2 });
+    const chosen = Object.fromEntries(flow.steps.map((step) => [step.key, step.chosen]));
+
+    expect(chosen).toEqual({ [BASICS_STEP]: true, experience: true, links: false });
+  });
+
+  it("treats missing counts as unknown rather than as empty", () => {
+    /* The save actions used to omit counts, so "what comes next?" answered from the
+     * registry alone and sent the user to review from the middle of their dossier.
+     * Omitting the argument must still produce the chosen sequence. */
+    expect(dossierSections(buildDossierFlow(["experience", "education"]))).toEqual([
+      "experience",
+      "education",
+    ]);
+  });
+
+  it("advances through a populated section that was never chosen", () => {
+    const flow = buildDossierFlow(["experience"], { experience: 1, languages: 1 });
+
+    expect(nextStep(flow, "experience")?.key).toBe("languages");
+    expect(resolveEntryDestination(flow, "experience", "continue")).toBe(
+      "/profile/languages?status=created",
+    );
+  });
+});
+
+describe("dossierSections", () => {
+  it("excludes identity, which is a single record rather than a list", () => {
+    const flow = buildDossierFlow(["experience"]);
+
+    expect(flow.steps).toHaveLength(2);
+    expect(dossierSections(flow)).toEqual(["experience"]);
+  });
+
+  it("is empty for a dossier with no sections at all", () => {
+    expect(dossierSections(buildDossierFlow([]))).toEqual([]);
   });
 });
 
