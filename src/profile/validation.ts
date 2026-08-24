@@ -375,7 +375,26 @@ export function parseSectionSelection(formData: FormData) {
 }
 
 export function parseEntryFormData(section: ProfileSectionKey, formData: FormData) {
-  const values = formDataToValues(formData);
+  return parseEntryValues(section, formDataToValues(formData));
+}
+
+/**
+ * One entry, checked against its section's schema, from plain values.
+ *
+ * Split out of {@link parseEntryFormData} for the import review, where the values for one
+ * entry are gathered from a form holding many entries under prefixed names and so are never
+ * a `FormData` of their own. Both paths run this, which is the point: an imported education
+ * record is checked by exactly the rules that would have applied had the user typed it, down
+ * to "a grade needs the system it is expressed in".
+ *
+ * Reading the field names from the schema rather than from the values is what makes the
+ * input safe: a key the section does not have is dropped before parsing, and a field the
+ * caller omitted is normalised to empty rather than left `undefined`.
+ */
+export function parseEntryValues(
+  section: ProfileSectionKey,
+  values: Record<string, string>,
+) {
   const fieldNames = Object.keys((profileEntrySchemas[section] as z.ZodObject<z.ZodRawShape>).shape);
   const normalized = Object.fromEntries(
     fieldNames.map((field) => [field, normalizeFieldValue(field, values[field])]),
