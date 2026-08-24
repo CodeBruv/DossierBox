@@ -167,6 +167,55 @@ function insertionPoint(
 }
 
 /**
+ * Resolve a requested *running order* into the type's full permitted list.
+ *
+ * Deliberately separate from `resolveSectionSelection`, because the two answer different
+ * questions about the same absence. There, a section missing from the request means the
+ * user hid it. Here it means the order simply does not mention it — an order recorded
+ * before a section existed, or one the user only rearranged the top of — and dropping it
+ * would silently remove a section from someone's document as a side effect of a later
+ * build adding one.
+ *
+ * So every permitted section comes back exactly once: the requested ones in the order
+ * asked for, and the rest at their catalogue-relative position among them. Visibility is
+ * stored separately and applied after, which is what lets a hidden section keep its place
+ * in the running order and reappear where the user left it.
+ *
+ * Same input contract as the rest of this module — `readonly string[]`, because the caller
+ * is a form post or a JSON column — and the same guarantee: total, deterministic, never
+ * throws. An empty order yields the catalogue order, which is exactly what an unmodified
+ * document stores.
+ */
+export function orderSections(
+  key: DocumentTypeKey,
+  requested: readonly string[],
+): readonly DocumentSectionKey[] {
+  const permitted = permittedSections(key);
+  const permittedSet = new Set<string>(permitted);
+
+  const ordered: DocumentSectionKey[] = [];
+  const seen = new Set<string>();
+
+  for (const entry of requested) {
+    if (!permittedSet.has(entry) || seen.has(entry)) continue;
+    seen.add(entry);
+    ordered.push(entry as DocumentSectionKey);
+  }
+
+  /* Anything the order did not mention keeps its catalogue neighbours: placed before the
+   * first mentioned section that follows it in the catalogue, so a newly added section
+   * lands where the type intends rather than at the bottom of the page. */
+  for (const [index, section] of permitted.entries()) {
+    if (seen.has(section)) continue;
+
+    ordered.splice(insertionPoint(ordered, permitted, index), 0, section);
+    seen.add(section);
+  }
+
+  return ordered;
+}
+
+/**
  * The default selection for a type: everything it permits.
  *
  * Not "everything required" — a new document should show the user what the type is capable
