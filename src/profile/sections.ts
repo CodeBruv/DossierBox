@@ -240,6 +240,16 @@ export const profileSectionMap = Object.fromEntries(
   profileSections.map((section) => [section.key, section]),
 ) as Record<ProfileSectionKey, ProfileSectionDefinition>;
 
+/**
+ * Whether a string names a real section.
+ *
+ * This is a trust boundary: the value arrives from a route parameter, a form field
+ * or a stored registry row. `Object.hasOwn` rather than `in`, because `in` walks
+ * the prototype chain and would answer `true` for `constructor`, `toString` and
+ * `__proto__` — after which a caller holding a `ProfileSectionKey` would read
+ * `profileSectionMap[key].fields` and get `undefined`, crashing a page or a server
+ * action on a URL anyone can type.
+ */
 export function isProfileSection(value: string): value is ProfileSectionKey {
-  return value in profileSectionMap;
+  return Object.hasOwn(profileSectionMap, value);
 }
