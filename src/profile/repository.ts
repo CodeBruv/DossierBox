@@ -138,29 +138,16 @@ export async function updateProfileBasics(
     .where(eq(profiles.userId, userId));
 }
 
-export async function getEnabledSections(profileId: string) {
-  return db
-    .select()
-    .from(profileSections)
-    .where(eq(profileSections.profileId, profileId))
-    .orderBy(asc(profileSections.position));
-}
-
 /**
- * The enabled section keys in the user's chosen order — the exact input
- * `buildDossierFlow` needs. Selecting one column keeps the payload small for
- * the many callers that only need to know the running order.
+ * Replaces the sections the user chose, in the order they chose them.
+ *
+ * Destructive by design — the chosen order is a list, and editing a list in place
+ * from a checkbox form is more code for the same result. It is safe to be
+ * destructive *because* this table no longer decides what a dossier contains: a
+ * dropped row costs the running order, not the information. Deleting rows here
+ * cannot delete an entry, and an entry whose row is gone still appears in the
+ * dossier through its own count.
  */
-export async function getEnabledSectionKeys(profileId: string): Promise<string[]> {
-  const rows = await db
-    .select({ section: profileSections.section })
-    .from(profileSections)
-    .where(eq(profileSections.profileId, profileId))
-    .orderBy(asc(profileSections.position));
-
-  return rows.map((row) => row.section);
-}
-
 export async function replaceEnabledSections(
   profileId: string,
   sections: readonly ProfileSectionKey[],
@@ -183,18 +170,42 @@ export async function replaceEnabledSections(
 }
 
 /**
- * Entry counts for every section in a **single** round trip.
+ * What a dossier contains, and in what order — in a **single** round trip.
  *
- * This previously issued ten independent `count(*)` statements. They were
- * wrapped in `Promise.all`, which looked parallel but is not: the pool is
- * deliberately narrow, so the ten statements queued on one connection and the
- * page paid ten sequential network round trips to the database region. Counting
- * with correlated sub-selects against the already-filtered profile row costs
- * one round trip regardless of how many sections exist.
+ * Two facts, deliberately read together, because reading either one alone is what
+ * produced the worst bug this module has had. `registered` is what the user picked
+ * on the structure screen; `counts` is what they actually saved. The Dossier
+ * screens used to read only the first, so an entry saved in an unregistered
+ * section was invisible in the dossier while remaining visible on its own section
+ * screen — saved, listed, refused as a duplicate, and reported as "Not started".
+ *
+ * Fetching both in one statement removes the incentive to skip the expensive half.
+ * The registry alone was a cheap index scan and the counts were a second call, so
+ * the wrong answer was also the fast one; now there is no cheaper way to be wrong,
+ * and the hub and review screens each make one call where they used to make two.
+ * That matters more than it looks on a pool held at one connection, where
+ * `Promise.all` queues statements rather than parallelising them.
+ *
+ * Counting via correlated sub-selects against the already-located profile row is
+ * what keeps this at one round trip: ten separate `count(*)` statements — which is
+ * how this started — cost ten sequential trips to the database region.
+ *
+ * The registry is aggregated in its chosen order, with the key as a tiebreak so a
+ * duplicated `position` cannot make the running order vary between requests.
  */
-export async function getSectionCounts(profileId: string) {
+export async function getDossierSectionState(profileId: string): Promise<{
+  registered: string[];
+  counts: Record<ProfileSectionKey, number>;
+}> {
   const [row] = await db
     .select({
+      registered: sql<string[]>`(
+        select coalesce(
+          json_agg(${profileSections.section}
+            order by ${profileSections.position}, ${profileSections.section}),
+          '[]'::json)
+        from ${profileSections}
+        where ${profileSections.profileId} = ${profiles.id})`,
       experience: countFor(experiences),
       education: countFor(education),
       projects: countFor(projects),
@@ -209,10 +220,18 @@ export async function getSectionCounts(profileId: string) {
     .from(profiles)
     .where(eq(profiles.id, profileId));
 
-  return Object.fromEntries(
-    sectionKeys.map((section) => [section, Number(row?.[section] ?? 0)]),
-  ) as Record<ProfileSectionKey, number>;
+  return {
+    /* A missing profile row yields no row at all, and a driver that handed back a
+     * scalar instead of an array must not reach `buildDossierFlow` as one. */
+    registered: Array.isArray(row?.registered) ? row.registered.filter(isNonEmptyString) : [],
+    counts: Object.fromEntries(
+      sectionKeys.map((section) => [section, Number(row?.[section] ?? 0)]),
+    ) as Record<ProfileSectionKey, number>,
+  };
 }
+
+const isNonEmptyString = (value: unknown): value is string =>
+  typeof value === "string" && value.length > 0;
 
 /**
  * Everything the readiness evaluator needs, in a **single** round trip.
