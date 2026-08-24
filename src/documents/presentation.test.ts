@@ -16,6 +16,7 @@ import {
   fallbackTemplateId,
   isDocumentTemplateId,
   resolveTemplate,
+  templatePaperMetrics,
   templateSuitsType,
 } from "./presentation";
 
@@ -282,5 +283,32 @@ describe("resolving a stored style", () => {
     }
 
     expect(resolveTemplate(unsuited.id, type).id).toBe(defaultTemplateFor(type));
+  });
+});
+
+/**
+ * The page box is derived in three places — the full-size preview, the miniature in the
+ * create flow, and eventually the PDF page box — which is why it is one function. These
+ * assertions exist so a template that changes paper cannot change shape in one view only.
+ */
+describe("templatePaperMetrics", () => {
+  it("gives every template both dimensions of a real page", () => {
+    for (const template of documentTemplateList) {
+      const metrics = templatePaperMetrics(template);
+
+      expect(metrics.width).toMatch(/^var\(--ds-page-/);
+      expect(metrics.height).toMatch(/^var\(--ds-page-/);
+      expect(metrics.width).not.toBe(metrics.height);
+    }
+  });
+
+  it("follows the template's own paper rather than a single default", () => {
+    for (const template of documentTemplateList) {
+      const metrics = templatePaperMetrics(template);
+      const expected = template.paper === "us-letter" ? "us-letter" : "a4";
+
+      expect(metrics.width).toBe(`var(--ds-page-${expected}-w)`);
+      expect(metrics.height).toBe(`var(--ds-page-${expected}-h)`);
+    }
   });
 });
