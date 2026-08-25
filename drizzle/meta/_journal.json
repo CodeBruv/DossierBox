@@ -50,6 +50,20 @@
       "when": 1787312082448,
       "tag": "0006_objective_order_and_imports",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1787626039518,
+      "tag": "0007_red_king_bedlam",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1787629515414,
+      "tag": "0008_worthless_hitman",
+      "breakpoints": true
     }
   ]
 }
