@@ -2,12 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { authSessionConfiguration } from "@/auth/auth";
 import { getSession } from "@/auth/session";
-import { buildDossierFlow, dossierSections } from "@/profile/flow";
-import {
-  getDossierFoundationReadiness,
-  getDossierSectionState,
-  getOrCreateProfile,
-} from "@/profile/repository";
+import { dossierSections } from "@/profile/flow";
+import { getCanonicalDossierState, getOrCreateProfile } from "@/profile/repository";
 import type { DossierReadiness, DossierReadinessState } from "@/profile/readiness";
 import { profileSectionMap } from "@/profile/sections";
 import { Container } from "@/ui";
@@ -35,14 +31,12 @@ export default async function HomePage() {
     name: session.user.name ?? null,
     email: session.user.email ?? null,
   });
-  const [sectionState, readiness] = await Promise.all([
-    getDossierSectionState(profile.id),
-    getDossierFoundationReadiness(profile.id, {
-      displayName: profile.displayName,
-      headline: profile.headline,
-      careerDirection: profile.careerDirection,
-    }),
-  ]);
+  const state = await getCanonicalDossierState(profile.id, {
+    displayName: profile.displayName,
+    headline: profile.headline,
+    careerDirection: profile.careerDirection,
+  });
+  const { readiness } = state;
 
   /*
    * Counted the same way the dossier itself counts: chosen sections plus anything
@@ -50,9 +44,7 @@ export default async function HomePage() {
    * user whose dossier was full, which is the same defect this page's note exists
    * to reassure them about.
    */
-  const sections = dossierSections(
-    buildDossierFlow(sectionState.registered, sectionState.counts),
-  );
+  const sections = dossierSections(state.flow);
   const trackedReadiness = [readiness.identity, ...foundationSections.map((section) => readiness[section])];
   const nextSection = trackedReadiness.some((item) => item.state !== "ready")
     ? !isReady(readiness.identity)
