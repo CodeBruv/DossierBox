@@ -6,17 +6,13 @@ import { requireProfileUser } from "./authorization";
 import {
   createSectionEntry,
   deleteOwnedSectionEntry,
-  getDossierSectionState,
+  getCanonicalDossierState,
   getOrCreateProfile,
   replaceEnabledSections,
   updateOwnedSectionEntry,
   updateProfileBasics,
 } from "./repository";
-import {
-  buildDossierFlow,
-  parseSaveIntent,
-  resolveEntryDestination,
-} from "./flow";
+import { parseSaveIntent, resolveEntryDestination } from "./flow";
 import { isProfileSection } from "./sections";
 import type { ProfileFormState, ProfileSectionKey } from "./types";
 import {
@@ -53,7 +49,7 @@ export async function saveProfileBasicsAction(
        * user selected. When they have not chosen any sections yet, the useful
        * next screen is the picker rather than a dead end.
        */
-      const flow = await dossierFlowFor(profile.id);
+      const flow = await dossierFlowFor(profile);
       destination = flow.steps[1]
         ? `${flow.steps[1].href}?status=basics-saved`
         : "/profile/sections?status=basics-saved";
@@ -90,11 +86,16 @@ export async function saveProfileSectionsAction(
       /**
        * Choosing sections is a planning step. Continuing from it should drop the
        * user straight into the first section they picked rather than returning
-       * them to a hub they have just finished configuring.
+       * them to a hub they have just finished configuring. The canonical read also
+       * preserves populated legacy sections that are not in the new selection.
        */
-      const flow = buildDossierFlow(result.data.sections);
-      destination = flow.steps[1]
-        ? `${flow.steps[1].href}?status=sections-saved`
+      const state = await getCanonicalDossierState(profile.id, {
+        displayName: profile.displayName,
+        headline: profile.headline,
+        careerDirection: profile.careerDirection,
+      });
+      destination = state.flow.steps[1]
+        ? `${state.flow.steps[1].href}?status=sections-saved`
         : "/profile/review?status=sections-saved";
     }
   } catch (error) {
@@ -135,7 +136,7 @@ export async function createProfileEntryAction(
      * is loaded solely for the intent that asks that question. Saving in place
      * or adding another entry stays at one round trip.
      */
-    const flow = intent === "continue" ? await dossierFlowFor(profile.id) : undefined;
+    const flow = intent === "continue" ? await dossierFlowFor(profile) : undefined;
 
     destination = resolveEntryDestination(flow, sectionValue, intent);
   } catch (error) {
@@ -182,7 +183,7 @@ export async function updateProfileEntryAction(
     }
 
     if (intent === "continue") {
-      const flow = await dossierFlowFor(profile.id);
+      const flow = await dossierFlowFor(profile);
       destination = resolveEntryDestination(flow, sectionValue, intent, "updated");
     } else {
       destination = resolveEntryDestination(undefined, sectionValue, intent, "updated");
@@ -227,15 +228,21 @@ function failureState(formData: FormData, message: string): ProfileFormState {
 /**
  * The flow exactly as the Dossier screens see it.
  *
- * Built from the same read those screens use, because "what comes next?" answering
- * differently here would send the user somewhere other than the sequence they are
- * looking at. While this read the chosen-section registry alone, saving an entry in
- * a section the user had not explicitly picked reported no next step and bounced
- * them to the review screen mid-way through their dossier.
+ * Built from the canonical read model so post-save navigation includes both the
+ * user's selected sections and any already-populated canonical sections.
  */
-async function dossierFlowFor(profileId: string) {
-  const { registered, counts } = await getDossierSectionState(profileId);
-  return buildDossierFlow(registered, counts);
+async function dossierFlowFor(profile: {
+  id: string;
+  displayName: string | null;
+  headline: string | null;
+  careerDirection: string | null;
+}) {
+  const state = await getCanonicalDossierState(profile.id, {
+    displayName: profile.displayName,
+    headline: profile.headline,
+    careerDirection: profile.careerDirection,
+  });
+  return state.flow;
 }
 
 /**
