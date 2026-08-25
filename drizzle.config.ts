@@ -6,6 +6,8 @@ export default defineConfig({
     "./src/auth/schema.ts",
     "./src/profile/schema.ts",
     "./src/documents/schema.ts",
+    "./src/applications/schema.ts",
+    "./src/applications/opportunity-schema.ts",
     "./src/import/schema.ts",
   ],
   out: "./drizzle",
