@@ -18,7 +18,9 @@ import {
   publications,
   skills,
 } from "./schema";
-import type { ProfileSectionKey } from "./types";
+import { profileSectionKeys, type ProfileSectionKey } from "./types";
+import { isProfileSection } from "./sections";
+import { buildDossierFlow, type DossierFlow } from "./flow";
 import type {
   DossierAchievement,
   DossierCredential,
@@ -193,6 +195,65 @@ export async function replaceEnabledSections(
  * The registry is aggregated in its chosen order, with the key as a tiebreak so a
  * duplicated `position` cannot make the running order vary between requests.
  */
+export type CanonicalDossierState = {
+  selected: readonly ProfileSectionKey[];
+  populated: readonly ProfileSectionKey[];
+  available: readonly ProfileSectionKey[];
+  counts: Record<ProfileSectionKey, number>;
+  readiness: DossierFoundationReadiness;
+  ready: readonly ("identity" | "experience" | "education" | "skills" | "projects")[];
+  flow: DossierFlow;
+};
+
+/**
+ * The single server-side read model for Dossier-facing surfaces.
+ *
+ * Selection is user intent from `profileSections`; population is derived only from
+ * canonical entry-table counts; readiness is evaluated from persisted rows. None of
+ * those facts is inferred from another, and the resulting flow is shared by every
+ * Dossier screen. This keeps old rows valid even when their registry row is absent.
+ */
+export async function getCanonicalDossierState(
+  profileId: string,
+  identity: {
+    displayName: string | null;
+    headline: string | null;
+    careerDirection: string | null;
+  },
+): Promise<CanonicalDossierState> {
+  const [sectionState, readiness] = await Promise.all([
+    getDossierSectionState(profileId),
+    getDossierFoundationReadiness(profileId, identity),
+  ]);
+
+  return deriveCanonicalDossierState(sectionState, readiness);
+}
+
+export function deriveCanonicalDossierState(
+  sectionState: {
+    registered: readonly string[];
+    counts: Record<ProfileSectionKey, number>;
+  },
+  readiness: DossierFoundationReadiness,
+): CanonicalDossierState {
+  const selected = sectionState.registered.filter(isProfileSection);
+  const populated = profileSectionKeys.filter((section) => sectionState.counts[section] > 0);
+  const flow = buildDossierFlow(selected, sectionState.counts);
+  const ready = (["identity", "experience", "education", "skills", "projects"] as const).filter(
+    (section) => readiness[section].state === "ready",
+  );
+
+  return {
+    selected,
+    populated,
+    available: profileSectionKeys,
+    counts: sectionState.counts,
+    readiness,
+    ready,
+    flow,
+  };
+}
+
 export async function getDossierSectionState(profileId: string): Promise<{
   registered: string[];
   counts: Record<ProfileSectionKey, number>;
