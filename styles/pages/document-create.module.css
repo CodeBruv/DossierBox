@@ -239,6 +239,104 @@
   font-size: var(--ds-text-sm);
 }
 
+/* ---- Preview-first composer -------------------------------------------- */
+
+.composer {
+  display: grid;
+  gap: var(--ds-space-xl);
+  margin-top: var(--ds-space-xl);
+}
+
+.previewPanel {
+  min-width: 0;
+}
+
+.previewPanelHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--ds-space-md);
+  margin-bottom: var(--ds-space-sm);
+}
+
+.previewPanelHeader h2 {
+  font-size: var(--ds-heading-size-md);
+}
+
+.previewHint,
+.optionalLabel {
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-text-xs);
+}
+
+.composerControls {
+  display: grid;
+  gap: var(--ds-space-lg);
+  min-width: 0;
+}
+
+.styleChoices {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--ds-space-2xs);
+}
+
+.styleChoice {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--ds-space-2xs);
+  align-items: start;
+  min-width: 0;
+  padding: var(--ds-space-sm);
+  border: 1px solid var(--ds-color-border-control);
+  border-radius: var(--ds-border-radius-sm);
+  background: var(--ds-color-surface);
+  cursor: pointer;
+}
+
+.styleChoiceSelected,
+.styleChoice:has(input:checked) {
+  border-color: var(--ds-color-brand-primary);
+  background: var(--ds-color-interaction-selected);
+}
+
+.styleChoice span {
+  display: grid;
+  gap: var(--ds-space-3xs);
+  min-width: 0;
+}
+
+.styleChoice small {
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-text-xs);
+}
+
+.styleChoice:focus-within {
+  outline: var(--ds-focus-ring);
+  outline-offset: 0.125rem;
+}
+
+@media (min-width: 64rem) {
+  .composer {
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 22rem);
+    align-items: start;
+  }
+
+  .previewPanel {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .composerControls {
+    grid-column: 2;
+    grid-row: 1;
+    position: sticky;
+    top: var(--ds-space-lg);
+  }
+}
+
+/* ---- Legacy step choices ----------------------------------------------- */
+
 /* ---- Step 3: templates -------------------------------------------------- */
 
 /*
@@ -371,6 +469,26 @@
   margin-top: var(--ds-space-xl);
   padding-top: var(--ds-space-md);
   border-top: 1px solid var(--ds-color-border-default);
+}
+
+@media (max-width: 48rem) {
+  .previewPanelHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .styleChoices {
+    display: flex;
+    overflow-x: auto;
+    gap: var(--ds-space-2xs);
+    max-width: 100%;
+    padding-bottom: var(--ds-space-2xs);
+    scrollbar-width: thin;
+  }
+
+  .styleChoice {
+    flex: 0 0 9.5rem;
+  }
 }
 
 @media (max-width: 22rem) {
