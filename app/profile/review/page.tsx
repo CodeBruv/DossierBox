@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireProfileUser } from "@/profile/authorization";
-import { buildDossierFlow, dossierSections } from "@/profile/flow";
-import { getDossierSectionState, getOrCreateProfile } from "@/profile/repository";
+import { dossierSections } from "@/profile/flow";
+import { getCanonicalDossierState, getOrCreateProfile } from "@/profile/repository";
 import { profileSectionMap } from "@/profile/sections";
 import { Container } from "@/ui";
 import styles from "@/styles/pages/profile.module.css";
@@ -29,7 +29,11 @@ export default async function DossierReviewPage({ searchParams }: ReviewPageProp
   const user = await requireProfileUser();
   const profile = await getOrCreateProfile(user.id, user);
   const [state, query] = await Promise.all([
-    getDossierSectionState(profile.id),
+    getCanonicalDossierState(profile.id, {
+      displayName: profile.displayName,
+      headline: profile.headline,
+      careerDirection: profile.careerDirection,
+    }),
     searchParams,
   ]);
 
@@ -40,7 +44,7 @@ export default async function DossierReviewPage({ searchParams }: ReviewPageProp
    * outside that registry proved it could show a complete dossier as empty.
    */
   const counts = state.counts;
-  const flow = buildDossierFlow(state.registered, counts);
+  const flow = state.flow;
   const sections = dossierSections(flow);
   const status = query.status ? statusMessages[query.status] : undefined;
   const filled = sections.filter((key) => counts[key] > 0);
