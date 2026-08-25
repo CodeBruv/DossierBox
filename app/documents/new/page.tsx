@@ -19,18 +19,8 @@ import {
   type DocumentPageBudget,
   type ShippingDocumentTypeKey,
 } from "@/documents/catalogue";
-import { composeDocument, isComposedDocumentEmpty } from "@/documents/composition";
-import { DocumentMiniature } from "@/documents/components/document-miniature";
-import { DocumentPreview } from "@/documents/components/document-preview";
-import {
-  compatibleTemplates,
-  defaultTemplateFor,
-  isDocumentTemplateId,
-  resolveTemplate,
-  type DocumentTemplateId,
-} from "@/documents/presentation";
+import { DocumentComposer } from "@/documents/components/document-composer";
 import { getDossierSnapshot } from "@/profile/repository";
-import type { DossierSnapshot } from "@/profile/dossier";
 import { Container } from "@/ui";
 import styles from "@/styles/pages/document-create.module.css";
 import shell from "@/styles/pages/documents.module.css";
@@ -120,11 +110,11 @@ export default async function NewDocumentPage({ searchParams }: NewDocumentPageP
    * they have not been asked yet.
    */
   const objective = isApplicationObjectiveKind(query.objective) ? query.objective : null;
-  const type =
-    objective !== null && isAvailableDocumentType(query.type) ? query.type : null;
+  const type = isAvailableDocumentType(query.type) ? query.type : null;
 
-  const step = type !== null ? 3 : objective !== null ? 2 : 1;
+  const step = type !== null ? 2 : 1;
   const error = query.error ? errorMessages[query.error] : null;
+  const snapshot = step === 2 && type ? await getDossierSnapshot(session.user.id) : null;
 
   return (
     <div className={shell.page}>
@@ -143,15 +133,21 @@ export default async function NewDocumentPage({ searchParams }: NewDocumentPageP
           </p>
         ) : null}
 
-        {step === 1 ? <PurposeStep /> : null}
-        {step === 2 && objective ? <DocumentStep objective={objective} /> : null}
-        {step === 3 && objective && type ? (
-          <PresentationStep
-            objective={objective}
-            requestedTemplate={query.template}
-            type={type}
-            userId={session.user.id}
-          />
+        {step === 1 ? <DocumentStep objective={objective} /> : null}
+        {step === 2 && type ? (
+          snapshot ? (
+            <DocumentComposer
+              createAction={createDocumentAction}
+              objective={objective}
+              snapshot={snapshot}
+              type={type}
+            />
+          ) : (
+            <p className={shell.errorStatus} role="alert">
+              We couldn't load your dossier to compose this document. Your dossier hasn't been
+              changed — please try again.
+            </p>
+          )
         ) : null}
       </Container>
     </div>
@@ -159,15 +155,13 @@ export default async function NewDocumentPage({ searchParams }: NewDocumentPageP
 }
 
 const headings: Record<number, string> = {
-  1: "What are you trying to achieve?",
-  2: "Which document do you need?",
-  3: "Choose how it should look.",
+  1: "Which document do you need?",
+  2: "Compose your document",
 };
 
 const leads: Record<number, string> = {
-  1: "The purpose decides which documents make sense — and how they should read. Pick the one closest to what you are doing.",
-  2: "These are the documents that purpose usually calls for. Every fact in them comes from your dossier.",
-  3: "The same information, presented three ways. This is your document, not a sample. You can change the look at any time afterwards.",
+  1: "Choose a document type, then shape it around the live preview. Purpose is optional and can be added while composing.",
+  2: "Start with the document itself. Choose a style, arrange its sections, and create only when the preview looks right.",
 };
 
 /* ---------------------------------------------------------------------------
@@ -193,16 +187,11 @@ function StepTrail({
 }) {
   const trail = [
     {
-      label: "Purpose",
-      value: objective ? applicationObjectiveKindLabel(objective) : null,
-      href: "/documents/new",
-    },
-    {
       label: "Document",
       value: type ? documentTypeLabel(type) : null,
-      href: objective ? `/documents/new?objective=${objective}` : null,
+      href: "/documents/new",
     },
-    { label: "Presentation", value: null, href: null },
+    { label: "Compose", value: objective ? applicationObjectiveKindLabel(objective) : "Optional purpose", href: null },
   ];
 
   return (
@@ -294,9 +283,19 @@ function PurposeStep() {
  * know something we do not — so unconventional choices are kept, one disclosure away, with
  * a note instead of a block.
  */
-function DocumentStep({ objective }: { objective: ApplicationObjectiveKind }) {
-  const graded = gradeDocumentTypes(objective);
-  const available = graded.filter((entry) => entry.available);
+function DocumentStep({ objective }: { objective: ApplicationObjectiveKind | null }) {
+  const graded = objective ? gradeDocumentTypes(objective) : [];
+  const available: readonly DocumentOption[] = objective
+    ? graded.filter((entry) => entry.available)
+    : [
+        "professional_cv",
+        "professional_resume",
+        "academic_cv",
+      ].map((type) => ({
+        type: type as ShippingDocumentTypeKey,
+        level: "permitted" as const,
+        available: true,
+      }));
 
   const recommended = available.filter((entry) => entry.level === "recommended");
   const alsoSuitable = available.filter((entry) => entry.level === "permitted");
@@ -351,13 +350,15 @@ function DocumentStep({ objective }: { objective: ApplicationObjectiveKind }) {
   );
 }
 
+type DocumentOption = Pick<DocumentCompatibility, "type" | "level" | "available">;
+
 function DocumentOptions({
   entries,
   objective,
   recommended = false,
 }: {
-  entries: readonly DocumentCompatibility[];
-  objective: ApplicationObjectiveKind;
+  entries: readonly DocumentOption[];
+  objective: ApplicationObjectiveKind | null;
   recommended?: boolean;
 }) {
   return (
@@ -366,7 +367,7 @@ function DocumentOptions({
         <li className={styles.option} key={entry.type}>
           <Link
             className={styles.optionLink}
-            href={`/documents/new?objective=${objective}&type=${entry.type}`}
+            href={`/documents/new?${objective ? `objective=${objective}&` : ""}type=${entry.type}`}
           >
             {documentTypeLabel(entry.type)}
           </Link>
@@ -400,137 +401,3 @@ function listOf(items: readonly string[]): string {
   return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
 }
 
-/* ---------------------------------------------------------------------------
-   Step 3 — presentation
---------------------------------------------------------------------------- */
-
-/**
- * The template choice, made against the user's own document.
- *
- * Every template compatible with this document type is rendered as a real page of the
- * user's real content, from the same composition and the same preview component the
- * workspace and the PDF will use. Choosing one is a link, so the full-size preview below
- * changes to the chosen template — comparison by miniature, confirmation at full size.
- *
- * The dossier is read once and composed once: composition depends on the document type and
- * the dossier, never on the template, which is exactly why one composed document can be
- * shown in three presentations. If that read fails the step still works — the user can
- * choose and create — because a preview is a help, not a precondition.
- */
-async function PresentationStep({
-  objective,
-  requestedTemplate,
-  type,
-  userId,
-}: {
-  objective: ApplicationObjectiveKind;
-  requestedTemplate: string | undefined;
-  type: ShippingDocumentTypeKey;
-  userId: string;
-}) {
-  const templates = compatibleTemplates(type);
-  const selectedId: DocumentTemplateId =
-    isDocumentTemplateId(requestedTemplate) &&
-    templates.some((template) => template.id === requestedTemplate)
-      ? requestedTemplate
-      : defaultTemplateFor(type);
-  const selected = resolveTemplate(selectedId, type);
-
-  let snapshot: DossierSnapshot | null = null;
-  let readFailed = false;
-  try {
-    snapshot = await getDossierSnapshot(userId);
-  } catch (error) {
-    console.error("[documents] Failed to load dossier for the create preview", error);
-    readFailed = true;
-  }
-
-  const composed = snapshot ? composeDocument(type, snapshot) : null;
-  const hasContent = composed !== null && !isComposedDocumentEmpty(composed);
-
-  return (
-    <>
-      <ul className={styles.templateGrid}>
-        {templates.map((template) => {
-          const isSelected = template.id === selectedId;
-
-          return (
-            <li
-              className={[styles.template, isSelected ? styles.templateSelected : ""]
-                .filter(Boolean)
-                .join(" ")}
-              key={template.id}
-            >
-              {composed && hasContent ? (
-                <DocumentMiniature document={composed} template={template} />
-              ) : (
-                <div aria-hidden="true" className={styles.templatePlaceholder} inert />
-              )}
-
-              <div className={styles.templateBody}>
-                <Link
-                  aria-current={isSelected ? "true" : undefined}
-                  className={styles.templateLink}
-                  href={`/documents/new?objective=${objective}&type=${type}&template=${template.id}`}
-                >
-                  {template.label}
-                </Link>
-                {isSelected ? <span className={styles.badge}>Chosen</span> : null}
-                <p className={styles.optionNote}>{template.description}</p>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-
-      {readFailed ? (
-        <p className={shell.errorStatus} role="alert">
-          We couldn't load your dossier to show a preview just now. You can still create the
-          document — nothing has been changed.
-        </p>
-      ) : null}
-
-      {!readFailed && !hasContent ? (
-        <div className={styles.emptyNotice}>
-          <h2>There is nothing in your dossier to show yet.</h2>
-          <p>
-            A document is composed entirely from what you have recorded. Add your name,
-            contact details and one section, and it will appear here. You can create this
-            document now and fill it in afterwards.
-          </p>
-          <Link className={shell.backLink} href="/profile">
-            Go to your dossier
-          </Link>
-        </div>
-      ) : null}
-
-      <form action={createDocumentAction} className={styles.createForm}>
-        <input name="objective" type="hidden" value={objective} />
-        <input name="type" type="hidden" value={type} />
-        <input name="template" type="hidden" value={selectedId} />
-
-        <button className={shell.primaryButton} type="submit">
-          Create this document
-        </button>
-        <p className={styles.createNote}>
-          Saved as a draft you can rename, rearrange and export. Your dossier stays as it is.
-        </p>
-      </form>
-
-      {composed && hasContent ? (
-        <section className={styles.fullPreview}>
-          <h2 className={styles.fullPreviewHeading}>
-            {documentTypeLabel(type)} · {selected.label}
-          </h2>
-          <DocumentPreview document={composed} template={selected} />
-        </section>
-      ) : null}
-
-      <div className={styles.stepFooter}>
-        <Link className={shell.backLink} href={`/documents/new?objective=${objective}`}>
-          Choose a different document
-        </Link>
-      </div>
-    </>
-  );
-}
