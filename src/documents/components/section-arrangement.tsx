@@ -46,9 +46,15 @@ export type SectionArrangementProps = {
   sections: readonly ArrangeableSection[];
   /** The keys the user has chosen to leave out of this document. */
   hiddenSections: readonly string[];
+  /** Mirrors the unsaved arrangement so a parent composer can preview it immediately. */
+  onConfigurationChange?: (order: readonly string[], hiddenSections: readonly string[]) => void;
 };
 
-export function SectionArrangement({ sections, hiddenSections }: SectionArrangementProps) {
+export function SectionArrangement({
+  sections,
+  hiddenSections,
+  onConfigurationChange,
+}: SectionArrangementProps) {
   const [order, setOrder] = useState<readonly string[]>(() => sections.map((s) => s.key));
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set(hiddenSections));
   const [dragged, setDragged] = useState<string | null>(null);
@@ -86,6 +92,7 @@ export function SectionArrangement({ sections, hiddenSections }: SectionArrangem
       const next = [...current];
       next.splice(from, 1);
       next.splice(destination, 0, key);
+      onConfigurationChange?.(next, [...hidden]);
 
       return next;
     });
@@ -102,6 +109,7 @@ export function SectionArrangement({ sections, hiddenSections }: SectionArrangem
     else next.delete(key);
 
     setHidden(next);
+    onConfigurationChange?.([...order], [...next]);
     setAnnouncement(
       willHide
         ? `${headings.get(key) ?? "Section"} will be left out of this document.`
