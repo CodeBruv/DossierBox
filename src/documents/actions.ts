@@ -41,12 +41,19 @@ export async function createDocumentAction(formData: FormData) {
   const rawTemplate = formData.get("template");
   const template = isDocumentTemplateId(rawTemplate) ? rawTemplate : undefined;
   const objective = readObjective(formData);
+  const hiddenSections = formData.getAll("hidden").filter(isKnownSection);
+  const sectionOrder = formData.getAll("order").filter(isKnownSection);
 
   const user = await requireProfileUser();
   let document: Awaited<ReturnType<typeof createDocument>>;
 
   try {
-    document = await createDocument(user.id, type, { template, objective });
+    document = await createDocument(user.id, type, {
+      template,
+      objective,
+      hiddenSections,
+      sectionOrder,
+    });
   } catch (error) {
     /**
      * `redirect()` and `notFound()` signal control flow by throwing. Any such
