@@ -2,8 +2,7 @@ import Link from "next/link";
 import { saveProfileSectionsAction } from "@/profile/actions";
 import { requireProfileUser } from "@/profile/authorization";
 import { ProfileSectionsForm } from "@/profile/components/profile-sections-form";
-import { getDossierSectionState, getOrCreateProfile } from "@/profile/repository";
-import { isProfileSection } from "@/profile/sections";
+import { getCanonicalDossierState, getOrCreateProfile } from "@/profile/repository";
 import { Container } from "@/ui";
 import styles from "@/styles/pages/profile.module.css";
 
@@ -11,12 +10,15 @@ export default async function ProfileSectionsPage() {
   const user = await requireProfileUser();
   const profile = await getOrCreateProfile(user.id, user);
   /*
-   * The counts are what let each row state its own consequence: a section holding six
-   * jobs says so, and says that unticking it takes it out of the build order without
-   * touching the entries. The registry decides the tick; the count decides the wording.
+   * The canonical state keeps selection and population separate: the registry decides
+   * the tick, while persisted entry counts decide whether a section contains data.
    */
-  const { registered, counts } = await getDossierSectionState(profile.id);
-  const selected = registered.filter(isProfileSection);
+  const state = await getCanonicalDossierState(profile.id, {
+    displayName: profile.displayName,
+    headline: profile.headline,
+    careerDirection: profile.careerDirection,
+  });
+  const { selected, counts } = state;
 
   return (
     <div className={styles.page}>
