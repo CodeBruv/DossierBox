@@ -3,9 +3,9 @@ import { notFound } from "next/navigation";
 import { deleteProfileEntryAction } from "@/profile/actions";
 import { requireProfileUser } from "@/profile/authorization";
 import { DossierRail, SectionFlowFooter } from "@/profile/components/dossier-flow-nav";
-import { buildDossierFlow, currentStep } from "@/profile/flow";
+import { currentStep } from "@/profile/flow";
 import {
-  getDossierSectionState,
+  getCanonicalDossierState,
   getOrCreateProfile,
   listSectionEntries,
 } from "@/profile/repository";
@@ -53,7 +53,11 @@ export default async function ProfileSectionPage({ params, searchParams }: Secti
   const profile = await getOrCreateProfile(user.id, user);
   const [entries, state, query] = await Promise.all([
     listSectionEntries(section, profile.id),
-    getDossierSectionState(profile.id),
+    getCanonicalDossierState(profile.id, {
+      displayName: profile.displayName,
+      headline: profile.headline,
+      careerDirection: profile.careerDirection,
+    }),
     searchParams,
   ]);
 
@@ -64,7 +68,7 @@ export default async function ProfileSectionPage({ params, searchParams }: Secti
    * section" when this section is neither chosen nor populated — accurate, because
    * saving the first entry is what makes it part of the dossier.
    */
-  const flow = buildDossierFlow(state.registered, state.counts);
+  const flow = state.flow;
   const step = currentStep(flow, section);
   const status = query.status ? statusMessages[query.status] : undefined;
 
