@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { index, jsonb, pgEnum, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { users } from "@/auth/schema";
+import { applications } from "@/applications/schema";
 
 export const documentType = pgEnum("document_type", [
   "professional_cv",
@@ -36,6 +37,7 @@ export const documents = pgTable(
     userId: text("userId")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    applicationId: text("applicationId").references(() => applications.id, { onDelete: "set null" }),
     type: documentType("type").notNull(),
     title: text("title").notNull(),
     status: documentStatus("status").notNull().default("draft"),
@@ -99,6 +101,7 @@ export const documents = pgTable(
       table.userId,
       table.updatedAt,
     ),
+    applicationIndex: index("documents_applicationId_idx").on(table.applicationId),
   }),
 );
 
