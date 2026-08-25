@@ -2,6 +2,7 @@ import "server-only";
 
 import { and, desc, eq } from "drizzle-orm";
 import type { ApplicationObjective } from "@/applications";
+import { applicationIntents, applications } from "@/applications/schema";
 import { db } from "@/auth/database";
 import { documentTypeLabel as catalogueDocumentTypeLabel } from "./catalogue";
 import { defaultTemplateFor } from "./presentation";
@@ -35,6 +36,8 @@ export async function getOwnedDocument(userId: string, documentId: string) {
 export type DocumentCreationInput = {
   template?: string;
   objective?: ApplicationObjective | null;
+  hiddenSections?: string[];
+  sectionOrder?: string[];
 };
 
 export async function createDocument(
@@ -42,23 +45,41 @@ export async function createDocument(
   type: DocumentType,
   input: DocumentCreationInput = {},
 ) {
-  const [document] = await db
-    .insert(documents)
-    .values({
-      userId,
-      type,
-      title: documentTitle(type),
-      status: "draft",
-      template: input.template ?? defaultTemplateFor(type),
-      objective: input.objective ?? null,
-    })
-    .returning();
+  const objective = input.objective ?? defaultDocumentObjective();
+  const [created] = await db.transaction(async (transaction) => {
+    const [application] = await transaction
+      .insert(applications)
+      .values({ userId, status: "draft" })
+      .returning({ id: applications.id });
 
-  if (!document) {
+    if (!application) throw new Error("Application could not be created.");
+
+    await transaction.insert(applicationIntents).values({
+      applicationId: application.id,
+      ...intentValues(objective),
+    });
+
+    return transaction
+      .insert(documents)
+      .values({
+        userId,
+        applicationId: application.id,
+        type,
+        title: documentTitle(type),
+        status: "draft",
+        template: input.template ?? defaultTemplateFor(type),
+        hiddenSections: input.hiddenSections ?? [],
+        sectionOrder: input.sectionOrder ?? [],
+        objective: input.objective ?? null,
+      })
+      .returning();
+  });
+
+  if (!created) {
     throw new Error("Document could not be created.");
   }
 
-  return document;
+  return created;
 }
 
 export type DocumentConfigurationPatch = {
@@ -141,4 +162,40 @@ export function documentTypeLabel(type: DocumentType) {
 
 function documentTitle(type: DocumentType) {
   return `${documentTypeLabel(type)} draft`;
+}
+
+function defaultDocumentObjective(): ApplicationObjective {
+  return {
+    kind: "general_profile",
+    targetRole: null,
+    organisation: null,
+    institution: null,
+    programme: null,
+    field: null,
+    country: null,
+    deadline: null,
+    requirements: null,
+    instructions: null,
+    wordLimit: null,
+    pageLimit: null,
+    requestedDocuments: [],
+  };
+}
+
+function intentValues(objective: ApplicationObjective) {
+  return {
+    kind: objective.kind,
+    targetRole: objective.targetRole,
+    organisation: objective.organisation,
+    institution: objective.institution,
+    programme: objective.programme,
+    field: objective.field,
+    country: objective.country,
+    deadline: objective.deadline,
+    requirements: objective.requirements,
+    instructions: objective.instructions,
+    wordLimit: objective.wordLimit,
+    pageLimit: objective.pageLimit,
+    requestedDocuments: objective.requestedDocuments,
+  };
 }
