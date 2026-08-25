@@ -5,6 +5,8 @@ import postgres from "postgres";
 import * as authSchema from "./schema";
 import * as profileSchema from "@/profile/schema";
 import * as documentSchema from "@/documents/schema";
+import * as applicationSchema from "@/applications/schema";
+import * as opportunitySchema from "@/applications/opportunity-schema";
 
 const databaseUrl = process.env.DATABASE_URL ?? "postgres://invalid-auth-config@localhost:5432/dossierbox";
 
@@ -91,7 +93,13 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 export const db = drizzle(sql, {
-  schema: { ...authSchema, ...profileSchema, ...documentSchema },
+  schema: {
+    ...authSchema,
+    ...profileSchema,
+    ...applicationSchema,
+    ...opportunitySchema,
+    ...documentSchema,
+  },
 });
 
 function readPositiveInteger(value: string | undefined, fallback: number): number {
