@@ -85,6 +85,13 @@
       "when": 1787749860000,
       "tag": "0011_public_api_boundary",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1787761879246,
+      "tag": "0012_fresh_wilson_fisk",
+      "breakpoints": true
     }
   ]
 }
