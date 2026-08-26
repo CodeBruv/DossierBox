@@ -6,6 +6,7 @@ export default defineConfig({
     "./src/auth/schema.ts",
     "./src/profile/schema.ts",
     "./src/documents/schema.ts",
+    "./src/documents/specification-schema.ts",
     "./src/applications/schema.ts",
     "./src/applications/opportunity-schema.ts",
     "./src/applications/planning-schema.ts",
