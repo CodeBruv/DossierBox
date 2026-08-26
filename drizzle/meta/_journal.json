@@ -64,6 +64,20 @@
       "when": 1787629515414,
       "tag": "0008_worthless_hitman",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1787736149018,
+      "tag": "0009_tired_lady_mastermind",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1787736785439,
+      "tag": "0010_tense_kabuki",
+      "breakpoints": true
     }
   ]
 }
