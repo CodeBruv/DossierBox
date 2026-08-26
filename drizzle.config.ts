@@ -8,6 +8,7 @@ export default defineConfig({
     "./src/documents/schema.ts",
     "./src/applications/schema.ts",
     "./src/applications/opportunity-schema.ts",
+    "./src/applications/planning-schema.ts",
     "./src/import/schema.ts",
   ],
   out: "./drizzle",
