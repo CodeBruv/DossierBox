@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "application_plans_applicationId_version_unique" ON "application_plans" USING btree ("applicationId","version");
