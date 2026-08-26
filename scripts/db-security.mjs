@@ -8,7 +8,8 @@
  *
  * Applies db/security/harden-public-schema.sql, then prints a verification
  * report proving (a) RLS is on for every table in `public`, (b) no permissive
- * policy was introduced, and (c) the PostgREST roles hold no privileges.
+ * policy was introduced, and (c) the PostgREST roles hold no table, sequence,
+ * routine, or future default privileges.
  *
  * Exits non-zero if verification fails, so it can gate a deploy.
  */
@@ -23,13 +24,13 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const sqlPath = path.join(scriptDir, "..", "db", "security", "harden-public-schema.sql");
 
 /**
- * Connection for DDL.
+ * Connection for DDL or read-only catalog verification.
  *
  * The application runs against Supabase's transaction pooler (port 6543), which
- * is right for request traffic but cannot be used here: this script issues DDL
- * (`ALTER TABLE ... ENABLE ROW LEVEL SECURITY`, `REVOKE`) and needs a session-mode
- * connection as the role that owns the tables. Attempting it through the pooler
- * fails or silently applies to the wrong role.
+ * is right for request traffic but cannot be used to apply this script: mutation
+ * issues DDL (`ALTER TABLE ... ENABLE ROW LEVEL SECURITY`, `REVOKE`) and needs a
+ * session-mode connection as the role that owns the tables. Check-only mode uses
+ * catalog reads and is safe through either connection type.
  *
  * So DATABASE_DIRECT_URL is preferred when set, and DATABASE_URL is the fallback
  * for environments where they are the same connection. Supabase calls the direct
@@ -45,7 +46,7 @@ if (!databaseUrl) {
   process.exit(1);
 }
 
-if (/pooler\.supabase\.com|:6543\b/.test(databaseUrl)) {
+if (!checkOnly && /pooler\.supabase\.com|:6543\b/.test(databaseUrl)) {
   console.error(
     "\nRefusing to run: this looks like Supabase's pooled connection.\n" +
       "  host contains `pooler.supabase.com` and/or port 6543\n\n" +
@@ -115,8 +116,8 @@ try {
     );
   }
 
-  // --- 2. Residual privileges for the PostgREST roles ----------------------
-  const leaks = await sql`
+  // --- 2. Residual table privileges for the PostgREST roles ----------------
+  const tableLeaks = await sql`
     SELECT r.rolname AS role_name,
            c.relname AS table_name,
            p.priv    AS privilege
@@ -130,13 +131,89 @@ try {
      ORDER BY r.rolname, c.relname, p.priv
   `;
 
-  if (leaks.length === 0) {
+  if (tableLeaks.length === 0) {
     console.log("\nPostgREST roles (anon, authenticated): no table privileges.");
   } else {
     failed = true;
-    console.error(`\nFAIL — ${leaks.length} residual privilege grant(s):`);
-    for (const row of leaks) {
+    console.error(`\nFAIL — ${tableLeaks.length} residual table privilege grant(s):`);
+    for (const row of tableLeaks) {
       console.error(`  - ${row.role_name} can ${row.privilege} public.${row.table_name}`);
+    }
+  }
+
+  const sequenceLeaks = await sql`
+    SELECT r.rolname AS role_name,
+           c.relname AS sequence_name,
+           p.priv    AS privilege
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      CROSS JOIN (SELECT unnest(ARRAY['USAGE','SELECT','UPDATE']) AS priv) p
+      JOIN pg_roles r ON r.rolname IN ('anon', 'authenticated')
+     WHERE n.nspname = 'public'
+       AND c.relkind = 'S'
+       AND has_sequence_privilege(r.rolname, c.oid, p.priv)
+     ORDER BY r.rolname, c.relname, p.priv
+  `;
+
+  if (sequenceLeaks.length === 0) {
+    console.log("PostgREST roles: no sequence privileges.");
+  } else {
+    failed = true;
+    console.error(`\nFAIL — ${sequenceLeaks.length} residual sequence privilege grant(s):`);
+    for (const row of sequenceLeaks) {
+      console.error(`  - ${row.role_name} can ${row.privilege} public.${row.sequence_name}`);
+    }
+  }
+
+  const routineLeaks = await sql`
+    SELECT r.rolname AS role_name,
+           p.oid::regprocedure::text AS routine_name
+      FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+      JOIN pg_roles r ON r.rolname IN ('anon', 'authenticated')
+     WHERE n.nspname = 'public'
+       AND has_function_privilege(r.rolname, p.oid, 'EXECUTE')
+     ORDER BY r.rolname, routine_name
+  `;
+
+  if (routineLeaks.length === 0) {
+    console.log("PostgREST roles: no routine execution privileges.");
+  } else {
+    failed = true;
+    console.error(`\nFAIL — ${routineLeaks.length} callable public routine(s):`);
+    for (const row of routineLeaks) {
+      console.error(`  - ${row.role_name} can execute ${row.routine_name}`);
+    }
+  }
+
+  const defaultLeaks = await sql`
+    SELECT owner.rolname AS owner_name,
+           CASE acl.grantee
+             WHEN 0 THEN 'PUBLIC'
+             ELSE grantee.rolname
+           END AS grantee_name,
+           defaults.defaclobjtype AS object_type,
+           acl.privilege_type AS privilege
+      FROM pg_default_acl defaults
+      JOIN pg_roles owner ON owner.oid = defaults.defaclrole
+      JOIN pg_namespace n ON n.oid = defaults.defaclnamespace
+      CROSS JOIN LATERAL aclexplode(defaults.defaclacl) acl
+      LEFT JOIN pg_roles grantee ON grantee.oid = acl.grantee
+     WHERE n.nspname = 'public'
+       AND defaults.defaclobjtype IN ('r', 'S', 'f')
+       AND (acl.grantee = 0 OR grantee.rolname IN ('anon', 'authenticated'))
+     ORDER BY owner.rolname, grantee_name, defaults.defaclobjtype, acl.privilege_type
+  `;
+
+  if (defaultLeaks.length === 0) {
+    console.log("Future defaults: no API-role or PUBLIC grants on tables, sequences, or routines.");
+  } else {
+    failed = true;
+    console.error(`\nFAIL — ${defaultLeaks.length} exposed future default privilege(s):`);
+    for (const row of defaultLeaks) {
+      console.error(
+        `  - ${row.owner_name} grants ${row.privilege} on ${row.object_type} objects to ${row.grantee_name}`
+      );
     }
   }
 
@@ -185,7 +262,7 @@ try {
   console.log(
     failed
       ? "\nRESULT: FAILED — public schema is not fully locked down.\n"
-      : "\nRESULT: PASSED — RLS on, no policies, no API-role privileges, app access intact.\n"
+      : "\nRESULT: PASSED — RLS on, no policies, no current or future API-role privileges, app access intact.\n"
   );
 } catch (error) {
   failed = true;
