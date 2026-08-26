@@ -125,7 +125,28 @@ $$;
 DO $$
 DECLARE
   api_role text;
+  default_owner text;
 BEGIN
+  -- PostgreSQL grants EXECUTE on new routines to PUBLIC by default. Since the
+  -- API roles inherit PUBLIC privileges, remove both existing and future access.
+  REVOKE ALL ON ALL ROUTINES IN SCHEMA public FROM PUBLIC;
+
+  FOREACH default_owner IN ARRAY ARRAY['postgres', 'supabase_admin']
+  LOOP
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = default_owner) THEN
+      BEGIN
+        EXECUTE format(
+          'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public REVOKE ALL ON ROUTINES FROM PUBLIC',
+          default_owner
+        );
+      EXCEPTION WHEN insufficient_privilege THEN
+        RAISE NOTICE
+          'Could not alter routine defaults for role % (not a member); review this role separately',
+          default_owner;
+      END;
+    END IF;
+  END LOOP;
+
   FOREACH api_role IN ARRAY ARRAY['anon', 'authenticated']
   LOOP
     IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = api_role) THEN
@@ -133,37 +154,31 @@ BEGIN
       EXECUTE format('REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM %I', api_role);
       EXECUTE format('REVOKE ALL ON ALL ROUTINES IN SCHEMA public FROM %I', api_role);
 
-      -- Stop future tables from inheriting grants. ALTER DEFAULT PRIVILEGES is
-      -- scoped to the creating role, so this is applied for the role running
-      -- migrations (current_user) and for `postgres`, which is what Supabase
-      -- uses to seed its own default grants.
-      EXECUTE format(
-        'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public REVOKE ALL ON TABLES FROM %I',
-        current_user, api_role
-      );
-      EXECUTE format(
-        'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public REVOKE ALL ON SEQUENCES FROM %I',
-        current_user, api_role
-      );
-
-      IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'postgres')
-         AND current_user <> 'postgres' THEN
-        -- Requires membership of `postgres`. Non-fatal if not permitted: the
-        -- revokes above already removed every existing grant.
-        BEGIN
-          EXECUTE format(
-            'ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE ALL ON TABLES FROM %I',
-            api_role
-          );
-          EXECUTE format(
-            'ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE ALL ON SEQUENCES FROM %I',
-            api_role
-          );
-        EXCEPTION WHEN insufficient_privilege THEN
-          RAISE NOTICE
-            'Could not alter default privileges for role postgres (not a member). Re-run this script after any migration that creates tables.';
-        END;
-      END IF;
+      -- Stop future objects from inheriting grants. ALTER DEFAULT PRIVILEGES is
+      -- scoped to the creating role, so cover the migration and Supabase owners.
+      FOREACH default_owner IN ARRAY ARRAY[current_user, 'postgres', 'supabase_admin']
+      LOOP
+        IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = default_owner) THEN
+          BEGIN
+            EXECUTE format(
+              'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public REVOKE ALL ON TABLES FROM %I',
+              default_owner, api_role
+            );
+            EXECUTE format(
+              'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public REVOKE ALL ON SEQUENCES FROM %I',
+              default_owner, api_role
+            );
+            EXECUTE format(
+              'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public REVOKE ALL ON ROUTINES FROM %I',
+              default_owner, api_role
+            );
+          EXCEPTION WHEN insufficient_privilege THEN
+            RAISE NOTICE
+              'Could not alter defaults for role % (not a member); review this role separately',
+              default_owner;
+          END;
+        END IF;
+      END LOOP;
 
       RAISE NOTICE 'Privileges revoked for role %', api_role;
     ELSE
