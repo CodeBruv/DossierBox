@@ -125,6 +125,48 @@ export type ComposedDocument = {
   sections: ComposedSection[];
 };
 
+/**
+ * The semantic portion of a persisted Document Specification that composition may see.
+ *
+ * This is intentionally a value object rather than the database row. Composition does not
+ * load specifications, requirements, opportunities, or Evidence; an upstream boundary resolves
+ * and validates those concerns before calling this module.
+ */
+export type DocumentSpecificationSemantics = {
+  documentType: DocumentTypeKey;
+  purpose: string;
+  constraints?: Readonly<Record<string, unknown>>;
+  instructions?: string | null;
+  context?: string | null;
+  sectionExpectations?: Readonly<Record<string, unknown>>;
+  outputCharacteristics?: Readonly<Record<string, unknown>>;
+};
+
+/** Evidence selected upstream, retained here as provenance rather than interpreted content. */
+export type SelectedEvidence = {
+  evidenceId: string;
+  sourceType: string;
+  sourceRecordId: string;
+};
+
+/**
+ * Content already resolved and structured by an upstream caller.
+ *
+ * Composition arranges this content; it does not discover facts, choose Evidence, or write prose.
+ */
+export type StructuredDocumentContent = {
+  header: ComposedHeader;
+  sections: Partial<Record<ComposedSectionKey, ComposedSection>>;
+};
+
+export type DocumentCompositionInput = {
+  documentType: DocumentTypeKey;
+  specification: DocumentSpecificationSemantics;
+  selectedEvidence: readonly SelectedEvidence[];
+  content: StructuredDocumentContent;
+  configuration?: DocumentConfiguration;
+};
+
 /** `·` between short facts on one line; the presentation layer never re-splits these. */
 const META_SEPARATOR = " · ";
 
@@ -177,35 +219,64 @@ export type DocumentConfiguration = {
   sectionOrder?: readonly string[];
 };
 
+/**
+ * Compose a document from validated semantic inputs.
+ *
+ * This compiler has no access to persistence, providers, generation, or rendering. Evidence is
+ * supplied as provenance and is never discovered, selected, rewritten, or interpreted here.
+ */
+export function composeStructuredDocument({
+  documentType,
+  specification,
+  selectedEvidence,
+  content,
+  configuration = {},
+}: DocumentCompositionInput): ComposedDocument {
+  if (specification.documentType !== documentType) {
+    throw new Error("Document Specification type must match the document type being composed.");
+  }
+  if (specification.purpose.trim().length === 0) {
+    throw new Error("Document Specification purpose must not be blank.");
+  }
+  if (selectedEvidence.some((evidence) =>
+    evidence.evidenceId.trim().length === 0 ||
+    evidence.sourceType.trim().length === 0 ||
+    evidence.sourceRecordId.trim().length === 0,
+  )) {
+    throw new Error("Selected Evidence must have stable identifiers.");
+  }
+
+  const hidden = new Set(configuration.hiddenSections ?? []);
+
+  return {
+    type: documentType,
+    header: { ...content.header, contacts: [...content.header.contacts] },
+    sections: orderSections(documentType, configuration.sectionOrder ?? []).flatMap((key) =>
+      hidden.has(key) ? [] : content.sections[key] ? [content.sections[key]] : [],
+    ),
+  };
+}
+
+/** Legacy adapter for Documents created before specifications and selected Evidence were wired. */
 export function composeDocument(
   type: DocumentTypeKey,
   snapshot: DossierSnapshot,
   configuration: DocumentConfiguration = {},
 ): ComposedDocument {
-  const built = buildSections(snapshot, documentHeadingOverrides(type));
-  const hidden = new Set(configuration.hiddenSections ?? []);
+  return composeStructuredDocument({
+    documentType: type,
+    specification: {
+      documentType: type,
+      purpose: "Legacy Dossier document",
+    },
+    selectedEvidence: [],
+    content: {
+      header: composeHeader(snapshot),
+      sections: buildSections(snapshot, documentHeadingOverrides(type)),
+    },
+    configuration,
+  });
 
-  return {
-    type,
-    header: composeHeader(snapshot),
-    /**
-     * `flatMap` over the resolved running order, rather than filtering the built
-     * map, so an empty section simply yields nothing. With no stored order this is
-     * the catalogue order, unchanged; with one it is the user's arrangement, and
-     * either way the ordering rules live in exactly one place — the catalogue's
-     * `orderSections` — rather than being restated here.
-     *
-     * Hiding is applied here, at the last step, for the same reason: a hidden
-     * section is absent from the document but its data is untouched, so
-     * un-hiding it restores it exactly — and to its original place, because the
-     * order is stored separately and still mentions it. Nothing upstream knows the
-     * user made a choice, and nothing downstream can tell a hidden section from an
-     * empty one — the presentation layer renders what it is given either way.
-     */
-    sections: orderSections(type, configuration.sectionOrder ?? []).flatMap((key) =>
-      hidden.has(key) ? [] : built[key] ?? [],
-    ),
-  };
 }
 
 /**
