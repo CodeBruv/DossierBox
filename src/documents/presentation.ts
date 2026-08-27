@@ -1,19 +1,19 @@
 /**
- * Document templates — the **presentation** layer's vocabulary.
+ * Presentation styles — the **presentation** layer's vocabulary.
  *
- * A template controls how a document looks. It does not control what the document
- * says: that is the composition layer, and it does not control the facts, which are
- * the dossier's. So a template holds no career information and cannot add, remove or
- * reorder a section. Any of these can render any document family, which is what lets
- * one dossier produce several genuinely different documents.
+ * A presentation style controls how a document looks. It does not control what the
+ * document says: that is the composition layer, and it does not control the facts, which
+ * are the dossier's. So a presentation style holds no career information and cannot add,
+ * remove or reorder a section. Any of these can render any compatible document type,
+ * which is what lets one dossier produce several genuinely different documents.
  *
  * ## Where these came from
  *
  * Three real career documents in `My Templates/` were measured — page size, margins,
  * type family, every paragraph's point size and weight, rule colours, and the
  * before/after spacing on each style — and the measurements are recorded against
- * each template below. That inventory lives here, in the code that uses it, rather
- * than in a separate manifest: the `.docx` files never need parsing again, and a
+ * each presentation style below. That inventory lives here, in the code that uses it,
+ * rather than in a separate manifest: the `.docx` files never need parsing again, and a
  * number nobody reads is a number that goes stale.
  *
  * They were not reproduced. Copying one would produce a single hard-coded layout,
@@ -33,19 +33,19 @@
  *
  * ## Why it is shaped like this
  *
- * Nearly every axis is a value rather than a behaviour, so most of a template is a
- * set of CSS custom properties applied to the sheet element. That is not a trick:
- * `document-preview.module.css` already redefines inherited properties on the sheet
- * to pin the document palette, and because custom properties inherit, a template can
- * redirect type and spacing through the same mechanism without a single global rule
- * being edited or duplicated. Adding a fourth template is then a data change.
+ * Nearly every axis is a value rather than a behaviour, so most of a Presentation Style
+ * is a set of CSS custom properties applied to the sheet element. That is not a trick:
+ * `document-preview.module.css` already redefines inherited properties on the sheet to pin
+ * the document palette, and because custom properties inherit, a Presentation Style can
+ * redirect type and spacing through the same mechanism without a single global rule being
+ * edited or duplicated. Adding a fourth Presentation Style is then a data change.
  *
  * Only the two axes that cannot be expressed as a value — where the date sits in the
  * entry, and whether headings are numbered — are flags. They are flags because they
  * change document structure, and `numberedSections` in particular is a real editorial
  * convention rather than decoration.
  *
- * This is deliberately not a general template schema. There is no layout DSL, no
+ * This is deliberately not a general Presentation Style schema. There is no layout DSL, no
  * column model, no per-section override map, because two of the three references are
  * single-column and the third differs only in date placement. The abstraction stops
  * where the evidence stops; the next reference can widen it.
@@ -80,9 +80,9 @@ import {
 } from "./catalogue";
 import type { DocumentType } from "./schema";
 
-export const documentTemplateIds = ["classic", "international", "compact"] as const;
+export const presentationStyleIds = ["classic", "international", "compact"] as const;
 
-export type DocumentTemplateId = (typeof documentTemplateIds)[number];
+export type PresentationStyleId = (typeof presentationStyleIds)[number];
 
 /**
  * Where an entry's dates and location sit.
@@ -97,8 +97,8 @@ export type DocumentTemplateId = (typeof documentTemplateIds)[number];
  */
 export type DocumentEntryLayout = "stacked" | "split";
 
-export type DocumentTemplate = {
-  id: DocumentTemplateId;
+export type PresentationStyle = {
+  id: PresentationStyleId;
   /** Shown when choosing. Describes the look, never the file it came from. */
   label: string;
   /** One line, in the product's voice: what this is for, not what it contains. */
@@ -138,7 +138,7 @@ export type DocumentTemplate = {
   /**
    * Custom properties set on the sheet. Every one has a fallback in
    * `document-preview.module.css`, so a property omitted here is inherited rather
-   * than empty, and a template can be partial.
+   * than empty, and a Presentation Style can be partial.
    */
   variables: Readonly<Record<string, string>>;
 };
@@ -155,7 +155,7 @@ export type DocumentTemplate = {
  * view is read on screen far more often than it is printed. 20mm keeps the density
  * without the eye strain.
  */
-const classic: DocumentTemplate = {
+const classic: PresentationStyle = {
   id: "classic",
   label: "Classic",
   description: "Serif type and numbered sections. Formal, dense, and familiar to any reader.",
@@ -195,7 +195,7 @@ const classic: DocumentTemplate = {
  * evenly weighted, which suits a document that will be read by someone unfamiliar
  * with the writer's market and given more than a six-second scan.
  */
-const international: DocumentTemplate = {
+const international: PresentationStyle = {
   id: "international",
   label: "International",
   description: "Even spacing and a wide margin. Built to be read carefully, across markets.",
@@ -238,7 +238,7 @@ const international: DocumentTemplate = {
  * Section order is not set here. Which sections appear and in what order belongs to
  * the composition layer, and `professional_resume` already leads with skills.
  */
-const compact: DocumentTemplate = {
+const compact: PresentationStyle = {
   id: "compact",
   label: "Compact",
   description: "Tight rhythm with dates set flush right. Made to be scanned quickly.",
@@ -267,36 +267,37 @@ const compact: DocumentTemplate = {
   },
 };
 
-export const documentTemplates: Readonly<Record<DocumentTemplateId, DocumentTemplate>> = {
+export const presentationStyles: Readonly<Record<PresentationStyleId, PresentationStyle>> = {
   classic,
   international,
   compact,
 };
 
 /** In the order they are offered. Stable, so the choice list does not reshuffle. */
-export const documentTemplateList: readonly DocumentTemplate[] = documentTemplateIds.map(
-  (id) => documentTemplates[id],
+export const presentationStyleList: readonly PresentationStyle[] = presentationStyleIds.map(
+  (id) => presentationStyles[id],
 );
 
 /**
- * A `Set`, not `value in documentTemplates`.
+ * A `Set`, not `value in presentationStyles`.
  *
  * `in` walks the prototype chain, so it answered `true` for `"constructor"` — and this
- * guard is the only check on the template a document-configuration form posts. A posted
- * `"constructor"` therefore passed validation, was stored in a plain `text` column, and
- * came back out of `documentTemplates` as `Object`, whose `variables` is `undefined`:
+ * guard is the only check on the presentation style a document-configuration form posts.
+ * A posted `"constructor"` therefore passed validation, was stored in a plain `text`
+ * column, and came back out of `presentationStyles` as `Object`, whose `variables` is
+ * `undefined`:
  * the document page then threw on every subsequent view. A user could put their own
  * document permanently beyond reach, and a shared preview would have carried the same
  * fault to its reader.
  */
-const templateIdSet: ReadonlySet<string> = new Set(documentTemplateIds);
+const presentationStyleIdSet: ReadonlySet<string> = new Set(presentationStyleIds);
 
-export function isDocumentTemplateId(value: unknown): value is DocumentTemplateId {
-  return typeof value === "string" && templateIdSet.has(value);
+export function isPresentationStyleId(value: unknown): value is PresentationStyleId {
+  return typeof value === "string" && presentationStyleIdSet.has(value);
 }
 
 /**
- * The page box a template prints on, as design-token references.
+ * The page box a presentation style prints on, as design-token references.
  *
  * Stated once, here, because three places need it and they must agree: the preview sets
  * the sheet's measure from `width`, the create flow's miniature needs both to keep a page
@@ -304,20 +305,23 @@ export function isDocumentTemplateId(value: unknown): value is DocumentTemplateI
  * `paper === "us-letter" ? … : …` somewhere else is how a US Letter document ends up
  * rendered on A4 in one view and not the other.
  */
-export function templatePaperMetrics(template: DocumentTemplate): {
+export function presentationStylePaperMetrics(style: PresentationStyle): {
   width: string;
   height: string;
 } {
-  return template.paper === "us-letter"
+  return style.paper === "us-letter"
     ? { width: "var(--ds-page-us-letter-w)", height: "var(--ds-page-us-letter-h)" }
     : { width: "var(--ds-page-a4-w)", height: "var(--ds-page-a4-h)" };
 }
 
 /** Whether a style may present a type at all — the categories they share. */
-export function templateSuitsType(id: DocumentTemplateId, type: DocumentTypeKey): boolean {
+export function presentationStyleSuitsType(
+  id: PresentationStyleId,
+  type: DocumentTypeKey,
+): boolean {
   const accepted = documentTypeStyleCategories(type);
 
-  return documentTemplates[id].styleCategories.some((category) => accepted.includes(category));
+  return presentationStyles[id].styleCategories.some((category) => accepted.includes(category));
 }
 
 /**
@@ -327,8 +331,8 @@ export function templateSuitsType(id: DocumentTemplateId, type: DocumentTypeKey)
  * for that kind of document yet. Callers must handle it rather than assume a first
  * element — which is why nothing offers a `planned` type in the first place.
  */
-export function compatibleTemplates(type: DocumentTypeKey): readonly DocumentTemplate[] {
-  return documentTemplateList.filter((template) => templateSuitsType(template.id, type));
+export function compatiblePresentationStyles(type: DocumentTypeKey): readonly PresentationStyle[] {
+  return presentationStyleList.filter((style) => presentationStyleSuitsType(style.id, type));
 }
 
 /**
@@ -343,17 +347,19 @@ export function compatibleTemplates(type: DocumentTypeKey): readonly DocumentTem
  * today — and returning it plainly is better than inventing a pairing that would render a
  * letter as though it had sections.
  */
-export function defaultTemplateIdFor(type: DocumentTypeKey): DocumentTemplateId | null {
-  const compatible = compatibleTemplates(type);
+export function defaultPresentationStyleIdFor(
+  type: DocumentTypeKey,
+): PresentationStyleId | null {
+  const compatible = compatiblePresentationStyles(type);
   if (compatible.length === 0) return null;
 
   const accepted = documentTypeStyleCategories(type);
-  const designed = compatible.filter((template) =>
-    template.bestFor.some((category) => accepted.includes(category)),
+  const designed = compatible.filter((style) =>
+    style.bestFor.some((category) => accepted.includes(category)),
   );
   const shortlist = designed.length > 0 ? designed : compatible;
   const family = documentTypeFamily(type).key;
-  const chosen = shortlist.find((template) => template.preferredFamilies.includes(family));
+  const chosen = shortlist.find((style) => style.preferredFamilies.includes(family));
 
   return (chosen ?? shortlist[0]).id;
 }
@@ -361,27 +367,27 @@ export function defaultTemplateIdFor(type: DocumentTypeKey): DocumentTemplateId 
 /**
  * The style used when a document's own type yields nothing.
  *
- * Deliberately the same value as the `documents.template` column default, so a row
- * written before a template was chosen and a row whose type has no style resolve to the
- * same document rather than to two different ones.
+ * Deliberately the same value as the legacy `documents.template` column default, so a row
+ * written before a Presentation Style was chosen and a row whose type has no style resolve
+ * to the same document rather than to two different ones.
  */
-export const fallbackTemplateId: DocumentTemplateId = "classic";
+export const fallbackPresentationStyleId: PresentationStyleId = "classic";
 
 /**
- * The template a storable document type starts on.
+ * The presentation style a storable document type starts on.
  *
- * Narrower than {@link defaultTemplateIdFor} on purpose: this is the signature the
- * repository and the create flow use, and they need a template rather than a `null` to
+ * Narrower than {@link defaultPresentationStyleIdFor} on purpose: this is the signature
+ * the repository and the create flow use, and they need a style rather than a `null` to
  * handle. Every type they can pass has a compatible style — `presentation.test.ts` fails
  * if one ever does not — so the fallback is unreachable in practice and present only so a
  * data slip degrades the look of a document instead of preventing it from opening.
  */
-export function defaultTemplateFor(type: DocumentType): DocumentTemplateId {
-  return defaultTemplateIdFor(type) ?? fallbackTemplateId;
+export function defaultPresentationStyleFor(type: DocumentType): PresentationStyleId {
+  return defaultPresentationStyleIdFor(type) ?? fallbackPresentationStyleId;
 }
 
 /**
- * Resolves a stored template id.
+ * Resolves a stored presentation-style id.
  *
  * Falls back rather than throwing, because the id comes out of a database column
  * that a later migration could widen or a rolled-back deployment could narrow. An
@@ -394,11 +400,12 @@ export function defaultTemplateFor(type: DocumentType): DocumentTemplateId {
  * render as the wrong kind of document, and silently correcting the presentation is far
  * milder than showing a letter with numbered sections.
  */
-export function resolveTemplate(
+export function resolvePresentationStyle(
   value: unknown,
   type: DocumentType,
-): DocumentTemplate {
-  const stored = isDocumentTemplateId(value) && templateSuitsType(value, type) ? value : null;
+): PresentationStyle {
+  const stored =
+    isPresentationStyleId(value) && presentationStyleSuitsType(value, type) ? value : null;
 
-  return documentTemplates[stored ?? defaultTemplateFor(type)];
+  return presentationStyles[stored ?? defaultPresentationStyleFor(type)];
 }
