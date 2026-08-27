@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { authSessionConfiguration } from "@/auth/auth";
 import { getSession } from "@/auth/session";
-import { resolveTemplate } from "@/documents/presentation";
+import { resolvePresentationStyle } from "@/documents/presentation";
 import { listDocuments, documentTypeLabel } from "@/documents/repository";
 import { Container } from "@/ui";
 import styles from "@/styles/pages/documents.module.css";
@@ -94,7 +94,7 @@ export default async function DocumentsPage({ searchParams }: DocumentsPageProps
                   */}
                   <p className={styles.documentMeta}>
                     {document.status === "draft" ? "Draft" : document.status} ·{" "}
-                    {resolveTemplate(document.template, document.type).label} · Updated{" "}
+                    {resolvePresentationStyle(document.template, document.type).label} · Updated{" "}
                     {document.updatedAt.toLocaleDateString()}
                   </p>
                 </div>
