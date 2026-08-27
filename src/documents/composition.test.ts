@@ -10,6 +10,7 @@ import type { DocumentType } from "./schema";
 import {
   composableSections,
   composeDocument,
+  composeStructuredDocument,
   formatMonthYear,
   formatPeriod,
   isComposedDocumentEmpty,
@@ -648,5 +649,116 @@ describe("formatMonthYear", () => {
   it("ignores an out-of-range month rather than printing a wrong one", () => {
     expect(formatMonthYear(0, 2024)).toBe("2024");
     expect(formatMonthYear(13, 2024)).toBe("2024");
+  });
+});
+
+describe("structured composition boundary", () => {
+  const content = () => ({
+    header: {
+      name: "Ada Lovelace",
+      headline: "Analyst",
+      contacts: ["ada@example.com"],
+    },
+    sections: {
+      summary: {
+        key: "summary" as const,
+        heading: "Summary",
+        layout: "prose" as const,
+        body: { kind: "paragraphs" as const, lines: ["Resolved summary"] },
+      },
+      experience: {
+        key: "experience" as const,
+        heading: "Experience",
+        layout: "entries" as const,
+        entries: [{
+          title: "Analyst",
+          subtitle: "Company",
+          meta: "2024",
+          detail: null,
+          url: null,
+        }],
+      },
+    },
+  });
+
+  const input = () => ({
+    documentType: "professional_cv" as const,
+    specification: {
+      documentType: "professional_cv" as const,
+      purpose: "A targeted professional document",
+      constraints: { pageBudget: 2 },
+    },
+    selectedEvidence: [{
+      evidenceId: "evidence-1",
+      sourceType: "experience",
+      sourceRecordId: "experience-1",
+    }],
+    content: content(),
+  });
+
+  it("composes supplied structured content without interpreting Evidence", () => {
+    const result = composeStructuredDocument(input());
+
+    expect(result.type).toBe("professional_cv");
+    expect(result.header.name).toBe("Ada Lovelace");
+    expect(result.sections.map((section) => section.key)).toEqual(["summary", "experience"]);
+    expect(result.sections).toContainEqual(content().sections.summary);
+  });
+
+  it("applies ordering and visibility as document configuration", () => {
+    const result = composeStructuredDocument({
+      ...input(),
+      configuration: {
+        sectionOrder: ["experience", "summary"],
+        hiddenSections: ["summary"],
+      },
+    });
+
+    expect(result.sections.map((section) => section.key)).toEqual(["experience"]);
+  });
+
+  it("rejects a specification for a different document type", () => {
+    expect(() => composeStructuredDocument({
+      ...input(),
+      specification: { ...input().specification, documentType: "academic_cv" },
+    })).toThrow("Document Specification type must match");
+  });
+
+  it("rejects blank specification purposes and unstable Evidence identifiers", () => {
+    expect(() => composeStructuredDocument({
+      ...input(),
+      specification: { ...input().specification, purpose: "  " },
+    })).toThrow("purpose must not be blank");
+
+    expect(() => composeStructuredDocument({
+      ...input(),
+      selectedEvidence: [{ ...input().selectedEvidence[0], sourceRecordId: " " }],
+    })).toThrow("Selected Evidence must have stable identifiers");
+  });
+
+  it("does not mutate supplied content, specification, or Evidence", () => {
+    const value = input();
+    const before = structuredClone(value);
+
+    composeStructuredDocument(value);
+
+    expect(value).toEqual(before);
+  });
+
+  it("keeps the legacy Dossier adapter equivalent to its structured result", () => {
+    const dossier = fullSnapshot();
+    const legacy = composeDocument("professional_cv", dossier, { hiddenSections: ["links"] });
+    const direct = composeStructuredDocument({
+      documentType: "professional_cv",
+      specification: { documentType: "professional_cv", purpose: "Legacy Dossier document" },
+      selectedEvidence: [],
+      content: {
+        header: legacy.header,
+        sections: Object.fromEntries(legacy.sections.map((section) => [section.key, section])),
+      },
+      configuration: { hiddenSections: ["links"] },
+    });
+
+    expect(direct).toEqual(legacy);
   });
 });
