@@ -28,9 +28,9 @@ import type {
   ComposedSection,
 } from "../composition";
 import {
-  templatePaperMetrics,
+  presentationStylePaperMetrics,
   type DocumentEntryLayout,
-  type DocumentTemplate,
+  type PresentationStyle,
 } from "../presentation";
 import styles from "@/styles/ui/document-preview.module.css";
 
@@ -44,25 +44,28 @@ const LIST_SEPARATOR = ", ";
 
 export type DocumentPreviewProps = {
   document: ComposedDocument;
-  template: DocumentTemplate;
+  presentationStyle: PresentationStyle;
 };
 
-export function DocumentPreview({ document: composed, template }: DocumentPreviewProps) {
+export function DocumentPreview({
+  document: composed,
+  presentationStyle,
+}: DocumentPreviewProps) {
   const { header, sections } = composed;
 
   /*
-   * The template becomes custom properties on the sheet, and inheritance carries
-   * them to every rule that reads a `--doc-*` value. Applying it as one inline
-   * style rather than a class per template is what keeps the stylesheet from
-   * growing a copy of every rule for each style — and it is why adding a template
+   * The Presentation Style becomes custom properties on the sheet, and inheritance
+   * carries them to every rule that reads a `--doc-*` value. Applying it as one inline
+   * style rather than a class per style is what keeps the stylesheet from growing a
+   * copy of every rule for each style — and it is why adding a Presentation Style
    * is a data change in presentation.ts rather than a CSS change here.
    *
    * Paper width is derived rather than stored, so `paper` stays the single place
    * that decides page size for both this view and, later, the PDF page box.
    */
   const sheetStyle = {
-    ...template.variables,
-    "--doc-paper-width": templatePaperMetrics(template).width,
+    ...presentationStyle.variables,
+    "--doc-paper-width": presentationStylePaperMetrics(presentationStyle).width,
   } as CSSProperties;
 
   return (
@@ -76,7 +79,7 @@ export function DocumentPreview({ document: composed, template }: DocumentPrevie
        */
       className={[
         styles.sheet,
-        template.numberedSections ? styles.numbered : "",
+        presentationStyle.numberedSections ? styles.numbered : "",
         "document-frame document-font document-body",
       ]
         .filter(Boolean)
@@ -96,7 +99,7 @@ export function DocumentPreview({ document: composed, template }: DocumentPrevie
       {sections.map((section) => (
         <section key={section.key} className={styles.section}>
           <h3 className={`${styles.sectionTitle} document-section-title`}>{section.heading}</h3>
-          <SectionBody section={section} entryLayout={template.entryLayout} />
+          <SectionBody section={section} entryLayout={presentationStyle.entryLayout} />
         </section>
       ))}
     </article>
@@ -143,12 +146,12 @@ function SectionBody({
 }
 
 /**
- * One entry, in whichever of the two reference arrangements the template asks for.
+ * One entry, in whichever of the two reference arrangements the Presentation Style asks for.
  *
  * Both branches render the same four values from the same composed entry — only
  * the order and grouping of the elements differ. That is the boundary holding: a
- * template can rearrange what a document shows, and cannot change it. Nothing is
- * dropped in either arrangement, so switching template never loses information.
+ * Presentation Style can rearrange what a document shows, and cannot change it. Nothing
+ * is dropped in either arrangement, so switching Presentation Style never loses information.
  */
 function Entry({ entry, layout }: { entry: ComposedEntry; layout: DocumentEntryLayout }) {
   const title = <h4 className={styles.entryTitle}>{entry.title}</h4>;
