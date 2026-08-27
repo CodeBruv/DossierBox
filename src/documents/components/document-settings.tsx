@@ -5,7 +5,7 @@
  * title and the style choice ship no client JavaScript at all, which is a deliberate
  * choice rather than an omission:
  *
- * - The alternative is a client component, and a live template switch would mean
+ * - The alternative is a client component, and a live Presentation Style switch would mean
  *   shipping the composition layer and the whole document's contents to the
  *   browser as a hydration payload. A career document is the most sensitive data
  *   this product holds; sending it twice to render it once is a poor trade.
@@ -24,7 +24,7 @@
  */
 
 import { updateDocumentAction } from "../actions";
-import { compatibleTemplates } from "../presentation";
+import { compatiblePresentationStyles } from "../presentation";
 import type { ComposedSectionKey } from "../composition";
 import type { DocumentType } from "../schema";
 import { SectionArrangement } from "./section-arrangement";
@@ -33,11 +33,11 @@ import styles from "@/styles/ui/document-settings.module.css";
 export type DocumentSettingsProps = {
   documentId: string;
   title: string;
-  template: string;
+  presentationStyle: string;
   /**
    * Which document this is, so the style list can be the styles that suit it.
    *
-   * Passed rather than derived from `template`: a style may present several kinds of
+   * Passed rather than derived from `presentationStyle`: a style may present several kinds of
    * document, so the style cannot tell us what the document is — only the other way round.
    */
   documentType: DocumentType;
@@ -49,7 +49,7 @@ export type DocumentSettingsProps = {
 export function DocumentSettings({
   documentId,
   title,
-  template,
+  presentationStyle,
   documentType,
   sections,
   hiddenSections,
@@ -60,7 +60,7 @@ export function DocumentSettings({
    * three serve both a résumé and a CV — and the point is that it stays correct without
    * anyone remembering: the day a letter style ships, a CV stops being offered it.
    */
-  const styleOptions = compatibleTemplates(documentType);
+  const styleOptions = compatiblePresentationStyles(documentType);
 
   return (
     <form action={updateDocumentAction} className={styles.settings}>
@@ -88,7 +88,7 @@ export function DocumentSettings({
           {styleOptions.map((option) => (
             <label className={styles.template} key={option.id}>
               <input
-                defaultChecked={option.id === template}
+                defaultChecked={option.id === presentationStyle}
                 name="template"
                 type="radio"
                 value={option.id}
