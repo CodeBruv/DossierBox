@@ -10,7 +10,7 @@ import {
 import { DocumentPreview } from "@/documents/components/document-preview";
 import { DocumentSettings } from "@/documents/components/document-settings";
 import { DeleteDocument } from "@/documents/components/delete-document";
-import { resolveTemplate } from "@/documents/presentation";
+import { resolvePresentationStyle } from "@/documents/presentation";
 import { documentTypeLabel, getOwnedDocument } from "@/documents/repository";
 import { getDossierSnapshot } from "@/profile/repository";
 import { Container } from "@/ui";
@@ -80,7 +80,7 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
   }
   if (!document) notFound();
 
-  const template = resolveTemplate(document.template, document.type);
+  const presentationStyle = resolvePresentationStyle(document.template, document.type);
 
   /*
    * The document is composed on every render rather than stored. That is the
@@ -132,7 +132,7 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
             <span className={styles.statusBadge}>
               {document.status === "draft" ? "Draft" : document.status}
             </span>{" "}
-            {template.label} · Updated {document.updatedAt.toLocaleDateString()}
+            {presentationStyle.label} · Updated {document.updatedAt.toLocaleDateString()}
           </p>
 
           {error ? (
@@ -176,13 +176,13 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
                 documentType={document.type}
                 hiddenSections={document.hiddenSections}
                 sections={offeredSections}
-                template={template.id}
+                presentationStyle={presentationStyle.id}
                 title={document.title}
               />
             </aside>
 
             <div className={styles.workspacePreview}>
-              <DocumentPreview document={composed} template={template} />
+              <DocumentPreview document={composed} presentationStyle={presentationStyle} />
             </div>
           </div>
         )}
