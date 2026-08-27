@@ -5,7 +5,7 @@ import type { ApplicationObjective } from "@/applications";
 import { applicationIntents, applications } from "@/applications/schema";
 import { db } from "@/auth/database";
 import { documentTypeLabel as catalogueDocumentTypeLabel } from "./catalogue";
-import { defaultTemplateFor } from "./presentation";
+import { defaultPresentationStyleFor } from "./presentation";
 import { documents, type DocumentType } from "./schema";
 
 export async function listDocuments(userId: string) {
@@ -28,13 +28,13 @@ export async function getOwnedDocument(userId: string, documentId: string) {
 /**
  * What the create flow decided, beyond the document's type.
  *
- * Both optional, because a document is valid without either: the type alone is enough
- * to compose a page, and the create screen fills these in when the user has told it
- * more. `template` unset falls back to the family default rather than a global one, so
- * an academic CV never silently opens in a résumé's style.
+ * All fields are optional because the type alone is enough to compose a page, and the
+ * create screen fills these in when the user has told it more. `presentationStyle` unset
+ * falls back to the family default rather than a global one, so an academic CV never
+ * silently opens in a résumé's style.
  */
 export type DocumentCreationInput = {
-  template?: string;
+  presentationStyle?: string;
   objective?: ApplicationObjective | null;
   hiddenSections?: string[];
   sectionOrder?: string[];
@@ -67,7 +67,7 @@ export async function createDocument(
         type,
         title: documentTitle(type),
         status: "draft",
-        template: input.template ?? defaultTemplateFor(type),
+        template: input.presentationStyle ?? defaultPresentationStyleFor(type),
         hiddenSections: input.hiddenSections ?? [],
         sectionOrder: input.sectionOrder ?? [],
         objective: input.objective ?? null,
@@ -84,7 +84,7 @@ export async function createDocument(
 
 export type DocumentConfigurationPatch = {
   title: string;
-  template: string;
+  presentationStyle: string;
   hiddenSections: string[];
   sectionOrder: string[];
 };
@@ -103,7 +103,7 @@ export type DocumentConfigurationPatch = {
  * "no such document" from "not yours", which is deliberate: documents stay
  * non-enumerable.
  *
- * Only these four columns are writable. `type`, `userId`, `objective` and the
+ * Only these four configuration values are writable. `type`, `userId`, `objective` and the
  * timestamps are not in the patch type at all, so no caller can reach them by passing
  * extra keys through from a form.
  */
@@ -116,7 +116,7 @@ export async function updateDocumentConfiguration(
     .update(documents)
     .set({
       title: patch.title,
-      template: patch.template,
+      template: patch.presentationStyle,
       hiddenSections: patch.hiddenSections,
       sectionOrder: patch.sectionOrder,
       updatedAt: new Date(),
