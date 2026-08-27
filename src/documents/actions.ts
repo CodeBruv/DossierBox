@@ -8,7 +8,7 @@ import {
 } from "@/applications";
 import { requireProfileUser } from "@/profile/authorization";
 import { isAvailableDocumentType, isDocumentSectionKey } from "./catalogue";
-import { isDocumentTemplateId } from "./presentation";
+import { isPresentationStyleId } from "./presentation";
 import { createDocument, deleteOwnedDocument, updateDocumentConfiguration } from "./repository";
 
 /**
@@ -38,8 +38,10 @@ export async function createDocumentAction(formData: FormData) {
    * type's own default style, which is a perfectly good document, and refusing the
    * whole creation over a stale style id would lose everything else the user chose.
    */
-  const rawTemplate = formData.get("template");
-  const template = isDocumentTemplateId(rawTemplate) ? rawTemplate : undefined;
+  const rawPresentationStyle = formData.get("template");
+  const presentationStyle = isPresentationStyleId(rawPresentationStyle)
+    ? rawPresentationStyle
+    : undefined;
   const objective = readObjective(formData);
   const hiddenSections = formData.getAll("hidden").filter(isKnownSection);
   const sectionOrder = formData.getAll("order").filter(isKnownSection);
@@ -49,7 +51,7 @@ export async function createDocumentAction(formData: FormData) {
 
   try {
     document = await createDocument(user.id, type, {
-      template,
+      presentationStyle,
       objective,
       hiddenSections,
       sectionOrder,
@@ -108,13 +110,13 @@ function optionalText(value: FormDataEntryValue | null): string | null {
 }
 
 /**
- * Saves the document's title, style, section visibility and section order.
+ * Saves the document's title, Presentation Style, section visibility and section order.
  *
  * Everything arriving here is treated as untrusted, including the document id:
  * a server action is a public endpoint, and the form it was rendered into proves
- * nothing about what was posted. So the title is bounded, the template must be a
- * template this build knows, unrecognised section keys are dropped rather than
- * stored, and ownership is enforced inside the update's `where` clause.
+ * nothing about what was posted. So the title is bounded, the Presentation Style must
+ * be one this build knows, unrecognised section keys are dropped rather than stored,
+ * and ownership is enforced inside the update's `where` clause.
  *
  * Dropping unknown keys instead of rejecting the whole submission is deliberate:
  * the failure mode of a stale form is then a saved document with one toggle
@@ -132,20 +134,21 @@ export async function updateDocumentAction(formData: FormData) {
     redirect(`/documents/${documentId}?error=title-required`);
   }
 
-  const rawTemplate = formData.get("template");
+  const rawPresentationStyle = formData.get("template");
   /*
-   * A template this build knows — and nothing more than that, deliberately.
+   * A Presentation Style this build knows — and nothing more than that, deliberately.
    *
    * The style picker now offers only styles that suit the document's type, and a check on
    * the *form* is never a check at all: this is a public endpoint. The reason the pairing is
    * not verified here is that verifying it needs the document's type, which needs a read,
    * which adds a round trip to a save path already measured at seconds. The guarantee is
-   * enforced at the point where a bad pairing would do damage instead: `resolveTemplate`
+   * enforced at the point where a bad pairing would do damage instead:
+   * `resolvePresentationStyle`
    * falls back when a stored style does not suit the document, so the worst a hostile post
    * achieves is its own document rendering in the default style. When a style ships that
    * cannot present a CV, this check becomes worth its round trip.
    */
-  if (!isDocumentTemplateId(rawTemplate)) {
+  if (!isPresentationStyleId(rawPresentationStyle)) {
     redirect(`/documents/${documentId}?error=unknown-template`);
   }
 
@@ -178,7 +181,7 @@ export async function updateDocumentAction(formData: FormData) {
   try {
     const saved = await updateDocumentConfiguration(user.id, documentId, {
       title,
-      template: rawTemplate,
+      presentationStyle: rawPresentationStyle,
       hiddenSections,
       sectionOrder,
     });
