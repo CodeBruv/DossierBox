@@ -69,10 +69,11 @@ describeDatabase("Application persistence boundary", () => {
     try {
       const document = await createDocument(userId, "professional_resume", {
         objective: objective(),
-        template: "classic",
+        presentationStyle: "classic",
       });
       expect(document.applicationId).toBeTruthy();
       expect(document.objective).toEqual(objective());
+      expect(document.template).toBe("classic");
 
       const application = await getOwnedApplicationWithDocuments(userId, document.applicationId!);
       expect(application?.intent).toMatchObject({ kind: "employment", targetRole: "Systems Engineer" });
@@ -99,6 +100,7 @@ describeDatabase("Application persistence boundary", () => {
         .from(documents)
         .where(and(eq(documents.id, documentId), eq(documents.userId, userId)));
       expect(loaded[0]?.applicationId).toBeNull();
+      expect(loaded[0]?.template).toBe("classic");
       expect((await getOwnedApplicationWithDocuments(userId, "missing-application"))?.documents).toBeUndefined();
     } finally {
       await db.delete(users).where(eq(users.id, userId));
