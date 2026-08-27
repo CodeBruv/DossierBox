@@ -15,10 +15,10 @@ import {
 import { DocumentPreview } from "@/documents/components/document-preview";
 import { SectionArrangement } from "@/documents/components/section-arrangement";
 import {
-  compatibleTemplates,
-  defaultTemplateFor,
-  resolveTemplate,
-  type DocumentTemplateId,
+  compatiblePresentationStyles,
+  defaultPresentationStyleFor,
+  resolvePresentationStyle,
+  type PresentationStyleId,
 } from "@/documents/presentation";
 import type { ShippingDocumentTypeKey } from "@/documents/catalogue";
 import type { DossierSnapshot } from "@/profile/dossier";
@@ -34,8 +34,10 @@ export type DocumentComposerProps = {
 };
 
 export function DocumentComposer({ type, objective, snapshot, createAction }: DocumentComposerProps) {
-  const templates = compatibleTemplates(type);
-  const [template, setTemplate] = useState<DocumentTemplateId>(() => defaultTemplateFor(type));
+  const presentationStyles = compatiblePresentationStyles(type);
+  const [presentationStyle, setPresentationStyle] = useState<PresentationStyleId>(() =>
+    defaultPresentationStyleFor(type),
+  );
   const [selectedObjective, setSelectedObjective] = useState<ApplicationObjectiveKind | "">(
     objective ?? "",
   );
@@ -46,7 +48,7 @@ export function DocumentComposer({ type, objective, snapshot, createAction }: Do
   const [hiddenSections, setHiddenSections] = useState<readonly string[]>([]);
 
   const composed = composeDocument(type, snapshot, { hiddenSections, sectionOrder });
-  const selected = resolveTemplate(template, type);
+  const selectedPresentationStyle = resolvePresentationStyle(presentationStyle, type);
   const hasContent = !isComposedDocumentEmpty(composed);
 
   return (
@@ -55,12 +57,12 @@ export function DocumentComposer({ type, objective, snapshot, createAction }: Do
         <div className={styles.previewPanelHeader}>
           <div>
             <p className={shell.eyebrow}>Live preview</p>
-            <h2 id="composer-preview-heading">{selected.label}</h2>
+            <h2 id="composer-preview-heading">{selectedPresentationStyle.label}</h2>
           </div>
           <span className={styles.previewHint}>Updates as you configure</span>
         </div>
         {hasContent ? (
-          <DocumentPreview document={composed} template={selected} />
+          <DocumentPreview document={composed} presentationStyle={selectedPresentationStyle} />
         ) : (
           <div className={styles.emptyNotice}>
             <h2>There is nothing in your dossier to show yet.</h2>
@@ -95,15 +97,15 @@ export function DocumentComposer({ type, objective, snapshot, createAction }: Do
         <fieldset className={settingsStyles.fieldset}>
           <legend className={settingsStyles.legend}>Style</legend>
           <div className={styles.styleChoices} role="radiogroup" aria-label="Document style">
-            {templates.map((option) => (
+            {presentationStyles.map((option) => (
               <label
-                className={`${styles.styleChoice} ${option.id === template ? styles.styleChoiceSelected : ""}`}
+                className={`${styles.styleChoice} ${option.id === presentationStyle ? styles.styleChoiceSelected : ""}`}
                 key={option.id}
               >
                 <input
-                  checked={option.id === template}
-                  name="template-choice"
-                  onChange={() => setTemplate(option.id)}
+                  checked={option.id === presentationStyle}
+                  name="presentation-style-choice"
+                  onChange={() => setPresentationStyle(option.id)}
                   type="radio"
                   value={option.id}
                 />
@@ -136,7 +138,7 @@ export function DocumentComposer({ type, objective, snapshot, createAction }: Do
         <form action={createAction} className={styles.createForm}>
           <input name="objective" type="hidden" value={selectedObjective} />
           <input name="type" type="hidden" value={type} />
-          <input name="template" type="hidden" value={template} />
+          <input name="template" type="hidden" value={presentationStyle} />
           {sectionOrder.map((key) => (
             <input key={`order-${key}`} name="order" type="hidden" value={key} />
           ))}
