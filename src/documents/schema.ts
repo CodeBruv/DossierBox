@@ -42,13 +42,16 @@ export const documents = pgTable(
     title: text("title").notNull(),
     status: documentStatus("status").notNull().default("draft"),
     /**
-     * Which visual style presents this document.
+     * Which Presentation Style presents this document.
      *
-     * Plain text, not an enum, because the set of templates is presentation data
-     * that will change more often than the database should. A value the current
-     * build does not recognise falls back to the family default at render time
-     * rather than failing, so removing a template cannot make a document
-     * unopenable. `presentation.ts` owns the vocabulary.
+     * Transitional legacy storage field: the canonical domain/API name is Presentation
+     * Style, but existing rows and migration history use `template`. Plain text, not an
+     * enum, because the set of presentation styles is presentation data that will change
+     * more often than the database should. A value the current build does not recognise
+     * falls back to the family default at render time rather than failing, so retiring a
+     * Presentation Style cannot make a document
+     * unopenable. `presentation.ts` owns the vocabulary. Do not rename this column without
+     * an explicit compatibility migration.
      */
     template: text("template").notNull().default("classic"),
     /**
