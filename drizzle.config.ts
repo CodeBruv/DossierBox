@@ -7,6 +7,7 @@ export default defineConfig({
     "./src/profile/schema.ts",
     "./src/documents/schema.ts",
     "./src/documents/specification-schema.ts",
+    "./src/documents/generation-schema.ts",
     "./src/applications/schema.ts",
     "./src/applications/opportunity-schema.ts",
     "./src/applications/planning-schema.ts",
