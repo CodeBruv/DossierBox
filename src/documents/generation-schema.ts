@@ -39,6 +39,7 @@ export const generationAttempts = pgTable(
     specificationFingerprint: text("specificationFingerprint").notNull(),
     evidenceFingerprint: text("evidenceFingerprint").notNull(),
     requestFingerprint: text("requestFingerprint").notNull(),
+    endpoint: text("endpoint").notNull(),
     idempotencyKey: text("idempotencyKey").notNull(),
     entitlementPlan: text("entitlementPlan").notNull(),
     estimatedUnits: integer("estimatedUnits").notNull(),
@@ -49,7 +50,7 @@ export const generationAttempts = pgTable(
     completedAt: timestamp("completedAt", { mode: "date", withTimezone: true }),
   },
   (table) => ({
-    ownerIdempotencyUnique: uniqueIndex("generation_attempts_userId_idempotencyKey_unique").on(table.userId, table.idempotencyKey),
+    ownerEndpointIdempotencyUnique: uniqueIndex("generation_attempts_userId_endpoint_idempotencyKey_unique").on(table.userId, table.endpoint, table.idempotencyKey),
     requestIndex: index("generation_attempts_userId_requestFingerprint_idx").on(table.userId, table.requestFingerprint),
     ownerStatusIndex: index("generation_attempts_userId_status_createdAt_idx").on(table.userId, table.status, table.createdAt),
     revisionPositive: check("generation_attempts_specificationRevision_positive", sql`${table.specificationRevision} > 0`),
