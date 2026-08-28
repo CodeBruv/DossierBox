@@ -10,10 +10,10 @@ import {
   appendGenerationValidation,
   appendProviderExecution,
   createGenerationAttempt,
+  failGenerationAttempt,
   getOwnedGenerationContext,
   getOwnedGenerationWorkItem,
   reserveGenerationUnits,
-  settleGenerationUnits,
   transitionGenerationAttempt,
   updateGenerationWorkItemStatus,
 } from "./generation-repository";
@@ -59,6 +59,7 @@ export function createDurableGenerationPersistence(): GenerationPersistence {
         specificationFingerprint,
         evidenceFingerprint,
         requestFingerprint,
+        endpoint: "document-generation",
         idempotencyKey: input.request.idempotencyKey,
         entitlementPlan: input.entitlement.plan,
         estimatedUnits: units,
@@ -68,7 +69,7 @@ export function createDurableGenerationPersistence(): GenerationPersistence {
         return { ok: false, message: "This generation request has already been accepted." };
       }
 
-      await addGenerationWorkItems(attempt.id, input.workItems.map((item) => ({
+      await addGenerationWorkItems(input.request.userId, attempt.id, input.workItems.map((item) => ({
         sectionKey: item.sectionKey,
         heading: item.heading,
         layout: item.layout,
@@ -78,7 +79,7 @@ export function createDurableGenerationPersistence(): GenerationPersistence {
         contextFingerprint: fingerprintJson(item),
         status: "pending",
       })));
-      await addEvidenceManifest(attempt.id, input.evidence.map((evidence) => ({
+      await addEvidenceManifest(input.request.userId, attempt.id, input.evidence.map((evidence) => ({
         evidenceId: evidence.evidenceId,
         applicationId: input.specification.applicationId,
         sourceType: evidence.sourceType,
@@ -93,7 +94,29 @@ export function createDurableGenerationPersistence(): GenerationPersistence {
         entitlementPlan: input.entitlement.plan,
       });
       if (!reservation) {
-        await transitionGenerationAttempt(input.request.userId, attempt.id, "failed", "entitlement", ["insufficient_units"]);
+        const current = await getOwnedGenerationContext(input.request.userId, attempt.id);
+        if (current && current.attempt.status !== "created") {
+          return { ok: false, message: "This generation request has already been accepted." };
+        }
+        const failed = await failGenerationAttempt({
+          userId: input.request.userId,
+          attemptId: attempt.id,
+          failureKind: "entitlement",
+          failureDetail: ["insufficient_units"],
+          validation: {
+            kind: "required_sections",
+            status: "failed",
+            fingerprint: fingerprintJson({ kind: "entitlement", detail: ["insufficient_units"] }),
+            issues: ["insufficient_units"],
+          },
+        });
+        if (!failed) {
+          const raced = await getOwnedGenerationContext(input.request.userId, attempt.id);
+          if (raced && raced.attempt.status !== "created" && raced.attempt.status !== "failed") {
+            return { ok: false, message: "This generation request has already been accepted." };
+          }
+          throw new Error("Generation Attempt reservation failure could not be persisted.");
+        }
         return { ok: false, message: "Generation units are unavailable." };
       }
       const running = await transitionGenerationAttempt(input.request.userId, attempt.id, "running");
@@ -108,7 +131,7 @@ export function createDurableGenerationPersistence(): GenerationPersistence {
       if (!workItem) throw new Error("Persisted generation work item was not found.");
       await updateGenerationWorkItemStatus({ userId: input.userId, attemptId: input.attemptId, workItemId: workItem.id, status: "running" });
       const usage = input.outcome.usage;
-      await appendProviderExecution({
+      await appendProviderExecution(input.userId, {
         attemptId: input.attemptId,
         workItemId: workItem.id,
         sequence: input.sequence,
@@ -125,7 +148,7 @@ export function createDurableGenerationPersistence(): GenerationPersistence {
         startedAt: usage.occurredAt,
         completedAt: usage.occurredAt,
       });
-      await appendGenerationValidation({
+      await appendGenerationValidation(input.userId, {
         attemptId: input.attemptId,
         workItemId: workItem.id,
         kind: input.outcome.status === "written" ? "provider" : input.outcome.status === "insufficient" ? "normalization" : input.outcome.cause === "review" ? "integrity" : input.outcome.cause === "response" ? "response" : "provider",
@@ -137,17 +160,19 @@ export function createDurableGenerationPersistence(): GenerationPersistence {
     },
 
     async fail(input) {
-      const context = await getOwnedGenerationContext(input.userId, input.attemptId);
-      if (!context) throw new Error("Generation attempt context was not found.");
-      await appendGenerationValidation({
+      const failed = await failGenerationAttempt({
+        userId: input.userId,
         attemptId: input.attemptId,
-        kind: input.failure.kind === "compiler" ? "compiler" : input.failure.kind === "integrity" ? "integrity" : "required_sections",
-        status: "failed",
-        fingerprint: fingerprintJson(input.failure),
-        issues: input.failure.detail ? [...input.failure.detail] : [input.failure.kind],
+        failureKind: input.failure.kind,
+        failureDetail: input.failure.detail,
+        validation: {
+          kind: input.failure.kind === "compiler" ? "compiler" : input.failure.kind === "integrity" ? "integrity" : "required_sections",
+          status: "failed",
+          fingerprint: fingerprintJson(input.failure),
+          issues: input.failure.detail ? [...input.failure.detail] : [input.failure.kind],
+        },
       });
-      await settleGenerationUnits({ userId: input.userId, attemptId: input.attemptId, succeeded: false, entitlementPlan: context.attempt.entitlementPlan });
-      await transitionGenerationAttempt(input.userId, input.attemptId, "failed", input.failure.kind, input.failure.detail);
+      if (!failed) throw new Error("Generation Attempt failure was rejected.");
     },
 
     async succeed(input) {
