@@ -37,6 +37,7 @@ type AttemptCreate = {
   readonly specificationFingerprint: string;
   readonly evidenceFingerprint: string;
   readonly requestFingerprint: string;
+  readonly endpoint: string;
   readonly idempotencyKey: string;
   readonly entitlementPlan: string;
   readonly estimatedUnits: number;
@@ -60,8 +61,9 @@ async function ownedAttemptIn(
   transaction: DatabaseTransaction,
   userId: string,
   attemptId: string,
+  lock = false,
 ) {
-  const [row] = await transaction
+  const query = transaction
     .select({ attempt: generationAttempts, documentType: documentSpecifications.documentType })
     .from(generationAttempts)
     .innerJoin(applications, eq(applications.id, generationAttempts.applicationId))
@@ -71,7 +73,8 @@ async function ownedAttemptIn(
     .innerJoin(documentSpecifications, eq(documentSpecifications.packageMemberId, applicationPackageMembers.id))
     .where(and(eq(generationAttempts.id, attemptId), eq(generationAttempts.userId, userId), eq(applications.userId, userId), eq(documentSpecifications.id, generationAttempts.specificationId)))
     .limit(1);
-  return row ?? null;
+  const rows = lock ? await query.for("update", { of: generationAttempts }) : await query;
+  return rows[0] ?? null;
 }
 
 export async function getOwnedGenerationContext(userId: string, attemptId: string) {
@@ -109,10 +112,15 @@ export async function findOwnedGenerationAttempt(userId: string, attemptId: stri
 }
 
 export async function createGenerationAttempt(input: AttemptCreate) {
+  const idempotencyIdentity = and(
+    eq(generationAttempts.userId, input.userId),
+    eq(generationAttempts.endpoint, input.endpoint),
+    eq(generationAttempts.idempotencyKey, input.idempotencyKey),
+  );
   const existing = await db
     .select()
     .from(generationAttempts)
-    .where(and(eq(generationAttempts.userId, input.userId), eq(generationAttempts.idempotencyKey, input.idempotencyKey)))
+    .where(idempotencyIdentity)
     .limit(1);
   if (existing[0]) {
     if (existing[0].requestFingerprint !== input.requestFingerprint) throw new Error("Idempotency key was reused for a different generation request.");
@@ -130,21 +138,21 @@ export async function createGenerationAttempt(input: AttemptCreate) {
     .limit(1);
   if (!owned || owned.specification.status !== "approved") return null;
 
-  const [created] = await db.insert(generationAttempts).values(input).onConflictDoNothing({ target: [generationAttempts.userId, generationAttempts.idempotencyKey] }).returning();
+  const [created] = await db.insert(generationAttempts).values(input).onConflictDoNothing({ target: [generationAttempts.userId, generationAttempts.endpoint, generationAttempts.idempotencyKey] }).returning();
   if (created) return created;
-  const [raced] = await db.select().from(generationAttempts).where(and(eq(generationAttempts.userId, input.userId), eq(generationAttempts.idempotencyKey, input.idempotencyKey))).limit(1);
+  const [raced] = await db.select().from(generationAttempts).where(idempotencyIdentity).limit(1);
   if (raced?.requestFingerprint !== input.requestFingerprint) throw new Error("Idempotency key was reused for a different generation request.");
   return raced ?? null;
 }
 
-export async function addGenerationWorkItems(attemptId: string, items: readonly Omit<typeof generationWorkItems.$inferInsert, "attemptId">[]) {
-  if (items.length === 0) return [];
-  return db.insert(generationWorkItems).values(items.map((item) => ({ ...item, attemptId }))).returning();
+export async function addGenerationWorkItems(userId: string, attemptId: string, items: readonly Omit<typeof generationWorkItems.$inferInsert, "attemptId">[]) {
+  if (items.length === 0 || !(await ownedAttempt(userId, attemptId))) return [];
+  return db.insert(generationWorkItems).values(items.map((item) => ({ ...item, attemptId }))).onConflictDoNothing().returning();
 }
 
-export async function addEvidenceManifest(attemptId: string, items: readonly Omit<typeof generationEvidenceManifestItems.$inferInsert, "attemptId">[]) {
-  if (items.length === 0) return [];
-  return db.insert(generationEvidenceManifestItems).values(items.map((item) => ({ ...item, attemptId }))).returning();
+export async function addEvidenceManifest(userId: string, attemptId: string, items: readonly Omit<typeof generationEvidenceManifestItems.$inferInsert, "attemptId">[]) {
+  if (items.length === 0 || !(await ownedAttempt(userId, attemptId))) return [];
+  return db.insert(generationEvidenceManifestItems).values(items.map((item) => ({ ...item, attemptId }))).onConflictDoNothing().returning();
 }
 
 export async function transitionGenerationAttempt(userId: string, attemptId: string, status: GenerationAttemptStatus, failureKind?: string, failureDetail?: readonly string[]) {
@@ -159,8 +167,8 @@ export async function transitionGenerationAttempt(userId: string, attemptId: str
 export async function reserveGenerationUnits(input: { userId: string; attemptId: string; units: number; entitlementPlan: string }) {
   if (!Number.isInteger(input.units) || input.units <= 0) throw new Error("Generation reservation must contain positive whole units.");
   return db.transaction(async (transaction) => {
-    const attempt = await ownedAttemptIn(transaction, input.userId, input.attemptId);
-    if (!attempt || attempt.attempt.status !== "created" || attempt.attempt.estimatedUnits !== input.units) return null;
+    const attempt = await ownedAttemptIn(transaction, input.userId, input.attemptId, true);
+    if (!attempt || attempt.attempt.status !== "created" || attempt.attempt.estimatedUnits !== input.units || attempt.attempt.entitlementPlan !== input.entitlementPlan) return null;
     await transaction.insert(iuAccounts).values({ userId: input.userId }).onConflictDoNothing();
     const [account] = await transaction.select().from(iuAccounts).where(eq(iuAccounts.userId, input.userId)).for("update");
     if (!account || account.availableUnits < input.units) return null;
@@ -173,13 +181,16 @@ export async function reserveGenerationUnits(input: { userId: string; attemptId:
 
 export async function settleGenerationUnits(input: { userId: string; attemptId: string; succeeded: boolean; entitlementPlan: string }) {
   return db.transaction(async (transaction) => {
-    const attempt = await ownedAttemptIn(transaction, input.userId, input.attemptId);
-    if (!attempt) return null;
+    const attempt = await ownedAttemptIn(transaction, input.userId, input.attemptId, true);
+    if (!attempt || attempt.attempt.entitlementPlan !== input.entitlementPlan) return null;
     const [reservation] = await transaction.select().from(iuLedgerEntries).where(and(eq(iuLedgerEntries.attemptId, input.attemptId), eq(iuLedgerEntries.kind, "reservation"))).limit(1);
     if (!reservation) return null;
     const kind: IuLedgerEntryKind = input.succeeded ? "allocation" : "release";
+    const opposite: IuLedgerEntryKind = input.succeeded ? "release" : "allocation";
     const [existing] = await transaction.select().from(iuLedgerEntries).where(and(eq(iuLedgerEntries.attemptId, input.attemptId), eq(iuLedgerEntries.kind, kind))).limit(1);
     if (existing) return existing;
+    const [conflict] = await transaction.select().from(iuLedgerEntries).where(and(eq(iuLedgerEntries.attemptId, input.attemptId), eq(iuLedgerEntries.kind, opposite))).limit(1);
+    if (conflict) return null;
     const [entry] = await transaction.insert(iuLedgerEntries).values({ userId: input.userId, attemptId: input.attemptId, kind, units: reservation.units, entitlementPlan: input.entitlementPlan, reason: input.succeeded ? "generation_attempt_consumption" : "generation_attempt_release" }).returning();
     const [account] = await transaction.update(iuAccounts).set({ reservedUnits: sql`${iuAccounts.reservedUnits} - ${reservation.units}`, ...(input.succeeded ? {} : { availableUnits: sql`${iuAccounts.availableUnits} + ${reservation.units}` }), updatedAt: new Date() }).where(and(eq(iuAccounts.userId, input.userId), sql`${iuAccounts.reservedUnits} >= ${reservation.units}`)).returning();
     if (!account) throw new Error("Reserved Generation units could not be settled.");
@@ -206,7 +217,14 @@ export async function updateGenerationWorkItemStatus(input: {
   return updated ?? null;
 }
 
-export async function appendProviderExecution(input: typeof providerExecutions.$inferInsert) {
+export async function appendProviderExecution(userId: string, input: typeof providerExecutions.$inferInsert) {
+  if (!(await ownedAttempt(userId, input.attemptId))) return null;
+  const [workItem] = await db
+    .select({ id: generationWorkItems.id })
+    .from(generationWorkItems)
+    .where(and(eq(generationWorkItems.id, input.workItemId), eq(generationWorkItems.attemptId, input.attemptId)))
+    .limit(1);
+  if (!workItem) return null;
   const existing = await db
     .select()
     .from(providerExecutions)
@@ -217,7 +235,84 @@ export async function appendProviderExecution(input: typeof providerExecutions.$
   return row ?? null;
 }
 
-export async function appendGenerationValidation(input: typeof generationValidations.$inferInsert) {
+export async function failGenerationAttempt(input: {
+  userId: string;
+  attemptId: string;
+  failureKind: string;
+  failureDetail?: readonly string[];
+  validation: Omit<typeof generationValidations.$inferInsert, "attemptId">;
+}) {
+  return db.transaction(async (transaction) => {
+    const owned = await ownedAttemptIn(transaction, input.userId, input.attemptId, true);
+    if (!owned) return null;
+    if (owned.attempt.status === "failed" || owned.attempt.status === "cancelled") return owned.attempt;
+    if (owned.attempt.status === "succeeded") return null;
+
+    const [reservation] = await transaction
+      .select()
+      .from(iuLedgerEntries)
+      .where(and(eq(iuLedgerEntries.attemptId, input.attemptId), eq(iuLedgerEntries.kind, "reservation")))
+      .limit(1);
+    if (reservation) {
+      const [allocation] = await transaction
+        .select({ id: iuLedgerEntries.id })
+        .from(iuLedgerEntries)
+        .where(and(eq(iuLedgerEntries.attemptId, input.attemptId), eq(iuLedgerEntries.kind, "allocation")))
+        .limit(1);
+      if (allocation) return null;
+      const [release] = await transaction
+        .select()
+        .from(iuLedgerEntries)
+        .where(and(eq(iuLedgerEntries.attemptId, input.attemptId), eq(iuLedgerEntries.kind, "release")))
+        .limit(1);
+      if (!release) {
+        await transaction.insert(iuLedgerEntries).values({
+          userId: input.userId,
+          attemptId: input.attemptId,
+          kind: "release",
+          units: reservation.units,
+          entitlementPlan: owned.attempt.entitlementPlan,
+          reason: "generation_attempt_release",
+        });
+        const [account] = await transaction
+          .update(iuAccounts)
+          .set({
+            reservedUnits: sql`${iuAccounts.reservedUnits} - ${reservation.units}`,
+            availableUnits: sql`${iuAccounts.availableUnits} + ${reservation.units}`,
+            updatedAt: new Date(),
+          })
+          .where(and(eq(iuAccounts.userId, input.userId), sql`${iuAccounts.reservedUnits} >= ${reservation.units}`))
+          .returning();
+        if (!account) throw new Error("Reserved Generation units could not be released.");
+      }
+    }
+
+    await transaction.insert(generationValidations).values({ ...input.validation, attemptId: input.attemptId });
+    const [failed] = await transaction
+      .update(generationAttempts)
+      .set({
+        status: "failed",
+        failureKind: input.failureKind,
+        failureDetail: input.failureDetail ?? null,
+        completedAt: new Date(),
+      })
+      .where(and(eq(generationAttempts.id, input.attemptId), eq(generationAttempts.status, owned.attempt.status)))
+      .returning();
+    if (!failed) throw new Error("Generation Attempt could not fail atomically.");
+    return failed;
+  });
+}
+
+export async function appendGenerationValidation(userId: string, input: typeof generationValidations.$inferInsert) {
+  if (!(await ownedAttempt(userId, input.attemptId))) return null;
+  if (input.workItemId) {
+    const [workItem] = await db
+      .select({ id: generationWorkItems.id })
+      .from(generationWorkItems)
+      .where(and(eq(generationWorkItems.id, input.workItemId), eq(generationWorkItems.attemptId, input.attemptId)))
+      .limit(1);
+    if (!workItem) return null;
+  }
   const existing = await db
     .select()
     .from(generationValidations)
@@ -225,11 +320,6 @@ export async function appendGenerationValidation(input: typeof generationValidat
     .limit(1);
   if (existing[0]) return existing[0];
   const [row] = await db.insert(generationValidations).values(input).returning();
-  return row ?? null;
-}
-
-export async function appendGeneratedContentVersion(input: typeof generatedContentVersions.$inferInsert) {
-  const [row] = await db.insert(generatedContentVersions).values(input).returning();
   return row ?? null;
 }
 
@@ -241,8 +331,8 @@ export async function completeGenerationAttempt(input: {
   compilerValidation: Omit<typeof generationValidations.$inferInsert, "attemptId">;
 }) {
   return db.transaction(async (transaction) => {
-    const attempt = await ownedAttemptIn(transaction, input.userId, input.attemptId);
-    if (!attempt) return null;
+    const attempt = await ownedAttemptIn(transaction, input.userId, input.attemptId, true);
+    if (!attempt || attempt.attempt.entitlementPlan !== input.entitlementPlan) return null;
     if (attempt.attempt.status === "succeeded") {
       const [existingArtifact] = await transaction
         .select()
@@ -253,7 +343,9 @@ export async function completeGenerationAttempt(input: {
     }
     if (attempt.attempt.status !== "running") return null;
     const [reservation] = await transaction.select().from(iuLedgerEntries).where(and(eq(iuLedgerEntries.attemptId, input.attemptId), eq(iuLedgerEntries.kind, "reservation"))).limit(1);
-    if (!reservation) return null;
+    if (!reservation || reservation.userId !== input.userId || reservation.units !== attempt.attempt.estimatedUnits) return null;
+    const [release] = await transaction.select().from(iuLedgerEntries).where(and(eq(iuLedgerEntries.attemptId, input.attemptId), eq(iuLedgerEntries.kind, "release"))).limit(1);
+    if (release) return null;
     const [artifact] = await transaction.insert(generatedContentVersions).values({ ...input.artifact, attemptId: input.attemptId }).returning();
     await transaction.insert(generationValidations).values({ ...input.compilerValidation, attemptId: input.attemptId });
     const [allocation] = await transaction.select().from(iuLedgerEntries).where(and(eq(iuLedgerEntries.attemptId, input.attemptId), eq(iuLedgerEntries.kind, "allocation"))).limit(1);
