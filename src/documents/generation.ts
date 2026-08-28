@@ -11,6 +11,8 @@ export type GenerationRequest = {
   readonly userId: string;
   readonly specificationId: string;
   readonly specificationRevision: number;
+  /** Required by durable callers; omitted for pure/in-memory orchestration. */
+  readonly idempotencyKey?: string;
 };
 
 /** The only Evidence representation that may cross into generation context. */
@@ -162,6 +164,13 @@ function sectionCandidate(
     }
     if (metadata.layout === "inline") {
       return { ...base, layout: "inline", items: [...output.bullets] };
+    }
+    if (metadata.layout === "grouped") {
+      return {
+        ...base,
+        layout: "grouped",
+        groups: [{ label: metadata.heading, items: [...output.bullets] }],
+      };
     }
     return { kind: "response", message: "Bullets output cannot populate this section layout.", retryable: false };
   }
