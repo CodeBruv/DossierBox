@@ -430,9 +430,11 @@ export async function acceptGeneratedContentVersion(input: {
 
     // Every accepted version receives a complete immutable presentation/composition snapshot.
     // Caller values may override the mutable Document defaults, but omitted values never become
-    // historical reads of the Document row later.
+    // historical reads of the Document row later. The contract is data in the immutable JSONB
+    // snapshot, not a schema column, so future renderers can interpret the historical choice.
     const configuration = {
       ...input.configuration,
+      presentationContractVersion: "presentation-v1" as const,
       presentationStyle: input.configuration?.presentationStyle ?? document.template,
       hiddenSections: input.configuration?.hiddenSections ?? document.hiddenSections,
       sectionOrder: input.configuration?.sectionOrder ?? document.sectionOrder,
