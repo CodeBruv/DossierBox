@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/auth/database";
 import { applications } from "@/applications/schema";
 import {
@@ -19,13 +19,15 @@ import {
   providerExecutions,
 } from "./generation-schema";
 import { documentSpecifications } from "./specification-schema";
+import { documents } from "./schema";
+import { documentVersions } from "./version-schema";
 import type {
   GenerationAttemptStatus,
   IuLedgerEntryKind,
   ValidationKind,
   ValidationStatus,
 } from "./generation-domain";
-import { assertAttemptTransition } from "./generation-domain";
+import { assertAttemptTransition, fingerprintJson } from "./generation-domain";
 
 type DatabaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -323,6 +325,16 @@ export async function appendGenerationValidation(userId: string, input: typeof g
   return row ?? null;
 }
 
+export async function getOwnedGeneratedContentVersion(userId: string, generatedContentVersionId: string) {
+  const [row] = await db
+    .select({ artifact: generatedContentVersions, attempt: generationAttempts })
+    .from(generatedContentVersions)
+    .innerJoin(generationAttempts, eq(generationAttempts.id, generatedContentVersions.attemptId))
+    .where(and(eq(generatedContentVersions.id, generatedContentVersionId), eq(generationAttempts.userId, userId)))
+    .limit(1);
+  return row ?? null;
+}
+
 export async function completeGenerationAttempt(input: {
   userId: string;
   attemptId: string;
@@ -357,6 +369,104 @@ export async function completeGenerationAttempt(input: {
     const [completed] = await transaction.update(generationAttempts).set({ status: "succeeded", completedAt: new Date() }).where(and(eq(generationAttempts.id, input.attemptId), eq(generationAttempts.status, "running"))).returning();
     if (!artifact || !completed) throw new Error("Generation Attempt could not be completed atomically.");
     return { attempt: completed, artifact };
+  });
+}
+
+export async function acceptGeneratedContentVersion(input: {
+  userId: string;
+  generatedContentVersionId: string;
+  title?: string;
+  configuration?: Record<string, unknown>;
+}) {
+  return db.transaction(async (transaction) => {
+    const [source] = await transaction
+      .select({
+        artifact: generatedContentVersions,
+        attempt: generationAttempts,
+        specification: documentSpecifications,
+        member: applicationPackageMembers,
+        package: applicationPackages,
+        plan: applicationPlans,
+        application: applications,
+      })
+      .from(generatedContentVersions)
+      .innerJoin(generationAttempts, eq(generationAttempts.id, generatedContentVersions.attemptId))
+      .innerJoin(documentSpecifications, eq(documentSpecifications.id, generationAttempts.specificationId))
+      .innerJoin(applicationPackageMembers, eq(applicationPackageMembers.id, documentSpecifications.packageMemberId))
+      .innerJoin(applicationPackages, eq(applicationPackages.id, applicationPackageMembers.packageId))
+      .innerJoin(applicationPlans, eq(applicationPlans.id, applicationPackages.planId))
+      .innerJoin(applications, eq(applications.id, applicationPlans.applicationId))
+      .where(and(
+        eq(generatedContentVersions.id, input.generatedContentVersionId),
+        eq(generationAttempts.userId, input.userId),
+        eq(applications.userId, input.userId),
+      ))
+      .for("update", { of: applicationPackageMembers });
+
+    if (!source || source.attempt.status !== "succeeded" || source.attempt.applicationId !== source.application.id || source.artifact.documentType !== source.specification.documentType || source.member.documentType !== source.artifact.documentType) return null;
+
+    let document = source.member.documentId
+      ? (await transaction.select().from(documents).where(and(eq(documents.id, source.member.documentId), eq(documents.userId, input.userId))).for("update"))[0]
+      : undefined;
+
+    if (source.member.documentId && (!document || document.applicationId !== source.application.id || document.type !== source.artifact.documentType)) return null;
+
+    if (!document) {
+      const [created] = await transaction.insert(documents).values({
+        userId: input.userId,
+        applicationId: source.application.id,
+        type: source.artifact.documentType as "professional_cv" | "professional_resume" | "academic_cv",
+        title: input.title?.trim() || `${source.artifact.documentType} draft`,
+        status: "draft",
+      }).returning();
+      if (!created) throw new Error("Document could not be created.");
+      document = created;
+      const [attached] = await transaction.update(applicationPackageMembers).set({ documentId: document.id, updatedAt: new Date() }).where(and(eq(applicationPackageMembers.id, source.member.id), sql`${applicationPackageMembers.documentId} is null`)).returning({ id: applicationPackageMembers.id });
+      if (!attached) throw new Error("Package Member could not be attached to the Document.");
+    }
+
+    const [existing] = await transaction.select().from(documentVersions).where(eq(documentVersions.sourceGeneratedContentVersionId, source.artifact.id)).limit(1);
+    if (existing) return { document, version: existing };
+
+    // Every accepted version receives a complete immutable presentation/composition snapshot.
+    // Caller values may override the mutable Document defaults, but omitted values never become
+    // historical reads of the Document row later.
+    const configuration = {
+      ...input.configuration,
+      presentationStyle: input.configuration?.presentationStyle ?? document.template,
+      hiddenSections: input.configuration?.hiddenSections ?? document.hiddenSections,
+      sectionOrder: input.configuration?.sectionOrder ?? document.sectionOrder,
+    };
+    const [latest] = await transaction.select({ version: documentVersions.version }).from(documentVersions).where(eq(documentVersions.documentId, document.id)).orderBy(desc(documentVersions.version)).limit(1);
+    const [version] = await transaction.insert(documentVersions).values({
+      documentId: document.id,
+      userId: input.userId,
+      applicationId: source.application.id,
+      version: (latest?.version ?? 0) + 1,
+      sourceGeneratedContentVersionId: source.artifact.id,
+      sourceSpecificationId: source.specification.id,
+      sourceSpecificationRevision: source.specification.revision,
+      sourceSpecificationFingerprint: source.attempt.specificationFingerprint,
+      sourceEvidenceFingerprint: source.attempt.evidenceFingerprint,
+      specification: source.specification as unknown as Record<string, unknown>,
+      selectedEvidence: await transaction
+        .select({
+          evidenceId: generationEvidenceManifestItems.evidenceId,
+          sourceType: generationEvidenceManifestItems.sourceType,
+          sourceRecordId: generationEvidenceManifestItems.sourceRecordId,
+        })
+        .from(generationEvidenceManifestItems)
+        .where(eq(generationEvidenceManifestItems.attemptId, source.attempt.id))
+        .orderBy(asc(generationEvidenceManifestItems.evidenceId)),
+      content: source.artifact.content,
+      provenance: source.artifact.provenance,
+      configuration,
+      contentFingerprint: source.artifact.contentFingerprint,
+      compilerFingerprint: source.artifact.compilerFingerprint,
+      configurationFingerprint: fingerprintJson(configuration),
+    }).returning();
+    if (!version) throw new Error("Document Version could not be created.");
+    return { document, version };
   });
 }
 
