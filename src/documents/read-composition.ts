@@ -30,6 +30,7 @@ export type VersionBackedDocumentRead = {
   readonly composed: ComposedDocument;
   readonly presentationStyle: PresentationStyle;
   readonly configuration: DocumentConfiguration;
+  readonly presentationContractVersion: "presentation-v1";
   readonly createdAt: Date;
 };
 
@@ -104,6 +105,7 @@ export async function readOwnedDocumentComposition(
       source.document.type,
     ),
     configuration: configuration.composition,
+    presentationContractVersion: configuration.presentationContractVersion,
     createdAt: source.version.createdAt,
   };
 }
@@ -151,9 +153,17 @@ function readSelectedEvidence(value: unknown): readonly SelectedEvidence[] | nul
 
 function readConfiguration(value: unknown, documentType: DocumentType): {
   presentationStyle: string;
+  presentationContractVersion: "presentation-v1";
   composition: DocumentConfiguration;
 } | null {
   if (!isRecord(value)) return null;
+  // Pre-contract accepted versions are compatible only when their complete historical
+  // style/composition snapshot is present. This is a deterministic compatibility mapping;
+  // no current Document configuration is consulted.
+  const presentationContractVersion = value.presentationContractVersion === undefined
+    ? "presentation-v1"
+    : value.presentationContractVersion === "presentation-v1" ? "presentation-v1" : null;
+  if (!presentationContractVersion) return null;
   const presentationStyle = value.presentationStyle;
   if (
     !isPresentationStyleId(presentationStyle) ||
@@ -162,6 +172,7 @@ function readConfiguration(value: unknown, documentType: DocumentType): {
   if (!stringArray(value.hiddenSections) || !stringArray(value.sectionOrder)) return null;
   return {
     presentationStyle,
+    presentationContractVersion,
     composition: {
       hiddenSections: value.hiddenSections,
       sectionOrder: value.sectionOrder,
