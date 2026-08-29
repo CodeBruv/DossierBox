@@ -10,7 +10,9 @@ import {
   applicationPackages,
   applicationPlans,
 } from "@/applications/planning-schema";
+import { documents } from "./schema";
 import { documentSpecifications } from "./specification-schema";
+import { documentVersions } from "./version-schema";
 import {
   generatedContentVersions,
   generationAttempts,
@@ -22,6 +24,7 @@ import {
   providerExecutions,
 } from "./generation-schema";
 import {
+  acceptGeneratedContentVersion,
   appendProviderExecution,
   completeGenerationAttempt,
   createGenerationAttempt,
@@ -33,6 +36,7 @@ import {
   updateGenerationWorkItemStatus,
 } from "./generation-repository";
 import { createDurableGenerationPersistence } from "./generation-persistence";
+import { readOwnedDocumentComposition } from "./read-composition";
 
 const databaseConfigured = Boolean(process.env.DATABASE_URL);
 const describeDatabase = databaseConfigured ? describe : describe.skip;
@@ -70,7 +74,7 @@ async function createFixture(label: string, ownerId = fixtureId(`${label}-owner`
     status: "approved",
     purpose: "Database-backed durable Generation validation",
   });
-  return { ownerId, applicationId, specificationId };
+  return { ownerId, applicationId, memberId, specificationId };
 }
 
 function attemptInput(
@@ -111,6 +115,56 @@ async function makeRunningAttempt(fixture: Awaited<ReturnType<typeof createFixtu
   return attempt;
 }
 
+async function makeSucceededContent(
+  fixture: Awaited<ReturnType<typeof createFixture>>,
+  label: string,
+) {
+  const attempt = await makeRunningAttempt(fixture, label);
+  const completed = await completeGenerationAttempt({
+    userId: fixture.ownerId,
+    attemptId: attempt.id,
+    entitlementPlan: "test-entitlement",
+    artifact: {
+      version: 1,
+      documentType: "professional_resume",
+      content: {
+        header: { name: "Ada Lovelace", headline: "Engineer", contacts: [] },
+        sections: {
+          experience: {
+            key: "experience",
+            heading: "Experience",
+            layout: "entries",
+            entries: [{ title: "Engineer", subtitle: "Analytical Engines", meta: null, detail: null, url: null }],
+          },
+          education: {
+            key: "education",
+            heading: "Education",
+            layout: "entries",
+            entries: [{ title: "Mathematics", subtitle: "Independent study", meta: null, detail: null, url: null }],
+          },
+          skills: {
+            key: "skills",
+            heading: "Skills",
+            layout: "grouped",
+            groups: [{ label: "Technical", items: ["Analysis"] }],
+          },
+        },
+      },
+      provenance: { summary: { evidenceIds: [] } },
+      contentFingerprint: `content-${label}`,
+      compilerFingerprint: `compiler-${label}`,
+    },
+    compilerValidation: {
+      kind: "compiler",
+      status: "passed",
+      fingerprint: `compiler-validation-${label}`,
+      issues: [],
+    },
+  });
+  if (!completed) throw new Error("Succeeded content fixture was not created.");
+  return completed;
+}
+
 async function addWorkItem(attemptId: string, label: string) {
   const id = fixtureId(`${label}-work`);
   const [workItem] = await db.insert(generationWorkItems).values({
@@ -136,6 +190,8 @@ async function cleanupFixtures() {
   try {
     await sql.begin(async (transaction) => {
       await transaction`SET LOCAL session_replication_role = replica`;
+      await transaction`DELETE FROM document_versions WHERE "userId" IN ${transaction(ids)}`;
+      await transaction`DELETE FROM documents WHERE "userId" IN ${transaction(ids)}`;
       await transaction`DELETE FROM generated_content_versions WHERE "attemptId" IN (SELECT id FROM generation_attempts WHERE "userId" IN ${transaction(ids)})`;
       await transaction`DELETE FROM generation_validations WHERE "attemptId" IN (SELECT id FROM generation_attempts WHERE "userId" IN ${transaction(ids)})`;
       await transaction`DELETE FROM generation_provider_executions WHERE "attemptId" IN (SELECT id FROM generation_attempts WHERE "userId" IN ${transaction(ids)})`;
@@ -379,6 +435,212 @@ describeDatabase("durable Generation repository", () => {
     const customerLedger = await db.select().from(iuLedgerEntries).where(eq(iuLedgerEntries.attemptId, attempt.id));
     expect(customerLedger.every((entry) => !("provider" in entry) && !("inputTokens" in entry) && !("amountMinor" in entry))).toBe(true);
     await expect(db.delete(providerExecutions).where(eq(providerExecutions.attemptId, attempt.id))).rejects.toThrow();
+  });
+
+  it("atomically creates and attaches a Document with immutable version 1, then replays the same source idempotently", async () => {
+    const fixture = await createFixture("accept-initial");
+    const completed = await makeSucceededContent(fixture, "accept-initial-attempt");
+    const ledgerBefore = await db.select().from(iuLedgerEntries).where(eq(iuLedgerEntries.attemptId, completed.attempt.id));
+    const providersBefore = await db.select().from(providerExecutions).where(eq(providerExecutions.attemptId, completed.attempt.id));
+
+    const accepted = await acceptGeneratedContentVersion({
+      userId: fixture.ownerId,
+      generatedContentVersionId: completed.artifact.id,
+      title: "Accepted resume",
+      configuration: { hiddenSections: ["skills"], sectionOrder: ["summary"] },
+    });
+    expect(accepted?.document).toMatchObject({
+      userId: fixture.ownerId,
+      applicationId: fixture.applicationId,
+      type: "professional_resume",
+      title: "Accepted resume",
+    });
+    expect(accepted?.version).toMatchObject({
+      documentId: accepted?.document.id,
+      userId: fixture.ownerId,
+      applicationId: fixture.applicationId,
+      version: 1,
+      sourceGeneratedContentVersionId: completed.artifact.id,
+      sourceSpecificationId: fixture.specificationId,
+      sourceSpecificationRevision: 1,
+      contentFingerprint: "content-accept-initial-attempt",
+      compilerFingerprint: "compiler-accept-initial-attempt",
+    });
+
+    const [member] = await db.select().from(applicationPackageMembers).where(eq(applicationPackageMembers.id, fixture.memberId));
+    expect(member?.documentId).toBe(accepted?.document.id);
+    const replayed = await acceptGeneratedContentVersion({
+      userId: fixture.ownerId,
+      generatedContentVersionId: completed.artifact.id,
+    });
+    expect(replayed?.document.id).toBe(accepted?.document.id);
+    expect(replayed?.version.id).toBe(accepted?.version.id);
+    expect(await db.select().from(documentVersions).where(eq(documentVersions.documentId, accepted!.document.id))).toHaveLength(1);
+    expect(await db.select().from(iuLedgerEntries).where(eq(iuLedgerEntries.attemptId, completed.attempt.id))).toEqual(ledgerBefore);
+    expect(await db.select().from(providerExecutions).where(eq(providerExecutions.attemptId, completed.attempt.id))).toEqual(providersBefore);
+  });
+
+  it("serializes concurrent initial and later acceptance without orphan Documents or duplicate version numbers", async () => {
+    const fixture = await createFixture("accept-race");
+    const firstContent = await makeSucceededContent(fixture, "accept-race-first");
+    const firstResults = await Promise.all([
+      acceptGeneratedContentVersion({ userId: fixture.ownerId, generatedContentVersionId: firstContent.artifact.id }),
+      acceptGeneratedContentVersion({ userId: fixture.ownerId, generatedContentVersionId: firstContent.artifact.id }),
+    ]);
+    expect(firstResults.every(Boolean)).toBe(true);
+    expect(new Set(firstResults.map((result) => result?.document.id))).toHaveLength(1);
+    expect(new Set(firstResults.map((result) => result?.version.id))).toHaveLength(1);
+    expect(await db.select().from(documents).where(eq(documents.userId, fixture.ownerId))).toHaveLength(1);
+
+    const secondContent = await makeSucceededContent(fixture, "accept-race-second");
+    const thirdContent = await makeSucceededContent(fixture, "accept-race-third");
+    const later = await Promise.all([
+      acceptGeneratedContentVersion({ userId: fixture.ownerId, generatedContentVersionId: secondContent.artifact.id }),
+      acceptGeneratedContentVersion({ userId: fixture.ownerId, generatedContentVersionId: thirdContent.artifact.id }),
+    ]);
+    expect(later.every(Boolean)).toBe(true);
+    const versions = await db.select().from(documentVersions).where(eq(documentVersions.documentId, firstResults[0]!.document.id));
+    expect(versions.map((version) => version.version).sort()).toEqual([1, 2, 3]);
+    expect(new Set(versions.map((version) => version.sourceGeneratedContentVersionId)).size).toBe(3);
+  });
+
+  it("denies cross-owner acceptance and rolls back incompatible pre-attached Document acceptance", async () => {
+    const fixture = await createFixture("accept-ownership");
+    const otherId = fixtureId("accept-ownership-other");
+    await db.insert(users).values({ id: otherId, email: `${otherId}@example.invalid` });
+    const completed = await makeSucceededContent(fixture, "accept-ownership-attempt");
+    expect(await acceptGeneratedContentVersion({
+      userId: otherId,
+      generatedContentVersionId: completed.artifact.id,
+    })).toBeNull();
+
+    const [incompatible] = await db.insert(documents).values({
+      userId: fixture.ownerId,
+      applicationId: fixture.applicationId,
+      type: "academic_cv",
+      title: "Incompatible",
+    }).returning();
+    await db.update(applicationPackageMembers).set({ documentId: incompatible!.id }).where(eq(applicationPackageMembers.id, fixture.memberId));
+    expect(await acceptGeneratedContentVersion({
+      userId: fixture.ownerId,
+      generatedContentVersionId: completed.artifact.id,
+    })).toBeNull();
+    expect(await db.select().from(documentVersions).where(eq(documentVersions.userId, fixture.ownerId))).toHaveLength(0);
+    expect(await db.select().from(documents).where(eq(documents.userId, fixture.ownerId))).toHaveLength(1);
+  });
+
+  it("reads the latest numeric immutable version, scopes explicit versions to the owned Document, and has no accounting side effects", async () => {
+    const fixture = await createFixture("version-read");
+    const firstContent = await makeSucceededContent(fixture, "version-read-first");
+    const first = await acceptGeneratedContentVersion({
+      userId: fixture.ownerId,
+      generatedContentVersionId: firstContent.artifact.id,
+      configuration: {
+        presentationStyle: "compact",
+        hiddenSections: ["skills"],
+        sectionOrder: ["education", "experience", "skills"],
+      },
+    });
+    const secondContent = await makeSucceededContent(fixture, "version-read-second");
+    const second = await acceptGeneratedContentVersion({
+      userId: fixture.ownerId,
+      generatedContentVersionId: secondContent.artifact.id,
+      configuration: {
+        presentationStyle: "international",
+        hiddenSections: ["education"],
+        sectionOrder: ["skills", "experience", "education"],
+      },
+    });
+    const ledgerBefore = await db.select().from(iuLedgerEntries).where(eq(iuLedgerEntries.userId, fixture.ownerId));
+    const providersBefore = await db.select().from(providerExecutions).innerJoin(generationAttempts, eq(generationAttempts.id, providerExecutions.attemptId)).where(eq(generationAttempts.userId, fixture.ownerId));
+
+    const latest = await readOwnedDocumentComposition(fixture.ownerId, first!.document.id);
+    expect(latest).toMatchObject({
+      kind: "version",
+      documentVersionId: second!.version.id,
+      version: 2,
+      presentationStyle: { id: "international" },
+      composed: { sections: [{ key: "skills" }, { key: "experience" }] },
+    });
+    const explicit = await readOwnedDocumentComposition(
+      fixture.ownerId,
+      first!.document.id,
+      first!.version.id,
+    );
+    expect(explicit).toMatchObject({
+      kind: "version",
+      documentVersionId: first!.version.id,
+      version: 1,
+      presentationStyle: { id: "compact" },
+      composed: { sections: [{ key: "education" }, { key: "experience" }] },
+    });
+    expect(await readOwnedDocumentComposition("not-the-owner", first!.document.id)).toEqual({ kind: "not_found" });
+
+    const other = await createFixture("version-read-other");
+    const otherContent = await makeSucceededContent(other, "version-read-other-content");
+    const otherAccepted = await acceptGeneratedContentVersion({
+      userId: other.ownerId,
+      generatedContentVersionId: otherContent.artifact.id,
+    });
+    expect(await readOwnedDocumentComposition(
+      fixture.ownerId,
+      first!.document.id,
+      otherAccepted!.version.id,
+    )).toEqual({ kind: "invalid_version", reason: "version_not_found" });
+    expect(await db.select().from(iuLedgerEntries).where(eq(iuLedgerEntries.userId, fixture.ownerId))).toEqual(ledgerBefore);
+    expect(await db.select().from(providerExecutions).innerJoin(generationAttempts, eq(generationAttempts.id, providerExecutions.attemptId)).where(eq(generationAttempts.userId, fixture.ownerId))).toEqual(providersBefore);
+  });
+
+  it("keeps legacy Documents isolated and rejects sparse historical configuration instead of reading mutable defaults", async () => {
+    const fixture = await createFixture("version-read-compatibility");
+    const [legacy] = await db.insert(documents).values({
+      userId: fixture.ownerId,
+      applicationId: fixture.applicationId,
+      type: "professional_resume",
+      title: "Legacy live document",
+    }).returning();
+    expect(await readOwnedDocumentComposition(fixture.ownerId, legacy!.id)).toMatchObject({
+      kind: "legacy",
+      document: { id: legacy!.id },
+    });
+
+    const completed = await makeSucceededContent(fixture, "version-read-sparse");
+    const accepted = await acceptGeneratedContentVersion({
+      userId: fixture.ownerId,
+      generatedContentVersionId: completed.artifact.id,
+    });
+    const direct = process.env.DATABASE_DIRECT_URL ?? process.env.DATABASE_URL;
+    if (!direct) throw new Error("Database URL is required for compatibility fixture setup.");
+    const sql = postgres(direct, { max: 1, prepare: false });
+    try {
+      await sql.begin(async (transaction) => {
+        await transaction`SET LOCAL session_replication_role = replica`;
+        await transaction`UPDATE document_versions SET configuration = ${sql.json({ hiddenSections: [], sectionOrder: [] })} WHERE id = ${accepted!.version.id}`;
+      });
+    } finally {
+      await sql.end({ timeout: 5 });
+    }
+    expect(await readOwnedDocumentComposition(fixture.ownerId, accepted!.document.id)).toEqual({
+      kind: "invalid_version",
+      reason: "invalid_configuration",
+    });
+  });
+
+  it("enforces Document Version append-only history in the database", async () => {
+    const fixture = await createFixture("accept-immutable");
+    const completed = await makeSucceededContent(fixture, "accept-immutable-attempt");
+    const accepted = await acceptGeneratedContentVersion({
+      userId: fixture.ownerId,
+      generatedContentVersionId: completed.artifact.id,
+    });
+    expect(accepted).not.toBeNull();
+    await expect(db.update(documentVersions).set({ contentFingerprint: "mutated" }).where(eq(documentVersions.id, accepted!.version.id))).rejects.toThrow();
+    await expect(db.delete(documentVersions).where(eq(documentVersions.id, accepted!.version.id))).rejects.toThrow();
+    const [preserved] = await db.select().from(documentVersions).where(eq(documentVersions.id, accepted!.version.id));
+    expect(preserved).toMatchObject({
+      id: accepted!.version.id,
+      contentFingerprint: `content-accept-immutable-attempt`,
+    });
   });
 
   it("stores bounded evidence references and fingerprints without duplicating Dossier facts", async () => {
