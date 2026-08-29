@@ -10,6 +10,7 @@ import * as opportunitySchema from "@/applications/opportunity-schema";
 import * as planningSchema from "@/applications/planning-schema";
 import * as specificationSchema from "@/documents/specification-schema";
 import * as generationSchema from "@/documents/generation-schema";
+import * as versionSchema from "@/documents/version-schema";
 
 const databaseUrl = process.env.DATABASE_URL ?? "postgres://invalid-auth-config@localhost:5432/dossierbox";
 
@@ -105,6 +106,7 @@ export const db = drizzle(sql, {
     ...documentSchema,
     ...specificationSchema,
     ...generationSchema,
+    ...versionSchema,
   },
 });
 
