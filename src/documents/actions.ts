@@ -10,6 +10,7 @@ import { requireProfileUser } from "@/profile/authorization";
 import { isAvailableDocumentType, isDocumentSectionKey } from "./catalogue";
 import { isPresentationStyleId } from "./presentation";
 import { createDocument, deleteOwnedDocument, updateDocumentConfiguration } from "./repository";
+import { acceptGeneratedContent } from "./acceptance";
 
 /**
  * A document title has to fit a heading and a filename, and nothing useful is
@@ -242,4 +243,25 @@ export async function deleteDocumentAction(formData: FormData) {
   }
 
   redirect("/documents?status=deleted");
+}
+
+export async function acceptGeneratedContentAction(formData: FormData) {
+  const generatedContentVersionId = formData.get("generatedContentVersionId");
+  if (typeof generatedContentVersionId !== "string" || generatedContentVersionId.length === 0) {
+    redirect("/documents?error=unknown-generated-content");
+  }
+
+  const user = await requireProfileUser();
+  try {
+    const accepted = await acceptGeneratedContent({
+      userId: user.id,
+      generatedContentVersionId,
+    });
+    if (!accepted) redirect("/documents?error=unknown-generated-content");
+    redirect(`/documents/${accepted.document.id}?status=accepted`);
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error(`[documents] Failed to accept generated content ${generatedContentVersionId}`, error);
+    redirect("/documents?error=accept-failed");
+  }
 }
