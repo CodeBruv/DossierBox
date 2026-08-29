@@ -11,14 +11,15 @@ import { DocumentPreview } from "@/documents/components/document-preview";
 import { DocumentSettings } from "@/documents/components/document-settings";
 import { DeleteDocument } from "@/documents/components/delete-document";
 import { resolvePresentationStyle } from "@/documents/presentation";
-import { documentTypeLabel, getOwnedDocument } from "@/documents/repository";
+import { readOwnedDocumentComposition } from "@/documents/read-composition";
+import { documentTypeLabel } from "@/documents/repository";
 import { getDossierSnapshot } from "@/profile/repository";
 import { Container } from "@/ui";
 import styles from "@/styles/pages/documents.module.css";
 
 type DocumentPageProps = {
   params: Promise<{ documentId: string }>;
-  searchParams: Promise<{ status?: string; error?: string }>;
+  searchParams: Promise<{ status?: string; error?: string; version?: string }>;
 };
 
 /**
@@ -45,20 +46,18 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
   const session = await getSession();
   if (!session?.user?.id) redirect(`/auth/sign-in?callbackUrl=%2Fdocuments%2F${documentId}&error=SessionRequired`);
 
-  const { status, error } = await searchParams;
+  const { status, error, version: requestedVersionId } = await searchParams;
 
-  let document;
+  let read;
   let snapshot;
   try {
-    document = await getOwnedDocument(session.user.id, documentId);
-    /*
-     * The dossier is only read once the document is known to exist and to belong
-     * to this session, so an unauthorised id never causes a career-history read.
-     * That ordering is the point; the second round trip is the price of it.
-     */
-    if (document) {
-      snapshot = await getDossierSnapshot(session.user.id);
-    }
+    read = await readOwnedDocumentComposition(
+      session.user.id,
+      documentId,
+      requestedVersionId,
+    );
+    /* The mutable Dossier is reachable only through the explicit legacy result. */
+    if (read.kind === "legacy") snapshot = await getDossierSnapshot(session.user.id);
   } catch (loadError) {
     console.error(`[documents] Failed to load document ${documentId}`, loadError);
     return (
@@ -78,23 +77,36 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
       </div>
     );
   }
-  if (!document) notFound();
+  if (read.kind === "not_found" || (read.kind === "invalid_version" && read.reason === "version_not_found")) notFound();
+  if (read.kind === "invalid_version") {
+    return (
+      <div className={styles.page}>
+        <Container>
+          <div className={styles.errorState} role="alert">
+            <p className={styles.eyebrow}>Version unavailable</p>
+            <h1>This saved version cannot be composed safely.</h1>
+            <p>Its immutable snapshot is incomplete or inconsistent. No live dossier data was substituted.</p>
+            <Link className={styles.backLink} href="/documents">Back to Documents</Link>
+          </div>
+        </Container>
+      </div>
+    );
+  }
 
-  const presentationStyle = resolvePresentationStyle(document.template, document.type);
-
-  /*
-   * The document is composed on every render rather than stored. That is the
-   * point of the architecture: the dossier is the source of truth, so a change
-   * the user makes to their experience is reflected here immediately and the
-   * same career fact is never held in two places to drift apart. Saved,
-   * reproducible versions are a separate concern from this live view.
-   */
-  const composed = snapshot
-    ? composeDocument(document.type, snapshot, {
-        hiddenSections: document.hiddenSections,
-        sectionOrder: document.sectionOrder,
-      })
-    : null;
+  const document = read.document;
+  const versionRead = read.kind === "version" ? read : null;
+  const versionBacked = versionRead !== null;
+  const presentationStyle = versionRead
+    ? versionRead.presentationStyle
+    : resolvePresentationStyle(document.template, document.type);
+  const composed = versionRead
+    ? versionRead.composed
+    : snapshot
+      ? composeDocument(document.type, snapshot, {
+          hiddenSections: document.hiddenSections,
+          sectionOrder: document.sectionOrder,
+        })
+      : null;
   const isEmpty = !composed || isComposedDocumentEmpty(composed);
 
   /*
@@ -104,7 +116,7 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
    * the document's order but no hiding, for exactly that reason: the user needs to
    * see a cleared section sitting in the place it will reappear in.
    */
-  const offeredSections = snapshot
+  const offeredSections = !versionBacked && snapshot
     ? composableSections(document.type, snapshot, document.sectionOrder)
     : [];
 
@@ -123,8 +135,9 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
             <p className={styles.eyebrow}>{documentTypeLabel(document.type)}</p>
             <h1>{document.title}</h1>
             <p>
-              Composed from your dossier. Update your dossier and this document follows —
-              your information lives in one place.
+              {versionRead
+                ? `Composed from immutable accepted version ${versionRead.version}.`
+                : "Composed from your dossier. Update your dossier and this document follows — your information lives in one place."}
             </p>
           </header>
 
@@ -132,7 +145,9 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
             <span className={styles.statusBadge}>
               {document.status === "draft" ? "Draft" : document.status}
             </span>{" "}
-            {presentationStyle.label} · Updated {document.updatedAt.toLocaleDateString()}
+            {presentationStyle.label} · {versionRead ? "Accepted" : "Updated"} {(
+              versionRead?.createdAt ?? document.updatedAt
+            ).toLocaleDateString()}
           </p>
 
           {error ? (
@@ -150,12 +165,13 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
         {isEmpty ? (
           <div className={styles.narrow}>
             <div className={styles.emptyState}>
-              <h2>There is nothing in your dossier to compose yet.</h2>
+              <h2>{versionBacked ? "This accepted version has no visible content." : "There is nothing in your dossier to compose yet."}</h2>
               <p>
-                This document draws entirely on what you have recorded. Add your name, contact
-                details and at least one section, and it will appear here.
+                {versionBacked
+                  ? "The immutable content and configuration snapshot were composed without substituting current dossier data."
+                  : "This document draws entirely on what you have recorded. Add your name, contact details and at least one section, and it will appear here."}
               </p>
-              <Link className={styles.primaryButton} href="/profile">Go to your dossier</Link>
+              {!versionBacked ? <Link className={styles.primaryButton} href="/profile">Go to your dossier</Link> : null}
             </div>
           </div>
         ) : (
@@ -166,20 +182,22 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
            * than sitting below a document that is several screens tall.
            */
           <div className={styles.workspace}>
-            <aside
-              aria-label="Document settings"
-              className={styles.workspaceControls}
-              data-print-skip
-            >
-              <DocumentSettings
-                documentId={document.id}
-                documentType={document.type}
-                hiddenSections={document.hiddenSections}
-                sections={offeredSections}
-                presentationStyle={presentationStyle.id}
-                title={document.title}
-              />
-            </aside>
+            {!versionBacked ? (
+              <aside
+                aria-label="Document settings"
+                className={styles.workspaceControls}
+                data-print-skip
+              >
+                <DocumentSettings
+                  documentId={document.id}
+                  documentType={document.type}
+                  hiddenSections={document.hiddenSections}
+                  sections={offeredSections}
+                  presentationStyle={presentationStyle.id}
+                  title={document.title}
+                />
+              </aside>
+            ) : null}
 
             <div className={styles.workspacePreview}>
               <DocumentPreview document={composed} presentationStyle={presentationStyle} />
