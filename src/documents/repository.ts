@@ -2,11 +2,17 @@ import "server-only";
 
 import { and, desc, eq } from "drizzle-orm";
 import type { ApplicationObjective } from "@/applications";
+import {
+  applicationPackageMembers,
+  applicationPackages,
+  applicationPlans,
+} from "@/applications/planning-schema";
 import { applicationIntents, applications } from "@/applications/schema";
 import { db } from "@/auth/database";
 import { documentTypeLabel as catalogueDocumentTypeLabel } from "./catalogue";
 import { defaultPresentationStyleFor } from "./presentation";
 import { documents, type DocumentType } from "./schema";
+import { documentVersions } from "./version-schema";
 
 export async function listDocuments(userId: string) {
   return db
@@ -146,6 +152,96 @@ export async function deleteOwnedDocument(userId: string, documentId: string) {
     .returning({ id: documents.id });
 
   return deleted.length > 0;
+}
+
+export async function listOwnedDocumentVersions(userId: string, documentId: string) {
+  return db
+    .select()
+    .from(documentVersions)
+    .where(and(eq(documentVersions.userId, userId), eq(documentVersions.documentId, documentId)))
+    .orderBy(desc(documentVersions.version));
+}
+
+/**
+ * Resolves an immutable version only after the Document has been authorized.
+ *
+ * The preliminary version read is scoped to that owned Document and exists solely to distinguish
+ * a genuinely legacy Document from corrupt/inconsistent version history. The selected row must
+ * then prove the complete Package Member → Package → Plan → Application ownership chain.
+ */
+export async function getOwnedDocumentReadSource(
+  userId: string,
+  documentId: string,
+  documentVersionId?: string,
+) {
+  const document = await getOwnedDocument(userId, documentId);
+  if (!document) return null;
+
+  const versionScope = and(
+    eq(documentVersions.documentId, document.id),
+    documentVersionId ? eq(documentVersions.id, documentVersionId) : undefined,
+  );
+  const [scopedVersion] = await db
+    .select({ id: documentVersions.id })
+    .from(documentVersions)
+    .where(versionScope)
+    .orderBy(desc(documentVersions.version))
+    .limit(1);
+
+  if (!scopedVersion) {
+    const [anyVersion] = documentVersionId
+      ? await db
+          .select({ id: documentVersions.id })
+          .from(documentVersions)
+          .where(eq(documentVersions.documentId, document.id))
+          .limit(1)
+      : [];
+    return {
+      document,
+      state: (documentVersionId || anyVersion ? "version_not_found" : "legacy") as
+        | "version_not_found"
+        | "legacy",
+    };
+  }
+
+  const [ownedVersion] = await db
+    .select({ version: documentVersions })
+    .from(documentVersions)
+    .innerJoin(
+      applicationPackageMembers,
+      eq(applicationPackageMembers.documentId, documentVersions.documentId),
+    )
+    .innerJoin(
+      applicationPackages,
+      eq(applicationPackages.id, applicationPackageMembers.packageId),
+    )
+    .innerJoin(applicationPlans, eq(applicationPlans.id, applicationPackages.planId))
+    .innerJoin(applications, eq(applications.id, applicationPlans.applicationId))
+    .where(and(
+      eq(documentVersions.id, scopedVersion.id),
+      eq(documentVersions.documentId, document.id),
+      eq(documentVersions.userId, userId),
+      eq(documentVersions.applicationId, applications.id),
+      eq(documents.applicationId, applications.id),
+      eq(applications.userId, userId),
+      eq(applicationPackageMembers.documentType, document.type),
+    ))
+    .limit(1);
+
+  return ownedVersion
+    ? { document, state: "version" as const, version: ownedVersion.version }
+    : { document, state: "invalid_version_history" as const };
+}
+
+/** @deprecated Use getOwnedDocumentReadSource for Document-scoped version reads. */
+export async function getOwnedDocumentVersion(userId: string, documentVersionId: string) {
+  const [version] = await db
+    .select()
+    .from(documentVersions)
+    .where(and(eq(documentVersions.userId, userId), eq(documentVersions.id, documentVersionId)))
+    .limit(1);
+
+  return version ?? null;
 }
 
 /**
