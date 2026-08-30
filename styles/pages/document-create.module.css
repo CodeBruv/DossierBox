@@ -269,6 +269,25 @@
   font-size: var(--ds-text-xs);
 }
 
+.contextIntro {
+  max-width: 42rem;
+  padding-bottom: var(--ds-space-md);
+  border-bottom: 1px solid var(--ds-color-border-default);
+}
+
+.contextIntro h2 {
+  font-size: var(--ds-heading-size-md);
+}
+
+.contextIntro > p:last-child {
+  margin-top: var(--ds-space-xs);
+  color: var(--ds-color-text-secondary);
+}
+
+.controlsHeading {
+  margin: 0;
+}
+
 .composerControls {
   display: grid;
   gap: var(--ds-space-lg);
@@ -314,6 +333,23 @@
 .styleChoice:focus-within {
   outline: var(--ds-focus-ring);
   outline-offset: 0.125rem;
+}
+
+@media (max-width: 63.999rem) {
+  .composerControls {
+    order: -1;
+  }
+}
+
+@media (max-width: 48rem) {
+  .styleChoices {
+    grid-template-columns: 1fr;
+  }
+
+  .styleChoice {
+    grid-template-columns: auto minmax(0, 1fr);
+    min-height: 3.5rem;
+  }
 }
 
 @media (min-width: 64rem) {
@@ -475,19 +511,6 @@
   .previewPanelHeader {
     align-items: flex-start;
     flex-direction: column;
-  }
-
-  .styleChoices {
-    display: flex;
-    overflow-x: auto;
-    gap: var(--ds-space-2xs);
-    max-width: 100%;
-    padding-bottom: var(--ds-space-2xs);
-    scrollbar-width: thin;
-  }
-
-  .styleChoice {
-    flex: 0 0 9.5rem;
   }
 }
 
