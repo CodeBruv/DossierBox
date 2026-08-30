@@ -39,6 +39,48 @@ export type ResolvedDossierSource = {
   searchableText: string;
 };
 
+export type SelectableDossierEvidence = ResolvedDossierSource & {
+  label: string;
+};
+
+/** Lists real owner-scoped Dossier rows for the Evidence picker without copying them. */
+export async function listSelectableDossierEvidence(userId: string): Promise<SelectableDossierEvidence[]> {
+  const [profile] = await db.select().from(profiles).where(eq(profiles.userId, userId)).limit(1);
+  if (!profile) return [];
+  const profileId = profile.id;
+  const [experienceRows, educationRows, projectRows, skillRows, credentialRows, achievementRows, languageRows, publicationRows, membershipRows, linkRows] = await Promise.all([
+    db.select().from(experiences).where(eq(experiences.profileId, profileId)).orderBy(asc(experiences.position)),
+    db.select().from(education).where(eq(education.profileId, profileId)).orderBy(asc(education.position)),
+    db.select().from(projects).where(eq(projects.profileId, profileId)).orderBy(asc(projects.position)),
+    db.select().from(skills).where(eq(skills.profileId, profileId)).orderBy(asc(skills.position)),
+    db.select().from(credentials).where(eq(credentials.profileId, profileId)).orderBy(asc(credentials.position)),
+    db.select().from(achievements).where(eq(achievements.profileId, profileId)).orderBy(asc(achievements.position)),
+    db.select().from(languages).where(eq(languages.profileId, profileId)).orderBy(asc(languages.position)),
+    db.select().from(publications).where(eq(publications.profileId, profileId)).orderBy(asc(publications.position)),
+    db.select().from(memberships).where(eq(memberships.profileId, profileId)).orderBy(asc(memberships.position)),
+    db.select().from(profileLinks).where(eq(profileLinks.profileId, profileId)).orderBy(asc(profileLinks.position)),
+  ]);
+  const item = (sourceType: EvidenceSourceType, sourceRecordId: string, label: string, values: unknown[]): SelectableDossierEvidence => ({
+    sourceType,
+    sourceRecordId,
+    label,
+    searchableText: values.filter((value): value is string => typeof value === "string" && value.trim().length > 0).join(" "),
+  });
+  return [
+    ...(profile.displayName || profile.headline ? [item("identity", profile.id, profile.displayName || "Profile identity", [profile.displayName, profile.headline, profile.careerDirection])] : []),
+    ...experienceRows.map((row) => item("experience", row.id, `${row.role} · ${row.organization}`, [row.role, row.organization, row.description])),
+    ...educationRows.map((row) => item("education", row.id, [row.qualification, row.field, row.institution].filter(Boolean).join(" · "), [row.qualification, row.field, row.institution, row.description])),
+    ...projectRows.map((row) => item("projects", row.id, row.name, [row.name, row.role, row.context, row.description])),
+    ...skillRows.map((row) => item("skills", row.id, row.name, [row.name, row.notes])),
+    ...credentialRows.map((row) => item("credentials", row.id, row.name, [row.name, row.issuer, row.description])),
+    ...achievementRows.map((row) => item("achievements", row.id, row.title, [row.title, row.issuer, row.description])),
+    ...languageRows.map((row) => item("languages", row.id, row.language, [row.language, row.proficiency, row.notes])),
+    ...publicationRows.map((row) => item("publications", row.id, row.title, [row.title, row.publisher, row.description])),
+    ...membershipRows.map((row) => item("memberships", row.id, row.organization, [row.organization, row.role, row.description])),
+    ...linkRows.map((row) => item("links", row.id, row.label || row.type || "Profile link", [row.label, row.type])),
+  ];
+}
+
 function validateBoundedValues(input: { excerpt?: string | null; relevance?: number | null }) {
   if (input.excerpt && input.excerpt.length > evidenceExcerptLimit) {
     throw new Error(`Evidence excerpts must not exceed ${evidenceExcerptLimit} characters.`);
