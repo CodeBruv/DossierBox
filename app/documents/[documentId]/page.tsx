@@ -1,5 +1,9 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import {
+  applicationObjectiveKindLabel,
+  normalizeApplicationObjective,
+} from "@/applications";
 import { authSessionConfiguration } from "@/auth/auth";
 import { getSession } from "@/auth/session";
 import {
@@ -12,7 +16,7 @@ import { DocumentSettings } from "@/documents/components/document-settings";
 import { DeleteDocument } from "@/documents/components/delete-document";
 import { resolvePresentationStyle } from "@/documents/presentation";
 import { readOwnedDocumentComposition } from "@/documents/read-composition";
-import { documentTypeLabel } from "@/documents/repository";
+import { documentTypeLabel, listOwnedDocumentVersions } from "@/documents/repository";
 import { getDossierSnapshot } from "@/profile/repository";
 import { Container } from "@/ui";
 import styles from "@/styles/pages/documents.module.css";
@@ -108,6 +112,11 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
         })
       : null;
   const isEmpty = !composed || isComposedDocumentEmpty(composed);
+  const objective = normalizeApplicationObjective(document.objective);
+  const versions = await listOwnedDocumentVersions(session.user.id, document.id);
+  const applicationContext = objective
+    ? applicationObjectiveKindLabel(objective.kind)
+    : "No specific application";
 
   /*
    * The arrangement control lists every section this dossier *could* show, which
@@ -143,7 +152,7 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
 
           <p className={styles.editorMeta}>
             <span className={styles.statusBadge}>
-              {document.status === "draft" ? "Draft" : document.status}
+              {versionRead ? "Accepted version" : "Live draft"}
             </span>{" "}
             {presentationStyle.label} · {versionRead ? "Accepted" : "Updated"} {(
               versionRead?.createdAt ?? document.updatedAt
@@ -161,6 +170,63 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
             </p>
           ) : null}
         </div>
+
+        <section aria-labelledby="document-state-heading" className={styles.lifecyclePanel} data-print-skip>
+          <div className={styles.lifecycleSummary}>
+            <div>
+              <p className={styles.lifecycleLabel}>Application context</p>
+              <p>{applicationContext}</p>
+            </div>
+            <div>
+              <p className={styles.lifecycleLabel}>Document state</p>
+              <p>{versionRead ? `Immutable version ${versionRead.version}` : "Mutable · follows your Dossier"}</p>
+            </div>
+            <div>
+              <p className={styles.lifecycleLabel}>Export readiness</p>
+              <p>{versionRead ? "Ready for PDF export" : "Not ready · an accepted version is required"}</p>
+            </div>
+          </div>
+          <div className={styles.lifecycleAction}>
+            <p className={styles.eyebrow}>Next action</p>
+            <h2 id="document-state-heading">
+              {versionRead ? "Export this accepted version" : "Review and refine this live draft"}
+            </h2>
+            <p>
+              {versionRead
+                ? "This preview is composed only from the accepted immutable artifact. Export uses this same saved version."
+                : "Check the preview and adjust its name, presentation, and sections. This live Dossier draft cannot be exported as an accepted artifact."}
+            </p>
+            {versionRead ? (
+              <a
+                className={styles.primaryButton}
+                href={`/api/documents/${document.id}/export?version=${versionRead.documentVersionId}`}
+              >
+                Export PDF
+              </a>
+            ) : (
+              <p className={styles.lifecycleNote}>
+                Generation and acceptance become available only when this application has an approved document specification and selected evidence. No export shortcut is offered.
+              </p>
+            )}
+          </div>
+          {versions.length > 1 ? (
+            <nav aria-label="Accepted document versions" className={styles.versionHistory}>
+              <p className={styles.lifecycleLabel}>Accepted versions</p>
+              <ul>
+                {versions.map((version) => (
+                  <li key={version.id}>
+                    <Link
+                      aria-current={version.id === versionRead?.documentVersionId ? "page" : undefined}
+                      href={`/documents/${document.id}?version=${version.id}`}
+                    >
+                      Version {version.version}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ) : null}
+        </section>
 
         {isEmpty ? (
           <div className={styles.narrow}>
@@ -211,9 +277,11 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
           settings panel — so a delete control living beside the settings would be
           exactly unavailable for the drafts a user is most likely to want rid of.
         */}
-        <div className={styles.narrow} data-print-skip>
-          <DeleteDocument documentId={document.id} title={document.title} />
-        </div>
+        {!versionBacked ? (
+          <div className={styles.narrow} data-print-skip>
+            <DeleteDocument documentId={document.id} title={document.title} />
+          </div>
+        ) : null}
       </Container>
     </div>
   );
