@@ -258,7 +258,7 @@ export async function acceptGeneratedContentAction(formData: FormData) {
       generatedContentVersionId,
     });
     if (!accepted) redirect("/documents?error=unknown-generated-content");
-    redirect(`/documents/${accepted.document.id}?status=accepted`);
+    redirect(`/documents/${accepted.document.id}?status=accepted&version=${accepted.version.id}`);
   } catch (error) {
     unstable_rethrow(error);
     console.error(`[documents] Failed to accept generated content ${generatedContentVersionId}`, error);
