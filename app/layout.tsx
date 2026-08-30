@@ -4,6 +4,8 @@
  * Composes the global CSS, site header, and site footer into a consistent
  * shell. Private account routes perform their own server-side authorization.
  */
+import "@fontsource-variable/instrument-sans/wght.css";
+import "@fontsource-variable/instrument-sans/wght-italic.css";
 import "./globals.css";
 import "@/styles/print.css";
 import { SiteHeader, SiteFooter, ThemeProvider } from "@/ui";
