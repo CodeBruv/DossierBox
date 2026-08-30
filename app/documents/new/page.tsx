@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   applicationObjectiveKindLabel,
-  applicationObjectiveKindList,
   gradeDocumentTypes,
   isApplicationObjectiveKind,
   type ApplicationObjectiveKind,
@@ -234,41 +233,7 @@ function StepTrail({
 }
 
 /* ---------------------------------------------------------------------------
-   Step 1 — purpose
---------------------------------------------------------------------------- */
-
-/**
- * The objective kinds, straight from `@/applications`.
- *
- * Read from the registry rather than listed here, so the day an objective is added it
- * appears without this screen being touched — and so the words the user reads are the same
- * words the matching engine reasons about.
- */
-function PurposeStep() {
-  return (
-    <>
-      <ul className={styles.optionGrid}>
-        {applicationObjectiveKindList.map((kind) => (
-          <li className={styles.option} key={kind.key}>
-            <Link className={styles.optionLink} href={`/documents/new?objective=${kind.key}`}>
-              {kind.label}
-            </Link>
-            <p className={styles.optionNote}>{kind.description}</p>
-          </li>
-        ))}
-      </ul>
-
-      <div className={styles.stepFooter}>
-        <Link className={shell.backLink} href="/documents">
-          Back to documents
-        </Link>
-      </div>
-    </>
-  );
-}
-
-/* ---------------------------------------------------------------------------
-   Step 2 — document
+   Step 1 — document type
 --------------------------------------------------------------------------- */
 
 /**

@@ -72,9 +72,17 @@ export function DocumentComposer({ type, objective, snapshot, createAction }: Do
       </section>
 
       <aside aria-label="Document configuration" className={styles.composerControls}>
+        <div className={styles.contextIntro}>
+          <p className={shell.eyebrow}>Before you create</p>
+          <h2 className={styles.controlsHeading}>Make this document yours</h2>
+          <p>
+            Your Dossier is the source of your information. This document is a separate draft
+            with its own purpose, style, and section choices.
+          </p>
+        </div>
         <div className={settingsStyles.field}>
           <label className={settingsStyles.label} htmlFor="document-objective">
-            Purpose <span className={styles.optionalLabel}>(optional)</span>
+            Application context <span className={styles.optionalLabel}>(optional)</span>
           </label>
           <select
             className={settingsStyles.input}
@@ -84,18 +92,23 @@ export function DocumentComposer({ type, objective, snapshot, createAction }: Do
             }
             value={selectedObjective}
           >
-            <option value="">No application context</option>
+            <option value="">No specific application</option>
             {applicationObjectiveKindList.map((kind) => (
               <option key={kind.key} value={kind.key}>{kind.label}</option>
             ))}
           </select>
           <p className={settingsStyles.hint}>
-            Adds context to this draft. It does not change your dossier.
+            This records what the document is for. It helps you keep drafts organised; it does
+            not tailor the content yet and it never changes your Dossier.
           </p>
         </div>
 
         <fieldset className={settingsStyles.fieldset}>
-          <legend className={settingsStyles.legend}>Style</legend>
+          <legend className={settingsStyles.legend}>Presentation style</legend>
+          <p className={settingsStyles.hint}>
+            Document type is what you are making. Presentation style is how the same information
+            is arranged and presented.
+          </p>
           <div className={styles.styleChoices} role="radiogroup" aria-label="Document style">
             {presentationStyles.map((option) => (
               <label
@@ -146,10 +159,11 @@ export function DocumentComposer({ type, objective, snapshot, createAction }: Do
             <input key={`hidden-${key}`} name="hidden" type="hidden" value={key} />
           ))}
           <button className={shell.primaryButton} type="submit">
-            Create document
+            Create draft
           </button>
           <p className={styles.createNote}>
-            Your dossier stays unchanged. This saves the current style and section choices as a draft.
+            Your Dossier stays unchanged. After creating the draft, review it before any accepted
+            version can be exported.
           </p>
         </form>
       </aside>
