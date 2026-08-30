@@ -38,11 +38,39 @@ describe("deterministic application bridge", () => {
 
     expect(proposal.resolutionSource).toBe("deterministic");
     expect(proposal.confirmation).toBe("unconfirmed");
-    expect(proposal.packageMembers.map((member) => member.documentType)).toEqual([
+    expect(proposal.recommendedDocuments).toEqual([
       "professional_resume",
       "cover_letter",
     ]);
-    expect(proposal.packageMembers[0]?.position).toBe(0);
+    expect(proposal.packageMembers.map((member) => member.documentType)).toEqual(
+      proposal.recommendedDocuments,
+    );
+    expect(proposal.packageMembers).toEqual([
+      {
+        documentType: "professional_resume",
+        role: "primary",
+        position: 0,
+        availability: "available",
+      },
+      {
+        documentType: "cover_letter",
+        role: "supporting",
+        position: 1,
+        availability: "unavailable",
+      },
+    ]);
+    expect(proposal.confirmation).toBe("unconfirmed");
     expect(proposal.gapsSummary).toEqual({ open: 1 });
+  });
+
+  it("keeps a user's different valid document choice outside the deterministic recommendation", () => {
+    const proposal = resolveDeterministicApplicationPlan(emptyApplicationObjective("employment"), {
+      requirements: 0,
+      evidence: 0,
+      openGaps: 0,
+    });
+
+    expect(proposal.recommendedDocuments).not.toContain("academic_cv");
+    expect(proposal.packageMembers.map((member) => member.documentType)).not.toContain("academic_cv");
   });
 });
