@@ -14,6 +14,11 @@ const nextConfig = {
       bodySizeLimit: "4.5mb",
     },
   },
+  // Avoid the known Next.js 16 + Turbopack hang on "Running TypeScript ..." on Vercel.
+  // Run type-checking separately with: npm run typecheck
+  typescript: {
+    ignoreBuildErrors: true,
+  },
 };
 
 module.exports = nextConfig;
