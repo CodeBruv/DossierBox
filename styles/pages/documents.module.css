@@ -339,6 +339,87 @@
   text-decoration-thickness: 0.15em;
 }
 
+.preparationSteps {
+  display: grid;
+  max-width: 64rem;
+  gap: var(--ds-space-md);
+  margin: var(--ds-space-xl) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.preparationCard {
+  padding: var(--ds-space-lg);
+  border: 1px solid var(--ds-color-border-default);
+  border-top: 3px solid var(--ds-color-brand-primary);
+  background: var(--ds-color-surface);
+}
+
+.preparationCard h2 {
+  font-size: var(--ds-heading-size-md);
+}
+
+.preparationCard > p:not(.eyebrow),
+.completionText {
+  max-width: 46rem;
+  margin-top: var(--ds-space-xs);
+  color: var(--ds-color-text-secondary);
+}
+
+.completionText {
+  color: var(--ds-color-success);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.preparationForm {
+  display: grid;
+  max-width: 42rem;
+  gap: var(--ds-space-xs);
+  margin-top: var(--ds-space-md);
+}
+
+.preparationForm label,
+.preparationForm legend {
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.preparationForm select,
+.preparationForm textarea {
+  width: 100%;
+  padding: 0.7rem;
+  border: 1px solid var(--ds-color-border-control);
+  border-radius: var(--ds-border-radius-sm);
+  background: var(--ds-color-background);
+  color: var(--ds-color-text-primary);
+  font: inherit;
+}
+
+.preparationForm fieldset {
+  display: grid;
+  gap: var(--ds-space-xs);
+  margin-top: var(--ds-space-xs);
+  padding: var(--ds-space-sm);
+  border: 1px solid var(--ds-color-border-default);
+}
+
+.checkRow {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-xs);
+  font-weight: var(--ds-font-weight-regular) !important;
+}
+
+.evidenceList {
+  display: grid;
+  gap: var(--ds-space-3xs);
+  margin-top: var(--ds-space-sm);
+  padding-left: var(--ds-space-lg);
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-text-sm);
+}
+
 /*
    The workspace: controls and the sheet.
 
@@ -419,7 +500,8 @@
 }
 
 @media (max-width: 48rem) {
-  .lifecyclePanel {
+  .lifecyclePanel,
+  .preparationCard {
     padding: var(--ds-space-md);
   }
 
