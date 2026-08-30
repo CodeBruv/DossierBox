@@ -32,6 +32,11 @@ export async function getOwnedApplicationPackage(userId: string, packageId: stri
   return (await ownedPackage(userId, packageId))?.package ?? null;
 }
 
+export async function listApplicationPackages(userId: string, planId: string) {
+  if (!(await ownedPlan(userId, planId))) return [];
+  return db.select().from(applicationPackages).where(eq(applicationPackages.planId, planId)).orderBy(asc(applicationPackages.createdAt));
+}
+
 export async function updateOwnedApplicationPackage(userId: string, packageId: string, input: Partial<Pick<typeof applicationPackages.$inferInsert, "status" | "confirmation">>) {
   if (!(await ownedPackage(userId, packageId))) return null;
   const [updated] = await db.update(applicationPackages).set({ ...input, updatedAt: new Date() }).where(eq(applicationPackages.id, packageId)).returning();
