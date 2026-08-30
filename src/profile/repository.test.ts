@@ -1,5 +1,14 @@
+import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
-import { deriveCanonicalDossierState } from "./repository";
+import { db } from "@/auth/database";
+import { users } from "@/auth/schema";
+import { experiences, profiles } from "./schema";
+import {
+  deriveCanonicalDossierState,
+  getCanonicalDossierState,
+  getDossierSnapshot,
+  listSectionEntries,
+} from "./repository";
 import type { DossierFoundationReadiness } from "./readiness";
 import type { ProfileSectionKey } from "./types";
 
@@ -32,6 +41,73 @@ function sectionState(
     },
   };
 }
+
+const databaseConfigured = Boolean(process.env.DATABASE_URL);
+const describeDatabase = databaseConfigured ? describe : describe.skip;
+
+describeDatabase("canonical dossier repository read model", () => {
+  it("correlates Experience counts and JSON rows to the outer profile id", async () => {
+    const userId = `profile-read-model-${crypto.randomUUID()}`;
+    const profileId = `profile-${crypto.randomUUID()}`;
+    const experienceIds = [`experience-${crypto.randomUUID()}`, `experience-${crypto.randomUUID()}`];
+
+    await db.insert(users).values({ id: userId, email: `${userId}@example.invalid` });
+
+    try {
+      await db.insert(profiles).values({
+        id: profileId,
+        userId,
+        displayName: "Repository Fixture",
+      });
+      await db.insert(experiences).values([
+        {
+          id: experienceIds[0],
+          profileId,
+          type: "full-time",
+          organization: "First Organisation",
+          role: "Engineer",
+          startYear: 2020,
+          endYear: 2022,
+          description: "Built and maintained production systems.",
+          position: 0,
+        },
+        {
+          id: experienceIds[1],
+          profileId,
+          type: "contract",
+          organization: "Second Organisation",
+          role: "Consultant",
+          startYear: 2023,
+          current: true,
+          description: "Delivered technical advisory engagements.",
+          position: 1,
+        },
+      ]);
+
+      expect(experienceIds).not.toContain(profileId);
+
+      const direct = await listSectionEntries("experience", profileId);
+      const canonical = await getCanonicalDossierState(profileId, {
+        displayName: "Repository Fixture",
+        headline: null,
+        careerDirection: null,
+      });
+      const snapshot = await getDossierSnapshot(userId);
+
+      expect(direct.map((entry) => entry.id)).toEqual(experienceIds);
+      expect(canonical.counts.experience).toBe(direct.length);
+      expect(canonical.populated).toContain("experience");
+      expect(canonical.readiness.experience.state).toBe("ready");
+      expect(snapshot?.experience).toHaveLength(direct.length);
+      expect(snapshot?.experience.map((entry) => entry.organization)).toEqual([
+        "First Organisation",
+        "Second Organisation",
+      ]);
+    } finally {
+      await db.delete(users).where(eq(users.id, userId));
+    }
+  }, 120_000);
+});
 
 describe("canonical dossier state derivation", () => {
   it("keeps selected, populated, and available as separate facts", () => {
