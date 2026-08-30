@@ -6,11 +6,11 @@ import { profiles, skills } from "@/profile/schema";
 import { emptyApplicationObjective } from "./objective";
 import { createApplication } from "./repository";
 import { createRequirement } from "./opportunity-repository";
-import { createEvidence, getOwnedEvidence, listApplicationEvidence } from "./evidence-repository";
+import { createEvidence, getOwnedEvidence, listApplicationEvidence, listSelectableDossierEvidence } from "./evidence-repository";
 import { createMatchingResult, getOwnedMatchingResult } from "./matching-repository";
 import { createGap, getOwnedGap, updateOwnedGap } from "./gaps-repository";
 import { createApplicationPlan, getOwnedApplicationPlan } from "./plans-repository";
-import { createApplicationPackage, createPackageMember, getOwnedApplicationPackage, listPackageMembers } from "./packages-repository";
+import { createApplicationPackage, createPackageMember, getOwnedApplicationPackage, listApplicationPackages, listPackageMembers } from "./packages-repository";
 
 const databaseConfigured = Boolean(process.env.DATABASE_URL);
 const describeDatabase = databaseConfigured ? describe : describe.skip;
@@ -43,6 +43,8 @@ describeDatabase("Evidence, matching, gaps, plans, and packages", () => {
       expect(await getOwnedEvidence(other.id, created!.id)).toBeNull();
       expect(await listApplicationEvidence(other.id, application.id)).toEqual([]);
       expect(await db.select().from(skills).where(eq(skills.profileId, owner.profile.id))).toEqual(before);
+      expect(await listSelectableDossierEvidence(owner.id)).toContainEqual(expect.objectContaining({ sourceType: "skills", sourceRecordId: skill.id, label: "TypeScript" }));
+      expect(await listSelectableDossierEvidence(other.id)).not.toContainEqual(expect.objectContaining({ sourceRecordId: skill.id }));
     } finally {
       await db.delete(users).where(eq(users.id, owner.id));
       await db.delete(users).where(eq(users.id, other.id));
@@ -86,6 +88,8 @@ describeDatabase("Evidence, matching, gaps, plans, and packages", () => {
       expect(secondPlan?.version).toBe(2);
       expect(await getOwnedApplicationPlan(other.id, plan!.id)).toBeNull();
       expect(await getOwnedApplicationPackage(other.id, packageRow!.id)).toBeNull();
+      expect(await listApplicationPackages(other.id, plan!.id)).toEqual([]);
+      expect((await listApplicationPackages(owner.id, plan!.id)).map((row) => row.id)).toEqual([packageRow!.id]);
       expect((await listPackageMembers(owner.id, packageRow!.id)).map((row) => [row.documentType, row.role, row.position])).toEqual([["professional_resume", "primary", 0], ["cover_letter", "supporting", 1]]);
       expect(member).not.toHaveProperty("label");
       expect(plannedMember?.availability).toBe("unavailable");
