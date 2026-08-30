@@ -1,7 +1,7 @@
 import "server-only";
 
 import { cache } from "react";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, getTableName, sql } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { db } from "@/auth/database";
 import {
@@ -732,8 +732,10 @@ async function insertSectionEntry(
  * Cast to `int` so the driver hands back a JS number rather than a bigint
  * string.
  */
+const outerProfileId = sql`${sql.identifier(getTableName(profiles))}.${sql.identifier(profiles.id.name)}`;
+
 function countFor(table: SectionTable) {
-  return sql<number>`(select count(*)::int from ${table} where ${table.profileId} = ${profiles.id})`;
+  return sql<number>`(select count(*)::int from ${table} where ${table.profileId} = ${outerProfileId})`;
 }
 
 /**
@@ -768,7 +770,7 @@ function jsonRowsFor<T>(table: SectionTable, columns: Record<string, AnyPgColumn
       '[]'::json
     )
     from ${table}
-    where ${table.profileId} = ${profiles.id}
+    where ${table.profileId} = ${outerProfileId}
   )`;
 }
 
