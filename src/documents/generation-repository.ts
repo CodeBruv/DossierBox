@@ -335,6 +335,19 @@ export async function getOwnedGeneratedContentVersion(userId: string, generatedC
   return row ?? null;
 }
 
+export async function getLatestOwnedGenerationForApplication(userId: string, applicationId: string) {
+  const [attempt] = await db
+    .select()
+    .from(generationAttempts)
+    .innerJoin(applications, eq(applications.id, generationAttempts.applicationId))
+    .where(and(eq(generationAttempts.userId, userId), eq(generationAttempts.applicationId, applicationId), eq(applications.userId, userId)))
+    .orderBy(desc(generationAttempts.createdAt))
+    .limit(1);
+  if (!attempt) return null;
+  const [artifact] = await db.select().from(generatedContentVersions).where(eq(generatedContentVersions.attemptId, attempt.generation_attempts.id)).orderBy(desc(generatedContentVersions.version)).limit(1);
+  return { attempt: attempt.generation_attempts, artifact: artifact ?? null };
+}
+
 export async function completeGenerationAttempt(input: {
   userId: string;
   attemptId: string;
