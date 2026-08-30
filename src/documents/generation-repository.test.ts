@@ -31,6 +31,7 @@ import {
   failGenerationAttempt,
   findOwnedGenerationAttempt,
   getOwnedGenerationWorkItem,
+  getLatestOwnedGenerationForApplication,
   reserveGenerationUnits,
   transitionGenerationAttempt,
   updateGenerationWorkItemStatus,
@@ -210,6 +211,14 @@ async function cleanupFixtures() {
 describeDatabase("durable Generation repository", () => {
   beforeAll(cleanupFixtures, 120_000);
   afterAll(cleanupFixtures, 120_000);
+
+  it("finds only the authenticated owner's latest Application generation", async () => {
+    const fixture = await createFixture("latest-application-generation");
+    const other = await createFixture("latest-application-generation-other");
+    const attempt = await createGenerationAttempt(attemptInput(fixture, "latest"));
+    expect((await getLatestOwnedGenerationForApplication(fixture.ownerId, fixture.applicationId))?.attempt.id).toBe(attempt?.id);
+    expect(await getLatestOwnedGenerationForApplication(other.ownerId, fixture.applicationId)).toBeNull();
+  });
 
   it("uses database uniqueness for concurrent endpoint-scoped idempotency and rejects conflicts", async () => {
     const fixture = await createFixture("idempotency");
