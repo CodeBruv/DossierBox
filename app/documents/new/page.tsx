@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
+  applicationObjectiveKindDescription,
   applicationObjectiveKindLabel,
+  applicationObjectiveKindList,
+  documentSetFor,
   gradeDocumentTypes,
   isApplicationObjectiveKind,
   type ApplicationObjectiveKind,
@@ -74,6 +77,7 @@ type NewDocumentPageProps = {
   searchParams: Promise<{
     objective?: string;
     type?: string;
+    path?: string;
     template?: string;
     error?: string;
   }>;
@@ -110,10 +114,11 @@ export default async function NewDocumentPage({ searchParams }: NewDocumentPageP
    */
   const objective = isApplicationObjectiveKind(query.objective) ? query.objective : null;
   const type = isAvailableDocumentType(query.type) ? query.type : null;
+  const explicitDocumentPath = query.path === "document";
 
-  const step = type !== null ? 2 : 1;
+  const step = type !== null ? 3 : objective !== null || explicitDocumentPath ? 2 : 1;
   const error = query.error ? errorMessages[query.error] : null;
-  const snapshot = step === 2 && type ? await getDossierSnapshot(session.user.id) : null;
+  const snapshot = step === 3 && type ? await getDossierSnapshot(session.user.id) : null;
 
   return (
     <div className={shell.page}>
@@ -124,7 +129,7 @@ export default async function NewDocumentPage({ searchParams }: NewDocumentPageP
           <p className={shell.lead}>{leads[step]}</p>
         </header>
 
-        <StepTrail objective={objective} step={step} type={type} />
+        <StepTrail explicitDocumentPath={explicitDocumentPath} objective={objective} step={step} type={type} />
 
         {error ? (
           <p className={shell.errorStatus} role="alert">
@@ -132,8 +137,9 @@ export default async function NewDocumentPage({ searchParams }: NewDocumentPageP
           </p>
         ) : null}
 
-        {step === 1 ? <DocumentStep objective={objective} /> : null}
-        {step === 2 && type ? (
+        {step === 1 ? <PurposeStep /> : null}
+        {step === 2 ? <DocumentStep objective={objective} /> : null}
+        {step === 3 && type ? (
           snapshot ? (
             <DocumentComposer
               createAction={createDocumentAction}
@@ -154,13 +160,15 @@ export default async function NewDocumentPage({ searchParams }: NewDocumentPageP
 }
 
 const headings: Record<number, string> = {
-  1: "Which document do you need?",
-  2: "Compose your document",
+  1: "What are you preparing for?",
+  2: "Choose your document",
+  3: "Compose your document",
 };
 
 const leads: Record<number, string> = {
-  1: "Choose a document type, then shape it around the live preview. Purpose is optional and can be added while composing.",
-  2: "Start with the document itself. Choose a style, arrange its sections, and create only when the preview looks right.",
+  1: "Tell us the application purpose and we will recommend the usual document and package. If you already know the document you need, you can choose it directly.",
+  2: "Review the purpose-informed recommendation, or intentionally choose another valid document type.",
+  3: "Choose a style, arrange the sections, and create only when the preview looks right.",
 };
 
 /* ---------------------------------------------------------------------------
@@ -179,18 +187,27 @@ function StepTrail({
   step,
   objective,
   type,
+  explicitDocumentPath,
 }: {
   step: number;
   objective: ApplicationObjectiveKind | null;
   type: ShippingDocumentTypeKey | null;
+  explicitDocumentPath: boolean;
 }) {
   const trail = [
     {
-      label: "Document",
-      value: type ? documentTypeLabel(type) : null,
+      label: "Purpose",
+      value: objective ? applicationObjectiveKindLabel(objective) : explicitDocumentPath ? "Direct document choice" : null,
       href: "/documents/new",
     },
-    { label: "Compose", value: objective ? applicationObjectiveKindLabel(objective) : "Optional purpose", href: null },
+    {
+      label: "Document",
+      value: type ? documentTypeLabel(type) : null,
+      href: objective
+        ? `/documents/new?objective=${objective}`
+        : "/documents/new?path=document",
+    },
+    { label: "Compose", value: null, href: null },
   ];
 
   return (
@@ -233,7 +250,34 @@ function StepTrail({
 }
 
 /* ---------------------------------------------------------------------------
-   Step 1 — document type
+   Step 1 — application purpose
+--------------------------------------------------------------------------- */
+
+function PurposeStep() {
+  return (
+    <>
+      <ul className={styles.optionGrid}>
+        {applicationObjectiveKindList.map((objective) => (
+          <li className={styles.option} key={objective.key}>
+            <Link className={styles.optionLink} href={`/documents/new?objective=${objective.key}`}>
+              {objective.label}
+            </Link>
+            <p className={styles.optionNote}>{applicationObjectiveKindDescription(objective.key)}</p>
+          </li>
+        ))}
+      </ul>
+      <div className={styles.explicitPath}>
+        <p>I already know which document I want.</p>
+        <Link className={styles.explicitPathLink} href="/documents/new?path=document">
+          Choose a document type directly
+        </Link>
+      </div>
+    </>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+   Step 2 — document type and recommended package
 --------------------------------------------------------------------------- */
 
 /**
@@ -250,6 +294,7 @@ function StepTrail({
  */
 function DocumentStep({ objective }: { objective: ApplicationObjectiveKind | null }) {
   const graded = objective ? gradeDocumentTypes(objective) : [];
+  const recommendedPackage = objective ? documentSetFor(objective) : null;
   const available: readonly DocumentOption[] = objective
     ? graded.filter((entry) => entry.available)
     : [
@@ -270,6 +315,26 @@ function DocumentStep({ objective }: { objective: ApplicationObjectiveKind | nul
 
   return (
     <>
+      {recommendedPackage ? (
+        <section aria-labelledby="recommended-package-heading" className={styles.packageSummary}>
+          <p className={styles.groupHeading}>Based on this purpose</p>
+          <h2 id="recommended-package-heading">Recommended application package</h2>
+          <ol className={styles.packageMembers}>
+            {recommendedPackage.members.map((member) => (
+              <li key={member.type}>
+                <span>{member.label}</span>
+                <small>{member.role === "primary" ? "Primary document" : "Supporting document"} · {member.available ? "Available now" : "Not available yet"}</small>
+              </li>
+            ))}
+          </ol>
+          <p className={styles.packageNote}>
+            This is the domain recommendation, not a package created or confirmed on your behalf. You can choose a different document below; preparation creates and reviews the persisted package later.
+          </p>
+        </section>
+      ) : (
+        <p className={styles.note}>Choose the document you already know you need. You can add Application context while composing it.</p>
+      )}
+
       {recommended.length > 0 ? (
         <section className={styles.group}>
           <h2 className={styles.groupHeading}>Recommended for this</h2>
@@ -308,7 +373,7 @@ function DocumentStep({ objective }: { objective: ApplicationObjectiveKind | nul
 
       <div className={styles.stepFooter}>
         <Link className={shell.backLink} href="/documents/new">
-          Choose a different purpose
+          {objective ? "Choose a different purpose" : "Use the purpose-guided path"}
         </Link>
       </div>
     </>
@@ -332,7 +397,7 @@ function DocumentOptions({
         <li className={styles.option} key={entry.type}>
           <Link
             className={styles.optionLink}
-            href={`/documents/new?${objective ? `objective=${objective}&` : ""}type=${entry.type}`}
+            href={`/documents/new?${objective ? `objective=${objective}&` : "path=document&"}type=${entry.type}`}
           >
             {documentTypeLabel(entry.type)}
           </Link>
