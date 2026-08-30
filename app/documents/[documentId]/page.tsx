@@ -189,12 +189,12 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
           <div className={styles.lifecycleAction}>
             <p className={styles.eyebrow}>Next action</p>
             <h2 id="document-state-heading">
-              {versionRead ? "Export this accepted version" : "Review and refine this live draft"}
+              {versionRead ? "Export this accepted version" : "Prepare this draft for generation"}
             </h2>
             <p>
               {versionRead
                 ? "This preview is composed only from the accepted immutable artifact. Export uses this same saved version."
-                : "Check the preview and adjust its name, presentation, and sections. This live Dossier draft cannot be exported as an accepted artifact."}
+                : "Keep refining the live preview, or open the guided preparation path to select Evidence, approve a specification, generate, review, and accept an immutable version."}
             </p>
             {versionRead ? (
               <a
@@ -204,9 +204,14 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
                 Export PDF
               </a>
             ) : (
-              <p className={styles.lifecycleNote}>
-                Generation and acceptance become available only when this application has an approved document specification and selected evidence. No export shortcut is offered.
-              </p>
+              <div>
+                <Link className={styles.primaryButton} href={`/documents/${document.id}/prepare`}>
+                  Prepare for generation
+                </Link>
+                <p className={styles.lifecycleNote}>
+                  Preparation uses this draft's existing Application. The live draft stays mutable and cannot be exported; only acceptance creates an immutable, exportable version.
+                </p>
+              </div>
             )}
           </div>
           {versions.length > 1 ? (
