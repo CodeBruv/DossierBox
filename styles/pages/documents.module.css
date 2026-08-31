@@ -420,6 +420,41 @@
   font-size: var(--ds-text-sm);
 }
 
+.generatedMeta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--ds-space-md);
+  margin: var(--ds-space-lg) 0;
+  padding: var(--ds-space-md);
+  border: 1px solid var(--ds-color-border-default);
+  background: var(--ds-color-background);
+}
+
+.generatedMeta div {
+  min-width: 0;
+}
+
+.generatedMeta dt {
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.generatedMeta dd {
+  margin-top: var(--ds-space-3xs);
+  overflow-wrap: anywhere;
+  color: var(--ds-color-text-primary);
+  font-size: var(--ds-text-sm);
+}
+
+.generatedPreview {
+  max-width: 52rem;
+  margin: var(--ds-space-lg) 0;
+  overflow-x: auto;
+}
+
 /*
    The workspace: controls and the sheet.
 
@@ -505,7 +540,8 @@
     padding: var(--ds-space-md);
   }
 
-  .lifecycleSummary {
+  .lifecycleSummary,
+  .generatedMeta {
     grid-template-columns: 1fr;
   }
 
