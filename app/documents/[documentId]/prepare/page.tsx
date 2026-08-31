@@ -11,7 +11,11 @@ import {
   initializeDocumentPreparationAction,
 } from "@/documents/preparation-actions";
 import { getDocumentPreparation } from "@/documents/preparation";
+import { composeStructuredDocument } from "@/documents/composition";
+import { compileStructuredDocumentContent } from "@/documents/content-compiler";
 import { documentTypeLabel } from "@/documents/repository";
+import { resolvePresentationStyle } from "@/documents/presentation";
+import { DocumentPreview } from "@/documents/components/document-preview";
 import { Container } from "@/ui";
 import styles from "@/styles/pages/documents.module.css";
 
@@ -47,6 +51,33 @@ export default async function PrepareDocumentPage({ params, searchParams }: Prop
   const specification = preparation.specification;
   const generation = preparation.generation;
   const artifact = generation?.artifact ?? null;
+  const generatedCompilation = artifact && specification ? compileStructuredDocumentContent({
+    documentType: preparation.document.type,
+    specification: {
+      documentType: preparation.document.type,
+      purpose: specification.purpose,
+      constraints: specification.constraints,
+      instructions: specification.instructions,
+      context: specification.context,
+      sectionExpectations: specification.sectionExpectations,
+      outputCharacteristics: specification.outputCharacteristics,
+    },
+    selectedEvidence: preparation.evidence.map((item) => ({
+      evidenceId: item.id,
+      sourceType: item.sourceType,
+      sourceRecordId: item.sourceRecordId,
+    })),
+    content: artifact.content,
+    provenance: artifact.provenance as Record<string, { evidenceIds?: readonly string[]; requirementIds?: readonly string[] }>,
+  }) : null;
+  const generatedReview = generatedCompilation?.ok && specification ? composeStructuredDocument({
+    documentType: preparation.document.type,
+    specification: { documentType: preparation.document.type, purpose: specification.purpose },
+    selectedEvidence: preparation.evidence.map((item) => ({ evidenceId: item.id, sourceType: item.sourceType, sourceRecordId: item.sourceRecordId })),
+    content: generatedCompilation.content,
+    configuration: { hiddenSections: preparation.document.hiddenSections, sectionOrder: preparation.document.sectionOrder },
+  }) : null;
+  const generatedPresentation = generatedReview ? resolvePresentationStyle(preparation.document.template, preparation.document.type) : null;
   const purpose = preparation.document.objective && typeof preparation.document.objective === "object"
     ? "Create a tailored document for this Application using only the selected Evidence."
     : "Create a focused professional document using only the selected Evidence.";
@@ -62,7 +93,8 @@ export default async function PrepareDocumentPage({ params, searchParams }: Prop
             <p>The live draft still follows your Dossier. This guided path pins Application context and Evidence into a reviewed specification before generation.</p>
           </header>
           {error ? <p className={styles.errorStatus} role="alert">{errors[error] ?? errors["generation-failed"]}</p> : null}
-          {status ? <p className={styles.successStatus} role="status">Progress saved. Continue with the next available step.</p> : null}
+          {status === "accepted" ? <p className={styles.successStatus} role="status">Accepted. Your immutable document version is ready to export.</p> : null}
+          {status && status !== "accepted" ? <p className={styles.successStatus} role="status">Progress saved. Continue with the next available step.</p> : null}
         </div>
 
         <ol className={styles.preparationSteps}>
@@ -103,8 +135,18 @@ export default async function PrepareDocumentPage({ params, searchParams }: Prop
           <li className={styles.preparationCard}>
             <p className={styles.eyebrow}>4 · Generation and review</p>
             <h2>{artifact ? "Generated result ready for review" : generation?.attempt.status === "failed" ? "Generation attempt stopped" : "Generate from the approved revision"}</h2>
-            {artifact ? <><p>The generated artifact passed structured compilation. Acceptance is still required before it becomes immutable or exportable.</p><form action={acceptGeneratedContentAction}><input name="generatedContentVersionId" type="hidden" value={artifact.id} /><button className={styles.primaryButton} type="submit">Accept and create immutable version</button></form></> : specification?.status === "approved" ? <form action={generatePreparedDocumentAction}><input name="documentId" type="hidden" value={documentId} /><input name="specificationId" type="hidden" value={specification.id} /><input name="revision" type="hidden" value={specification.revision} /><button className={styles.primaryButton} type="submit">Generate document</button></form> : <p className={styles.lifecycleNote}>Approve the specification before generation. Export remains unavailable until acceptance creates an immutable version.</p>}
-            {generation?.attempt.status === "failed" ? <p className={styles.lifecycleNote}>Recorded stopping point: {generation.attempt.failureKind ?? "generation failure"}. No mutable draft was promoted or made exportable.</p> : null}
+            {artifact && generatedReview && generatedPresentation ? <>
+              <p>The generated artifact passed structured compilation. Review the actual generated result below. Acceptance is still required before it becomes immutable or exportable.</p>
+              <dl className={styles.generatedMeta}>
+                <div><dt>Document</dt><dd>{documentTypeLabel(preparation.document.type)}</dd></div>
+                <div><dt>Application purpose</dt><dd>{specification?.purpose}</dd></div>
+                <div><dt>Presentation</dt><dd>{generatedPresentation.label}</dd></div>
+              </dl>
+              <div className={styles.generatedPreview}><DocumentPreview document={generatedReview} presentationStyle={generatedPresentation} /></div>
+              <p className={styles.lifecycleNote}>This is the generated result that will become the accepted document. It is not exportable until you accept it.</p>
+              <form action={acceptGeneratedContentAction}><input name="generatedContentVersionId" type="hidden" value={artifact.id} /><button className={styles.primaryButton} type="submit">Accept and create immutable version</button></form>
+            </> : artifact ? <p className={styles.lifecycleNote}>The generated artifact could not be rendered safely for review. It has not been accepted or made exportable.</p> : specification?.status === "approved" ? <form action={generatePreparedDocumentAction}><input name="documentId" type="hidden" value={documentId} /><input name="specificationId" type="hidden" value={specification.id} /><input name="revision" type="hidden" value={specification.revision} /><button className={styles.primaryButton} type="submit">Generate document</button></form> : <p className={styles.lifecycleNote}>Approve the specification before generation. Export remains unavailable until acceptance creates an immutable version.</p>}
+            {generation?.attempt.status === "failed" ? <p className={styles.lifecycleNote}>Generation stopped at {generation.attempt.failureKind ?? "a recorded failure"}. The draft remains mutable and cannot be exported.</p> : null}
           </li>
         </ol>
       </Container>
