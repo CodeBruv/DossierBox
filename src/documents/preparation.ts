@@ -2,6 +2,7 @@ import "server-only";
 
 import { and, eq } from "drizzle-orm";
 import { db } from "@/auth/database";
+import { listValidPackageEvidenceSelections } from "@/applications/evidence-selection-repository";
 import { applications } from "@/applications/schema";
 import { createApplicationPlan, listApplicationPlans } from "@/applications/plans-repository";
 import {
@@ -101,6 +102,8 @@ export async function runApprovedDocumentGeneration(input: {
       if (!specification || specification.revision !== revision || !isDocumentTypeKey(specification.documentType)) return null;
       const context = await specificationContext(userId, specification.packageMemberId);
       if (!context) return null;
+      const selections = await listValidPackageEvidenceSelections(userId, context.applicationId, context.packageId);
+      if (!selections || specification.evidenceIds.some((evidenceId) => !selections.some((selection) => selection.evidenceId === evidenceId))) return null;
       return { ...specification, documentType: specification.documentType, applicationId: context.applicationId };
     },
     getEvidence: async (userId, evidenceId) => {
@@ -123,7 +126,7 @@ export async function runApprovedDocumentGeneration(input: {
 }
 
 async function specificationContext(userId: string, memberId: string) {
-  const [row] = await db.select({ applicationId: applicationPlans.applicationId }).from(applicationPackageMembers)
+  const [row] = await db.select({ applicationId: applicationPlans.applicationId, packageId: applicationPackages.id }).from(applicationPackageMembers)
     .innerJoin(applicationPackages, eq(applicationPackages.id, applicationPackageMembers.packageId))
     .innerJoin(applicationPlans, eq(applicationPlans.id, applicationPackages.planId))
     .innerJoin(applications, eq(applications.id, applicationPlans.applicationId))
