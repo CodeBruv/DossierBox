@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createHash } from "node:crypto";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/auth/database";
 import { applications } from "./schema";
@@ -25,6 +26,10 @@ export type CreateRequirementInput = Omit<
   "id" | "applicationId" | "createdAt" | "updatedAt"
 >;
 export type UpdateRequirementInput = Partial<CreateRequirementInput>;
+
+export const opportunityCaptureLimits = {
+  pastedText: 20_000,
+} as const;
 
 const preEvidenceRequirementStatuses: readonly RequirementInterpretationStatus[] = [
   "uninterpreted",
@@ -99,6 +104,136 @@ export async function deleteOwnedOpportunity(userId: string, opportunityId: stri
     .where(eq(opportunities.id, opportunityId))
     .returning({ id: opportunities.id });
   return deleted.length > 0;
+}
+
+/**
+ * Returns the first pasted source captured for an owned Application.
+ * An empty result deliberately reveals nothing about a foreign Application.
+ */
+export async function getApplicationOpportunityCapture(userId: string, applicationId: string) {
+  if (!(await ownedApplication(userId, applicationId))) return null;
+
+  const [capture] = await db
+    .select({ opportunity: opportunities, source: opportunitySources })
+    .from(opportunities)
+    .leftJoin(
+      opportunitySources,
+      and(
+        eq(opportunitySources.opportunityId, opportunities.id),
+        eq(opportunitySources.sourceType, "pasted_text"),
+      ),
+    )
+    .where(
+      and(
+        eq(opportunities.applicationId, applicationId),
+        eq(opportunities.sourceType, "pasted_text"),
+      ),
+    )
+    .orderBy(asc(opportunities.createdAt), asc(opportunitySources.createdAt))
+    .limit(1);
+
+  return capture ?? null;
+}
+
+/**
+ * Creates or corrects one bounded pasted-text source under an owned Application.
+ * Opportunity content and source provenance are committed atomically and remain
+ * explicitly uninterpreted; this boundary creates no Requirements or IU records.
+ */
+export async function saveApplicationOpportunityCapture(
+  userId: string,
+  applicationId: string,
+  pastedText: string,
+) {
+  const content = pastedText.trim();
+  if (content.length === 0 || content.length > opportunityCaptureLimits.pastedText) {
+    throw new Error("Opportunity text is outside the supported capture boundary.");
+  }
+
+  return db.transaction(async (transaction) => {
+    const [application] = await transaction
+      .select({ id: applications.id })
+      .from(applications)
+      .where(and(eq(applications.id, applicationId), eq(applications.userId, userId)))
+      .limit(1);
+    if (!application) return null;
+
+    const [existingOpportunity] = await transaction
+      .select()
+      .from(opportunities)
+      .where(
+        and(
+          eq(opportunities.applicationId, application.id),
+          eq(opportunities.sourceType, "pasted_text"),
+        ),
+      )
+      .orderBy(asc(opportunities.createdAt))
+      .limit(1);
+
+    const now = new Date();
+    const fingerprint = `sha256:${createHash("sha256").update(content, "utf8").digest("hex")}`;
+    let opportunity = existingOpportunity;
+
+    if (opportunity) {
+      [opportunity] = await transaction
+        .update(opportunities)
+        .set({
+          extractedText: content,
+          interpretationStatus: "uninterpreted",
+          interpretation: null,
+          interpretationVersion: null,
+          updatedAt: now,
+        })
+        .where(eq(opportunities.id, opportunity.id))
+        .returning();
+    } else {
+      [opportunity] = await transaction
+        .insert(opportunities)
+        .values({
+          applicationId: application.id,
+          sourceType: "pasted_text",
+          extractedText: content,
+          interpretationStatus: "uninterpreted",
+        })
+        .returning();
+    }
+    if (!opportunity) throw new Error("Opportunity could not be saved.");
+
+    const [existingSource] = await transaction
+      .select()
+      .from(opportunitySources)
+      .where(
+        and(
+          eq(opportunitySources.opportunityId, opportunity.id),
+          eq(opportunitySources.sourceType, "pasted_text"),
+        ),
+      )
+      .orderBy(asc(opportunitySources.createdAt))
+      .limit(1);
+
+    let source;
+    if (existingSource) {
+      [source] = await transaction
+        .update(opportunitySources)
+        .set({ contentFingerprint: fingerprint, extractedContentStatus: "available", updatedAt: now })
+        .where(eq(opportunitySources.id, existingSource.id))
+        .returning();
+    } else {
+      [source] = await transaction
+        .insert(opportunitySources)
+        .values({
+          opportunityId: opportunity.id,
+          sourceType: "pasted_text",
+          sourceReference: "user-pasted-text",
+          contentFingerprint: fingerprint,
+          extractedContentStatus: "available",
+        })
+        .returning();
+    }
+    if (!source) throw new Error("Opportunity source could not be saved.");
+
+    return { opportunity, source };
+  });
 }
 
 export async function createOpportunitySource(
