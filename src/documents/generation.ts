@@ -1,4 +1,4 @@
-import type { WorkloadKind } from "@/entitlements/usage";
+import type { WritingWorkloadKind } from "@/entitlements/usage";
 import type { DocumentSectionKey, DocumentSectionLayout } from "./catalogue";
 import type { ContentProvenance, StructuredDocumentContentCandidate } from "./content-compiler";
 import type { ProviderFailure } from "@/writing/provider";
@@ -23,13 +23,13 @@ export type GenerationEvidence = {
   readonly excerpt: string;
 };
 
-/** A deterministic, section-sized unit of provider work. */
+/** A deterministic, section-sized unit of writing-provider work. */
 export type GenerationWorkItem = {
   readonly sectionKey: DocumentSectionKey;
   readonly heading: string;
   readonly layout: DocumentSectionLayout;
   readonly order: number;
-  readonly workload: WorkloadKind;
+  readonly workload: WritingWorkloadKind;
   readonly specificationId: string;
   readonly specificationRevision: number;
   readonly selectedEvidence: readonly GenerationEvidence[];
