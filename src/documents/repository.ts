@@ -40,7 +40,10 @@ export async function getOwnedDocument(userId: string, documentId: string) {
  * silently opens in a résumé's style.
  */
 export type DocumentCreationInput = {
+  /** An already-persisted Application is the normal creation boundary. */
+  applicationId?: string;
   presentationStyle?: string;
+  /** Compatibility snapshot only; normalized Application Intent remains authoritative. */
   objective?: ApplicationObjective | null;
   hiddenSections?: string[];
   sectionOrder?: string[];
@@ -51,32 +54,50 @@ export async function createDocument(
   type: DocumentType,
   input: DocumentCreationInput = {},
 ) {
-  const objective = input.objective ?? defaultDocumentObjective();
   const [created] = await db.transaction(async (transaction) => {
-    const [application] = await transaction
-      .insert(applications)
-      .values({ userId, status: "draft" })
-      .returning({ id: applications.id });
+    let applicationId: string;
+    let objective: ApplicationObjective;
 
-    if (!application) throw new Error("Application could not be created.");
+    if (input.applicationId) {
+      const [ownedApplication] = await transaction
+        .select({ applicationId: applications.id, intent: applicationIntents })
+        .from(applications)
+        .innerJoin(applicationIntents, eq(applicationIntents.applicationId, applications.id))
+        .where(and(eq(applications.id, input.applicationId), eq(applications.userId, userId)))
+        .limit(1);
 
-    await transaction.insert(applicationIntents).values({
-      applicationId: application.id,
-      ...intentValues(objective),
-    });
+      if (!ownedApplication) return [];
+      applicationId = ownedApplication.applicationId;
+      objective = objectiveFromIntent(ownedApplication.intent);
+    } else {
+      // Compatibility for legacy/internal callers. The user-facing flow creates the Application first.
+      objective = input.objective ?? defaultDocumentObjective();
+      const [application] = await transaction
+        .insert(applications)
+        .values({ userId, status: "draft" })
+        .returning({ id: applications.id });
+
+      if (!application) throw new Error("Application could not be created.");
+      applicationId = application.id;
+      await transaction.insert(applicationIntents).values({
+        applicationId,
+        ...intentValues(objective),
+      });
+    }
 
     return transaction
       .insert(documents)
       .values({
         userId,
-        applicationId: application.id,
+        applicationId,
         type,
         title: documentTitle(type),
         status: "draft",
         template: input.presentationStyle ?? defaultPresentationStyleFor(type),
         hiddenSections: input.hiddenSections ?? [],
         sectionOrder: input.sectionOrder ?? [],
-        objective: input.objective ?? null,
+        // This is a derivative compatibility snapshot, never an independently edited authority.
+        objective,
       })
       .returning();
   });
@@ -208,6 +229,10 @@ export async function getOwnedDocumentReadSource(
     .select({ version: documentVersions })
     .from(documentVersions)
     .innerJoin(
+      documents,
+      eq(documents.id, documentVersions.documentId),
+    )
+    .innerJoin(
       applicationPackageMembers,
       eq(applicationPackageMembers.documentId, documentVersions.documentId),
     )
@@ -275,6 +300,24 @@ function defaultDocumentObjective(): ApplicationObjective {
     wordLimit: null,
     pageLimit: null,
     requestedDocuments: [],
+  };
+}
+
+function objectiveFromIntent(intent: typeof applicationIntents.$inferSelect): ApplicationObjective {
+  return {
+    kind: intent.kind as ApplicationObjective["kind"],
+    targetRole: intent.targetRole,
+    organisation: intent.organisation,
+    institution: intent.institution,
+    programme: intent.programme,
+    field: intent.field,
+    country: intent.country,
+    deadline: intent.deadline,
+    requirements: intent.requirements,
+    instructions: intent.instructions,
+    wordLimit: intent.wordLimit,
+    pageLimit: intent.pageLimit,
+    requestedDocuments: intent.requestedDocuments,
   };
 }
 
