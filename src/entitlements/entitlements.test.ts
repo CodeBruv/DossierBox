@@ -149,9 +149,19 @@ describe("the plan catalogue", () => {
 
   it("reports what each plan adds rather than repeating what it inherits", () => {
     expect(capabilitiesAddedBy("basic")).toEqual([]);
-    expect(capabilitiesAddedBy("plus")).toEqual(["document_set_generation"]);
+    expect(capabilitiesAddedBy("plus")).toEqual([
+      "document_set_generation",
+      "opportunity_interpretation",
+    ]);
     expect(capabilitiesAddedBy("professional")).not.toContain("document_set_generation");
+    expect(capabilitiesAddedBy("professional")).not.toContain("opportunity_interpretation");
     expect(capabilitiesAddedBy("professional").length).toBeGreaterThan(0);
+  });
+
+  it("pins the monthly Opportunity Interpretation allowances", () => {
+    expect(allowanceLimit(planQuota("basic", "opportunity_interpretations"))).toBe(0);
+    expect(allowanceLimit(planQuota("plus", "opportunity_interpretations"))).toBe(10);
+    expect(allowanceLimit(planQuota("professional", "opportunity_interpretations"))).toBe(30);
   });
 
   it("points an upgrade at the cheapest plan that would allow it", () => {
