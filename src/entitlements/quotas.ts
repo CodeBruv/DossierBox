@@ -29,7 +29,7 @@
  * of each kind of work is declared in `usage.ts`.
  */
 
-export const quotaKeys = ["stored_documents", "writing_units"] as const;
+export const quotaKeys = ["stored_documents", "writing_units", "opportunity_interpretations"] as const;
 
 export type QuotaKey = (typeof quotaKeys)[number];
 
@@ -54,6 +54,12 @@ export const quotas: Readonly<Record<QuotaKey, QuotaDescriptor>> = {
     key: "writing_units",
     label: "Writing assistance",
     description: "How much writing help is included each billing period.",
+    measure: "flow",
+  },
+  opportunity_interpretations: {
+    key: "opportunity_interpretations",
+    label: "Opportunity reviews",
+    description: "How many supplied opportunities can be reviewed each billing period.",
     measure: "flow",
   },
 };
