@@ -6,6 +6,7 @@ import {
   createOpportunity,
   createOpportunitySource,
   createRequirement,
+  getApplicationOpportunityCapture,
   deleteOwnedOpportunity,
   getOwnedOpportunity,
   getOwnedOpportunitySource,
@@ -13,11 +14,13 @@ import {
   listApplicationOpportunities,
   listApplicationRequirements,
   listOpportunityRequirements,
+  saveApplicationOpportunityCapture,
   updateOwnedOpportunity,
   updateOwnedRequirement,
 } from "@/applications/opportunity-repository";
 import { db } from "@/auth/database";
 import { users } from "@/auth/schema";
+import { opportunitySources, opportunities, requirements } from "@/applications/opportunity-schema";
 
 const databaseConfigured = Boolean(process.env.DATABASE_URL);
 const describeDatabase = databaseConfigured ? describe : describe.skip;
@@ -117,6 +120,82 @@ describeDatabase("Opportunity and Requirement persistence boundary", () => {
       });
     } finally {
       await db.delete(users).where(eq(users.id, userId));
+    }
+  });
+
+  it("atomically captures, resumes, and corrects pasted source text without interpretation", async () => {
+    const userId = await createUser("capture-owner");
+    try {
+      const application = await createApplication(userId, { objective: objective() });
+      const first = await saveApplicationOpportunityCapture(
+        userId,
+        application.id,
+        "  Submit a two-page resume and cover letter.  ",
+      );
+
+      expect(first?.opportunity).toMatchObject({
+        applicationId: application.id,
+        sourceType: "pasted_text",
+        extractedText: "Submit a two-page resume and cover letter.",
+        interpretationStatus: "uninterpreted",
+        interpretation: null,
+      });
+      expect(first?.source).toMatchObject({
+        opportunityId: first?.opportunity.id,
+        sourceType: "pasted_text",
+        sourceReference: "user-pasted-text",
+        extractedContentStatus: "available",
+      });
+      expect(first?.source.contentFingerprint).toMatch(/^sha256:[a-f0-9]{64}$/);
+      expect(await getApplicationOpportunityCapture(userId, application.id)).toMatchObject({
+        opportunity: { id: first?.opportunity.id },
+        source: { id: first?.source.id },
+      });
+
+      const corrected = await saveApplicationOpportunityCapture(
+        userId,
+        application.id,
+        "Submit a one-page resume only.",
+      );
+      expect(corrected?.opportunity.id).toBe(first?.opportunity.id);
+      expect(corrected?.source.id).toBe(first?.source.id);
+      expect(corrected?.opportunity.extractedText).toBe("Submit a one-page resume only.");
+      expect(corrected?.source.contentFingerprint).not.toBe(first?.source.contentFingerprint);
+
+      const applicationOpportunities = await db
+        .select()
+        .from(opportunities)
+        .where(eq(opportunities.applicationId, application.id));
+      const sources = await db
+        .select()
+        .from(opportunitySources)
+        .where(eq(opportunitySources.opportunityId, first!.opportunity.id));
+      const extractedRequirements = await db
+        .select()
+        .from(requirements)
+        .where(eq(requirements.applicationId, application.id));
+      expect(applicationOpportunities).toHaveLength(1);
+      expect(sources).toHaveLength(1);
+      expect(extractedRequirements).toEqual([]);
+    } finally {
+      await db.delete(users).where(eq(users.id, userId));
+    }
+  });
+
+  it("rejects pasted source capture and lookup for another user's Application", async () => {
+    const ownerId = await createUser("capture-owner");
+    const otherId = await createUser("capture-other");
+    try {
+      const application = await createApplication(ownerId, { objective: objective() });
+
+      expect(
+        await saveApplicationOpportunityCapture(otherId, application.id, "Foreign source text"),
+      ).toBeNull();
+      expect(await getApplicationOpportunityCapture(otherId, application.id)).toBeNull();
+      expect(await db.select().from(opportunities).where(eq(opportunities.applicationId, application.id))).toEqual([]);
+    } finally {
+      await db.delete(users).where(eq(users.id, ownerId));
+      await db.delete(users).where(eq(users.id, otherId));
     }
   });
 
