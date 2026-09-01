@@ -10,9 +10,10 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { users } from "@/auth/schema";
+import { documents } from "@/documents/schema";
 import { applications } from "./schema";
 import { requirements } from "./opportunity-schema";
-import { documents } from "@/documents/schema";
 
 const id = () => randomUUID();
 const now = () => new Date();
@@ -34,6 +35,7 @@ export const evidenceLifecycle = pgEnum("evidence_lifecycle", ["active", "unavai
 export const evidenceConfirmation = pgEnum("evidence_confirmation", ["unreviewed", "confirmed", "rejected"]);
 export const matchingStatus = pgEnum("matching_status", ["candidate", "suggested", "accepted", "rejected", "invalidated"]);
 export const matchingReviewState = pgEnum("matching_review_state", ["unreviewed", "confirmed", "rejected"]);
+export const evidenceSelectionStatus = pgEnum("evidence_selection_status", ["confirmed", "rejected", "stale", "invalidated"]);
 export const gapType = pgEnum("gap_type", [
   "no_evidence",
   "weak_evidence",
@@ -134,8 +136,31 @@ export const applicationPackageMembers = pgTable("application_package_members", 
   updatedAt: timestamp("updatedAt", { mode: "date", withTimezone: true }).$defaultFn(now).notNull(),
 }, (table) => ({ packagePositionIndex: index("application_package_members_packageId_position_idx").on(table.packageId, table.position) }));
 
+/** The authoritative, package-scoped user decision linking one Requirement to Evidence. */
+export const evidenceSelections = pgTable("application_evidence_selections", {
+  id: text("id").$defaultFn(id).notNull().primaryKey(),
+  applicationId: text("applicationId").notNull().references(() => applications.id, { onDelete: "cascade" }),
+  packageId: text("packageId").notNull().references(() => applicationPackages.id, { onDelete: "cascade" }),
+  requirementId: text("requirementId").notNull().references(() => requirements.id, { onDelete: "cascade" }),
+  evidenceId: text("evidenceId").notNull().references(() => evidence.id, { onDelete: "cascade" }),
+  status: evidenceSelectionStatus("status").notNull(),
+  confirmedAt: timestamp("confirmedAt", { mode: "date", withTimezone: true }),
+  confirmedByUserId: text("confirmedByUserId").references(() => users.id, { onDelete: "restrict" }),
+  requirementFingerprint: text("requirementFingerprint").notNull(),
+  evidenceFingerprint: text("evidenceFingerprint").notNull(),
+  matchingResultId: text("matchingResultId").references(() => matchingResults.id, { onDelete: "set null" }),
+  createdAt: timestamp("createdAt", { mode: "date", withTimezone: true }).$defaultFn(now).notNull(),
+  updatedAt: timestamp("updatedAt", { mode: "date", withTimezone: true }).$defaultFn(now).notNull(),
+}, (table) => ({
+  packageRequirementEvidenceUnique: uniqueIndex("application_evidence_selections_package_requirement_evidence_unique").on(table.packageId, table.requirementId, table.evidenceId),
+  packageStatusIndex: index("application_evidence_selections_packageId_status_idx").on(table.packageId, table.status),
+  requirementStatusIndex: index("application_evidence_selections_requirementId_status_idx").on(table.requirementId, table.status),
+  evidenceStatusIndex: index("application_evidence_selections_evidenceId_status_idx").on(table.evidenceId, table.status),
+}));
+
 export type EvidenceSourceType = (typeof evidenceSourceType.enumValues)[number];
 export type EvidenceLifecycle = (typeof evidenceLifecycle.enumValues)[number];
+export type EvidenceSelectionStatus = (typeof evidenceSelectionStatus.enumValues)[number];
 export type MatchingStatus = (typeof matchingStatus.enumValues)[number];
 export type GapStatus = (typeof gapStatus.enumValues)[number];
 export type PlanStatus = (typeof planStatus.enumValues)[number];
