@@ -127,6 +127,13 @@
       "when": 1788221326720,
       "tag": "0017_peaceful_exodus",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1788301260593,
+      "tag": "0018_small_vertigo",
+      "breakpoints": true
     }
   ]
 }
