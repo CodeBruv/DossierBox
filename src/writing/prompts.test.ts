@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { workloadKinds, type WorkloadKind } from "@/entitlements/usage";
+import {
+  writingWorkloadKinds,
+  type WritingWorkloadKind,
+} from "@/entitlements/usage";
 import { buildWritingContext, contentMarker, type WritingContextDraft } from "./context";
 import * as writing from "./index";
 import {
@@ -36,18 +39,18 @@ const context = (overrides: Partial<WritingContextDraft> = {}) =>
   buildWritingContext(draft(overrides));
 
 describe("promptLibrary", () => {
-  it("has an entry for every workload", () => {
-    for (const workload of workloadKinds) {
+  it("has an entry for every writing workload", () => {
+    for (const workload of writingWorkloadKinds) {
       expect(promptFor(workload).workload, workload).toBe(workload);
     }
   });
 
-  it("has no entry that is not a workload", () => {
-    expect(Object.keys(promptLibrary).sort()).toEqual([...workloadKinds].sort());
+  it("has no entry that is not a writing workload", () => {
+    expect(Object.keys(promptLibrary).sort()).toEqual([...writingWorkloadKinds].sort());
   });
 
   it("identifies each prompt by workload and version", () => {
-    for (const workload of workloadKinds) {
+    for (const workload of writingWorkloadKinds) {
       const prompt = promptFor(workload);
 
       expect(prompt.id).toBe(`${workload}@${prompt.version}`);
@@ -56,7 +59,7 @@ describe("promptLibrary", () => {
   });
 
   it("gives every prompt a version that can be compared", () => {
-    for (const workload of workloadKinds) {
+    for (const workload of writingWorkloadKinds) {
       const { version } = promptFor(workload);
 
       expect(Number.isInteger(version), workload).toBe(true);
@@ -65,13 +68,13 @@ describe("promptLibrary", () => {
   });
 
   it("gives every prompt a distinct identifier", () => {
-    const ids = workloadKinds.map((workload) => promptId(workload));
+    const ids = writingWorkloadKinds.map((workload) => promptId(workload));
 
     expect(new Set(ids).size).toBe(ids.length);
   });
 
   it("declares only known output kinds and known requirements", () => {
-    for (const workload of workloadKinds) {
+    for (const workload of writingWorkloadKinds) {
       const prompt = promptFor(workload);
 
       expect(writingOutputKinds, workload).toContain(prompt.output);
@@ -85,13 +88,13 @@ describe("promptLibrary", () => {
   it("gives every prompt something to work from", () => {
     /* A prompt requiring nothing would call a provider with an empty context and be billed for
      * whatever it invented to fill the space. */
-    for (const workload of workloadKinds) {
+    for (const workload of writingWorkloadKinds) {
       expect(promptFor(workload).requires.length, workload).toBeGreaterThan(0);
     }
   });
 
   it("only limits line count where the output has lines", () => {
-    for (const workload of workloadKinds) {
+    for (const workload of writingWorkloadKinds) {
       const prompt = promptFor(workload);
 
       if (prompt.constraints.maxItems !== undefined) expect(prompt.output, workload).toBe("bullets");
@@ -114,10 +117,10 @@ describe("promptLibrary", () => {
 });
 
 describe("systemPrompt", () => {
-  const assembled = (workload: WorkloadKind) => systemPrompt(promptFor(workload));
+  const assembled = (workload: WritingWorkloadKind) => systemPrompt(promptFor(workload));
 
   it("states the factual rules in every prompt", () => {
-    for (const workload of workloadKinds) {
+    for (const workload of writingWorkloadKinds) {
       const text = assembled(workload).toLowerCase();
 
       expect(text, workload).toContain("rules, in order of precedence");
@@ -129,7 +132,7 @@ describe("systemPrompt", () => {
   });
 
   it("tells the model that fenced text is information and not instruction", () => {
-    for (const workload of workloadKinds) {
+    for (const workload of writingWorkloadKinds) {
       const text = assembled(workload);
 
       expect(text, workload).toContain(contentMarker);
@@ -138,7 +141,7 @@ describe("systemPrompt", () => {
   });
 
   it("includes the workload's own instruction and its output shape", () => {
-    for (const workload of workloadKinds) {
+    for (const workload of writingWorkloadKinds) {
       const prompt = promptFor(workload);
       const text = assembled(workload);
 
@@ -151,13 +154,13 @@ describe("systemPrompt", () => {
   it("asks for the field a gap is reported in, for every shape", () => {
     /* The alternative to reporting a gap is writing around it, so every output shape has to
      * have somewhere to put one. */
-    for (const workload of workloadKinds) {
+    for (const workload of writingWorkloadKinds) {
       expect(assembled(workload), workload).toContain("`missing` lists what you needed");
     }
   });
 
   it("is detectable by every marker, so an echo of it can be caught", () => {
-    for (const workload of workloadKinds) {
+    for (const workload of writingWorkloadKinds) {
       const text = assembled(workload).toLowerCase();
 
       for (const marker of promptMarkers) {
