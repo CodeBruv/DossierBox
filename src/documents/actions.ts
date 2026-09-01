@@ -1,11 +1,6 @@
 "use server";
 
 import { redirect, unstable_rethrow } from "next/navigation";
-import {
-  isApplicationObjectiveKind,
-  validateApplicationObjective,
-  type ApplicationObjective,
-} from "@/applications";
 import { requireProfileUser } from "@/profile/authorization";
 import { isAvailableDocumentType, isDocumentSectionKey } from "./catalogue";
 import { isPresentationStyleId } from "./presentation";
@@ -20,6 +15,11 @@ import { acceptGeneratedContent } from "./acceptance";
 const TITLE_MAX_LENGTH = 120;
 
 export async function createDocumentAction(formData: FormData) {
+  const applicationId = formData.get("applicationId");
+  if (typeof applicationId !== "string" || applicationId.length === 0) {
+    redirect("/applications/new?error=application-required");
+  }
+
   const type = formData.get("type");
   /**
    * `isAvailableDocumentType`, not merely "is a registered type": the catalogue is
@@ -29,7 +29,7 @@ export async function createDocumentAction(formData: FormData) {
    * about what was posted.
    */
   if (!isAvailableDocumentType(type)) {
-    redirect("/documents/new?error=unsupported-type");
+    redirect(`/documents/new?applicationId=${applicationId}&error=unsupported-type`);
   }
 
   /*
@@ -43,7 +43,6 @@ export async function createDocumentAction(formData: FormData) {
   const presentationStyle = isPresentationStyleId(rawPresentationStyle)
     ? rawPresentationStyle
     : undefined;
-  const objective = readObjective(formData);
   const hiddenSections = formData.getAll("hidden").filter(isKnownSection);
   const sectionOrder = formData.getAll("order").filter(isKnownSection);
 
@@ -52,8 +51,8 @@ export async function createDocumentAction(formData: FormData) {
 
   try {
     document = await createDocument(user.id, type, {
+      applicationId,
       presentationStyle,
-      objective,
       hiddenSections,
       sectionOrder,
     });
@@ -70,44 +69,10 @@ export async function createDocumentAction(formData: FormData) {
      */
     unstable_rethrow(error);
     console.error("[documents] Failed to create document draft", error);
-    redirect("/documents/new?error=create-failed");
+    redirect(`/documents/new?applicationId=${applicationId}&error=create-failed`);
   }
 
   redirect(`/documents/${document.id}`);
-}
-
-/**
- * What the user said they are applying for, or `null`.
- *
- * The kind is the only field the create flow asks for outright; the two free-text
- * fields are offered as "if you already know". A posted kind this build does not
- * recognise yields `null` rather than a rejection, because an objective is
- * supplementary — every fact in the document comes from the dossier either way, and a
- * user should not lose a document over it.
- *
- * The values still go through `validateApplicationObjective`, so the lengths and shape
- * stored in the JSON column are the ones `@/applications` guarantees rather than
- * whatever was posted.
- */
-function readObjective(formData: FormData): ApplicationObjective | null {
-  const kind = formData.get("objective");
-  if (!isApplicationObjectiveKind(kind)) return null;
-
-  const result = validateApplicationObjective({
-    kind,
-    targetRole: optionalText(formData.get("targetRole")),
-    organisation: optionalText(formData.get("organisation")),
-    requestedDocuments: [],
-  });
-
-  return result.success ? result.data : null;
-}
-
-function optionalText(value: FormDataEntryValue | null): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-
-  return trimmed.length > 0 ? trimmed : null;
 }
 
 /**
