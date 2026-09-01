@@ -29,14 +29,8 @@
 
 import type { PlanKey } from "./plan-keys";
 
-/**
- * Every kind of writing work the product performs.
- *
- * These are the names the prompt library will be keyed by in the next phase, so that a
- * prompt, its weight and its usage records all refer to the same thing rather than to three
- * parallel vocabularies that drift.
- */
-export const workloadKinds = [
+/** Writing workloads served by the writing prompt and response contracts. */
+export const writingWorkloadKinds = [
   "achievement_reframing",
   "experience_relevance_matching",
   "document_consistency_review",
@@ -46,6 +40,19 @@ export const workloadKinds = [
   "personal_statement_generation",
   "academic_statement_generation",
   "application_set_alignment",
+] as const;
+
+export type WritingWorkloadKind = (typeof writingWorkloadKinds)[number];
+
+/**
+ * Every metered intelligence workload the product performs.
+ *
+ * Interpretation intentionally sits outside the writing prompt/response contracts: it has a
+ * dedicated source-isolation prompt and a separate advisory structured-output contract.
+ */
+export const workloadKinds = [
+  "opportunity_interpretation",
+  ...writingWorkloadKinds,
 ] as const;
 
 export type WorkloadKind = (typeof workloadKinds)[number];
@@ -67,6 +74,11 @@ export type WorkloadDescriptor = {
  * defensible: each step up should be readable as "about this much more work than the last".
  */
 const workloadDescriptors: Readonly<Record<WorkloadKind, WorkloadDescriptor>> = {
+  opportunity_interpretation: {
+    kind: "opportunity_interpretation",
+    label: "Reviewing an opportunity",
+    units: 1,
+  },
   /** One line in, one line out. The unit everything else is measured against. */
   achievement_reframing: { kind: "achievement_reframing", label: "Restating an achievement", units: 1 },
   /** The dossier in, a ranked selection out: large input, small output. */
