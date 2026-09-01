@@ -39,6 +39,7 @@ export const capabilityKeys = [
   "objective_tailoring",
   "document_rewrite",
   "advanced_writing_assistance",
+  "opportunity_interpretation",
 ] as const;
 
 export type CapabilityKey = (typeof capabilityKeys)[number];
@@ -83,6 +84,12 @@ export const capabilities: Readonly<Record<CapabilityKey, CapabilityDescriptor>>
     description:
       "Stronger phrasing across a whole document, and consistency checks between the " +
       "documents in one application.",
+  },
+  opportunity_interpretation: {
+    key: "opportunity_interpretation",
+    label: "Opportunity review",
+    description:
+      "Review supplied opportunity text into advisory requirements, requested documents, and constraints.",
   },
 };
 
