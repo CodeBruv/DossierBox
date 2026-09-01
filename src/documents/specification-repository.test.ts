@@ -21,11 +21,13 @@ import {
   createPackageMember,
 } from "@/applications/packages-repository";
 import { createEvidence } from "@/applications/evidence-repository";
+import { confirmEvidenceSelections } from "@/applications/evidence-selection-repository";
 import {
   applicationPackageMembers,
   applicationPackages,
   applicationPlans,
   evidence,
+  evidenceSelections,
 } from "@/applications/planning-schema";
 import { applications } from "@/applications/schema";
 import { opportunities, requirements } from "@/applications/opportunity-schema";
@@ -58,6 +60,7 @@ async function deleteUserFixture(userId: string) {
       .delete(documentSpecifications)
       .where(inArray(documentSpecifications.packageMemberId, members.map((member) => member.id)));
   }
+  await db.delete(evidenceSelections).where(eq(evidenceSelections.confirmedByUserId, userId));
   await db.delete(users).where(eq(users.id, userId));
 }
 
@@ -69,15 +72,18 @@ async function createPackageFixture(
     objective: emptyApplicationObjective("employment"),
   });
   const plan = await createApplicationPlan(userId, application.id, {
-    status: "draft",
+    status: "confirmed",
     resolutionSource: "deterministic",
-    confirmation: "unconfirmed",
+    confirmation: "confirmed",
     recommendedDocuments: [documentType],
     requirementCoverage: {},
     evidenceCoverage: {},
     gapsSummary: {},
   });
-  const applicationPackage = await createApplicationPackage(userId, plan!.id);
+  const applicationPackage = await createApplicationPackage(userId, plan!.id, {
+    status: "confirmed",
+    confirmation: "confirmed",
+  });
   const member = await createPackageMember(userId, applicationPackage!.id, {
     documentType,
     role: "primary",
@@ -113,6 +119,10 @@ describeDatabase("Document Specification persistence boundary", () => {
           priority: "required",
         })
         .returning();
+      await confirmEvidenceSelections(owner.id, fixture.application.id, fixture.package.id, [{
+        requirementId: requirement!.id,
+        evidenceId: selectedEvidence!.id,
+      }]);
 
       const first = await createDocumentSpecification(owner.id, fixture.member.id, {
         documentType: "professional_resume",
@@ -268,12 +278,23 @@ describeDatabase("Document Specification persistence boundary", () => {
         sourceRecordId: skill!.id,
         excerpt: "SQL",
       });
+      const [requirement] = await db.insert(requirements).values({
+        applicationId: fixture.application.id,
+        text: "Demonstrated SQL experience",
+        category: "skill",
+        priority: "required",
+      }).returning();
+      await confirmEvidenceSelections(owner.id, fixture.application.id, fixture.package.id, [{
+        requirementId: requirement!.id,
+        evidenceId: selectedEvidence!.id,
+      }]);
       const beforeEvidence = await db.select().from(evidence).where(eq(evidence.id, selectedEvidence!.id));
       const beforeDocuments = await db.select().from(documents).where(eq(documents.userId, owner.id));
 
       await createDocumentSpecification(owner.id, fixture.member.id, {
         documentType: "professional_resume",
         purpose: "Keep semantic intent independent from production.",
+        requirementIds: [requirement!.id],
         evidenceIds: [selectedEvidence!.id],
       });
 
