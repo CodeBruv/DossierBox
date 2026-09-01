@@ -64,20 +64,52 @@ describeDatabase("Application persistence boundary", () => {
     }
   });
 
-  it("creates and resolves the correct Application for a new Document", async () => {
+  it("creates a Document from an already-persisted Application without duplicating it", async () => {
     const userId = await createUser("document-owner");
+    try {
+      const application = await createApplication(userId, { objective: objective() });
+      const before = await listOwnedApplications(userId);
+      const document = await createDocument(userId, "professional_resume", {
+        applicationId: application.id,
+        presentationStyle: "classic",
+      });
+
+      expect(document.applicationId).toBe(application.id);
+      expect(document.objective).toEqual(objective());
+      expect(document.template).toBe("classic");
+      expect(await listOwnedApplications(userId)).toHaveLength(before.length);
+
+      const resumed = await getOwnedApplicationWithDocuments(userId, application.id);
+      expect(resumed?.intent).toMatchObject({ kind: "employment", targetRole: "Systems Engineer" });
+      expect(resumed?.documents.map((row) => row.id)).toEqual([document.id]);
+    } finally {
+      await db.delete(users).where(eq(users.id, userId));
+    }
+  });
+
+  it("does not create a Document against another user's Application", async () => {
+    const ownerId = await createUser("document-application-owner");
+    const otherId = await createUser("document-application-other");
+    try {
+      const application = await createApplication(ownerId, { objective: objective() });
+      await expect(createDocument(otherId, "professional_resume", {
+        applicationId: application.id,
+      })).rejects.toThrow("Document could not be created.");
+      expect((await getOwnedApplicationWithDocuments(ownerId, application.id))?.documents).toHaveLength(0);
+    } finally {
+      await db.delete(users).where(eq(users.id, ownerId));
+      await db.delete(users).where(eq(users.id, otherId));
+    }
+  });
+
+  it("keeps the legacy document-led repository call compatible", async () => {
+    const userId = await createUser("legacy-create-owner");
     try {
       const document = await createDocument(userId, "professional_resume", {
         objective: objective(),
-        presentationStyle: "classic",
       });
       expect(document.applicationId).toBeTruthy();
       expect(document.objective).toEqual(objective());
-      expect(document.template).toBe("classic");
-
-      const application = await getOwnedApplicationWithDocuments(userId, document.applicationId!);
-      expect(application?.intent).toMatchObject({ kind: "employment", targetRole: "Systems Engineer" });
-      expect(application?.documents.map((row) => row.id)).toEqual([document.id]);
     } finally {
       await db.delete(users).where(eq(users.id, userId));
     }
