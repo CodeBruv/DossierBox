@@ -1,6 +1,12 @@
 import { createHash } from "node:crypto";
 import type { WorkloadKind } from "@/entitlements/usage";
 
+export const intelligenceOperationKinds = [
+  "document_generation",
+  "opportunity_interpretation",
+] as const;
+export type IntelligenceOperationKind = (typeof intelligenceOperationKinds)[number];
+
 export const generationAttemptStatuses = [
   "created",
   "reserved",
