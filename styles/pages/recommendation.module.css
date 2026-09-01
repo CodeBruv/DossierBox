@@ -1,0 +1,233 @@
+.header {
+  max-width: 46rem;
+  margin-top: var(--ds-space-lg);
+}
+
+.header h1 {
+  font-size: var(--ds-heading-size-xl);
+}
+
+.trail {
+  margin-top: var(--ds-space-lg);
+}
+
+.trail ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: recommendation-trail;
+}
+
+.trail li {
+  flex: 1 1 8rem;
+  min-width: 8rem;
+  padding-top: var(--ds-space-2xs);
+  border-top: 2px solid var(--ds-color-brand-primary);
+  counter-increment: recommendation-trail;
+}
+
+.trail li[aria-current="step"] {
+  border-top-color: var(--ds-color-text-primary);
+}
+
+.trail li:last-child {
+  border-top-color: var(--ds-color-border-default);
+}
+
+.trail a,
+.trail span {
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.trail a::before,
+.trail span::before {
+  content: counter(recommendation-trail) ". ";
+}
+
+.trail a:focus-visible {
+  outline: var(--ds-focus-ring);
+  outline-offset: 0.25rem;
+}
+
+.status {
+  max-width: 46rem;
+  margin-top: var(--ds-space-lg);
+  padding: var(--ds-space-sm) var(--ds-space-md);
+  border-left: 3px solid var(--ds-color-brand-primary);
+  background: var(--ds-color-surface-subtle);
+}
+
+.summary {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--ds-space-lg);
+  max-width: 56rem;
+  margin-top: var(--ds-space-2xl);
+  padding-bottom: var(--ds-space-md);
+  border-bottom: 1px solid var(--ds-color-border-default);
+}
+
+.summary h2,
+.accept h2,
+.advisories h2 {
+  margin-top: var(--ds-space-3xs);
+  font-size: var(--ds-heading-size-lg);
+}
+
+.summary > p {
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-text-sm);
+}
+
+.proposal {
+  max-width: 56rem;
+}
+
+.members {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.members li {
+  display: grid;
+  gap: var(--ds-space-2xs);
+  padding: var(--ds-space-lg) 0;
+  border-bottom: 1px solid var(--ds-color-border-default);
+}
+
+.memberChoice {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-sm);
+}
+
+.memberChoice input {
+  width: 1.15rem;
+  height: 1.15rem;
+  accent-color: var(--ds-color-brand-primary);
+}
+
+.memberChoice label {
+  font-size: var(--ds-text-lg);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.members p,
+.members blockquote,
+.advisories p,
+.accept p {
+  color: var(--ds-color-text-secondary);
+}
+
+.members small {
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-text-xs);
+}
+
+.members blockquote {
+  margin: var(--ds-space-2xs) 0 0;
+  padding-left: var(--ds-space-md);
+  border-left: 2px solid var(--ds-color-border-default);
+  font-size: var(--ds-text-sm);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--ds-space-lg);
+}
+
+.advisories {
+  max-width: 56rem;
+  margin-top: var(--ds-space-2xl);
+  padding-top: var(--ds-space-xl);
+  border-top: 1px solid var(--ds-color-border-default);
+}
+
+.warning {
+  margin-top: var(--ds-space-sm);
+  padding: var(--ds-space-sm) var(--ds-space-md);
+  border-left: 3px solid var(--ds-color-border-strong);
+  background: var(--ds-color-surface-subtle);
+}
+
+.advisoryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: var(--ds-space-xl);
+  margin-top: var(--ds-space-lg);
+}
+
+.advisoryGrid h3 {
+  font-size: var(--ds-heading-size-sm);
+}
+
+.advisoryGrid ul {
+  display: grid;
+  gap: var(--ds-space-sm);
+  margin: var(--ds-space-md) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.advisoryGrid li {
+  display: grid;
+  gap: var(--ds-space-3xs);
+  padding-top: var(--ds-space-sm);
+  border-top: 1px solid var(--ds-color-border-default);
+}
+
+.advisoryGrid small {
+  color: var(--ds-color-text-muted);
+}
+
+.accept {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-xl);
+  max-width: 56rem;
+  margin: var(--ds-space-2xl) 0;
+  padding: var(--ds-space-xl) 0;
+  border-top: 2px solid var(--ds-color-text-primary);
+}
+
+.accept > div {
+  max-width: 40rem;
+}
+
+.accept p {
+  margin-top: var(--ds-space-2xs);
+}
+
+.accept button {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 40rem) {
+  .summary,
+  .accept {
+    display: grid;
+    align-items: start;
+  }
+
+  .accept button,
+  .actions button {
+    width: 100%;
+  }
+
+  .actions {
+    display: block;
+  }
+}
