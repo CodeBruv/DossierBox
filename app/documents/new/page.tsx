@@ -1,15 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
-  applicationObjectiveKindDescription,
   applicationObjectiveKindLabel,
-  applicationObjectiveKindList,
   documentSetFor,
   gradeDocumentTypes,
-  isApplicationObjectiveKind,
   type ApplicationObjectiveKind,
   type DocumentCompatibility,
 } from "@/applications";
+import { getOwnedApplicationWithDocuments } from "@/applications/repository";
+import { getOwnedApplicationPlan } from "@/applications/plans-repository";
+import { getOwnedApplicationPackage } from "@/applications/packages-repository";
 import { authSessionConfiguration } from "@/auth/auth";
 import { getSession } from "@/auth/session";
 import { createDocumentAction } from "@/documents/actions";
@@ -27,407 +27,138 @@ import { Container } from "@/ui";
 import styles from "@/styles/pages/document-create.module.css";
 import shell from "@/styles/pages/documents.module.css";
 
-/**
- * Creating a document, in the order the decisions actually happen.
- *
- * ## Why three steps rather than one list
- *
- * The screen this replaced asked one question — "which document?" — which is the question
- * the user came here unable to answer. Someone applying for a scholarship does not want to
- * choose between a CV and a résumé; they want to apply for a scholarship, and which
- * documents that calls for is a convention the product is supposed to know.
- *
- * So the flow asks what they are doing, answers with the documents that pursuit
- * conventionally calls for, and only then asks how it should look:
- *
- *   purpose → document → presentation
- *
- * Each answer narrows the next question, which is the difference between a flow and a form.
- *
- * ## The three layers stay separate
- *
- * The objective (why), the document type (what) and the template (how it looks) are three
- * different decisions owned by three different modules — `@/applications`,
- * `@/documents/catalogue` and `@/documents/presentation` — and this page composes them
- * rather than restating any of them. It contains no list of documents, no table of which
- * document suits which pursuit and no template metrics; every one of those comes from the
- * module that owns it, so this screen cannot drift from what the engine will produce.
- *
- * Nothing about *how* a template achieves its look is surfaced. The user chooses between
- * "Classic" and "Compact" by looking at their own document in each; margins, point sizes,
- * line heights and custom properties are the renderer's business and stay there.
- *
- * ## Why the step lives in the URL
- *
- * Each step is a link, so the whole flow works with no client JavaScript, the browser's
- * back button does what it looks like it does, and a half-finished choice can be reloaded
- * or shared as a link rather than lost. It also means the template step can show the
- * user's document *in* the chosen template — a server render of the real preview — instead
- * of a picture of a document that will go stale.
- *
- * Only closed vocabularies travel in the query string: an objective kind, a document type,
- * a template id, each validated here against the module that defines it. The particulars of
- * an application (the role, the organisation) are deliberately *not* collected yet — they
- * would put a user's job search in their browser history and in server logs to serve a
- * writing layer that does not read them yet. `createDocumentAction` already accepts them
- * for the block that will.
- */
-
 type NewDocumentPageProps = {
-  searchParams: Promise<{
-    objective?: string;
-    type?: string;
-    path?: string;
-    template?: string;
-    error?: string;
-  }>;
+  searchParams: Promise<{ applicationId?: string; type?: string; error?: string; planId?: string; packageId?: string; status?: string }>;
 };
 
-/**
- * Mapped from a fixed set rather than echoed from the query string, which is
- * attacker-controlled — rendering it would make this page a way to put arbitrary text on a
- * signed-in user's screen. Each message also says what happened to their work.
- */
 const errorMessages: Record<string, string> = {
   "unsupported-type": "That document isn't one we can produce yet. Please choose another.",
-  "create-failed":
-    "We couldn't create the document just now. Your dossier hasn't been changed — please try again.",
+  "create-failed": "We couldn't create the document just now. Your saved Application and dossier haven't been changed — please try again.",
 };
 
 export default async function NewDocumentPage({ searchParams }: NewDocumentPageProps) {
-  if (!authSessionConfiguration) {
-    redirect("/auth/sign-in?callbackUrl=%2Fdocuments%2Fnew&error=Configuration");
-  }
+  if (!authSessionConfiguration) redirect("/auth/sign-in?callbackUrl=%2Fapplications%2Fnew&error=Configuration");
   const session = await getSession();
-  if (!session?.user?.id) {
-    redirect("/auth/sign-in?callbackUrl=%2Fdocuments%2Fnew&error=SessionRequired");
-  }
+  if (!session?.user?.id) redirect("/auth/sign-in?callbackUrl=%2Fapplications%2Fnew&error=SessionRequired");
 
   const query = await searchParams;
+  if (!query.applicationId) redirect("/applications/new");
+  const application = await getOwnedApplicationWithDocuments(session.user.id, query.applicationId);
+  if (!application?.intent) redirect("/applications/new?error=application-required");
+  if (query.planId || query.packageId) {
+    if (!query.planId || !query.packageId) redirect(`/applications/${encodeURIComponent(application.id)}/recommendation?error=stale`);
+    const [plan, applicationPackage] = await Promise.all([
+      getOwnedApplicationPlan(session.user.id, query.planId),
+      getOwnedApplicationPackage(session.user.id, query.packageId),
+    ]);
+    if (
+      !plan
+      || !applicationPackage
+      || plan.applicationId !== application.id
+      || applicationPackage.planId !== plan.id
+      || plan.status !== "confirmed"
+      || plan.confirmation !== "confirmed"
+      || applicationPackage.status !== "confirmed"
+      || applicationPackage.confirmation !== "confirmed"
+    ) redirect(`/applications/${encodeURIComponent(application.id)}/recommendation?error=stale`);
+  }
 
-  /*
-   * Everything in the query string is validated against the module that owns the
-   * vocabulary, and an unrecognised value is treated as *unanswered* rather than as an
-   * error. A stale or hand-edited link then drops the user back to the step that question
-   * belongs to, which is recoverable, instead of showing them a failure for a question
-   * they have not been asked yet.
-   */
-  const objective = isApplicationObjectiveKind(query.objective) ? query.objective : null;
+  const kind = application.intent.kind as ApplicationObjectiveKind;
   const type = isAvailableDocumentType(query.type) ? query.type : null;
-  const explicitDocumentPath = query.path === "document";
-
-  const step = type !== null ? 3 : objective !== null || explicitDocumentPath ? 2 : 1;
+  const step = type ? 2 : 1;
   const error = query.error ? errorMessages[query.error] : null;
-  const snapshot = step === 3 && type ? await getDossierSnapshot(session.user.id) : null;
+  const snapshot = type ? await getDossierSnapshot(session.user.id) : null;
 
   return (
     <div className={shell.page}>
       <Container>
         <header className={styles.header}>
-          <p className={shell.eyebrow}>Create from your dossier</p>
-          <h1>{headings[step]}</h1>
-          <p className={shell.lead}>{leads[step]}</p>
+          <p className={shell.eyebrow}>Saved application</p>
+          <h1>{type ? "Compose your document" : "Choose your document"}</h1>
+          <p className={shell.lead}>
+            {type
+              ? "Choose a style, arrange the sections, and create only when the preview looks right."
+              : "Review the purpose-informed recommendation for this saved Application, or choose another valid document type."}
+          </p>
         </header>
 
-        <StepTrail explicitDocumentPath={explicitDocumentPath} objective={objective} step={step} type={type} />
+        <ApplicationContextSummary application={application} kind={kind} />
+        <StepTrail applicationId={application.id} step={step} type={type} />
+        {error ? <p className={shell.errorStatus} role="alert">{error}</p> : null}
+        {query.status === "recommendation-confirmed" ? <p className={styles.reviewStatus} role="status">Recommendation accepted. Your confirmed planning history is saved; choose an available document when you are ready.</p> : null}
 
-        {error ? (
-          <p className={shell.errorStatus} role="alert">
-            {error}
-          </p>
-        ) : null}
-
-        {step === 1 ? <PurposeStep /> : null}
-        {step === 2 ? <DocumentStep objective={objective} /> : null}
-        {step === 3 && type ? (
+        {step === 1 ? <DocumentStep applicationId={application.id} objective={kind} /> : null}
+        {type ? (
           snapshot ? (
-            <DocumentComposer
-              createAction={createDocumentAction}
-              objective={objective}
-              snapshot={snapshot}
-              type={type}
-            />
-          ) : (
-            <p className={shell.errorStatus} role="alert">
-              We couldn't load your dossier to compose this document. Your dossier hasn't been
-              changed — please try again.
-            </p>
-          )
+            <DocumentComposer applicationId={application.id} createAction={createDocumentAction} snapshot={snapshot} type={type} />
+          ) : <p className={shell.errorStatus} role="alert">We couldn't load your dossier to compose this document. Your saved Application and dossier haven't been changed.</p>
         ) : null}
       </Container>
     </div>
   );
 }
 
-const headings: Record<number, string> = {
-  1: "What are you preparing for?",
-  2: "Choose your document",
-  3: "Compose your document",
-};
-
-const leads: Record<number, string> = {
-  1: "Tell us the application purpose and we will recommend the usual document and package. If you already know the document you need, you can choose it directly.",
-  2: "Review the purpose-informed recommendation, or intentionally choose another valid document type.",
-  3: "Choose a style, arrange the sections, and create only when the preview looks right.",
-};
-
-/* ---------------------------------------------------------------------------
-   The trail
---------------------------------------------------------------------------- */
-
-/**
- * Where the user is, and the way back.
- *
- * A completed step is a link — going back to change an earlier answer is a normal thing to
- * want and must not require the browser's back button. The current step is marked with
- * `aria-current`, and the numbers are drawn by CSS counters rather than written into the
- * markup, so a screen reader hears the step names rather than "1 2 3".
- */
-function StepTrail({
-  step,
-  objective,
-  type,
-  explicitDocumentPath,
-}: {
-  step: number;
-  objective: ApplicationObjectiveKind | null;
-  type: ShippingDocumentTypeKey | null;
-  explicitDocumentPath: boolean;
-}) {
-  const trail = [
-    {
-      label: "Purpose",
-      value: objective ? applicationObjectiveKindLabel(objective) : explicitDocumentPath ? "Direct document choice" : null,
-      href: "/documents/new",
-    },
-    {
-      label: "Document",
-      value: type ? documentTypeLabel(type) : null,
-      href: objective
-        ? `/documents/new?objective=${objective}`
-        : "/documents/new?path=document",
-    },
-    { label: "Compose", value: null, href: null },
-  ];
-
+function ApplicationContextSummary({ application, kind }: { application: NonNullable<Awaited<ReturnType<typeof getOwnedApplicationWithDocuments>>>; kind: ApplicationObjectiveKind }) {
+  const intent = application.intent!;
+  const details = [intent.targetRole, intent.programme, intent.organisation, intent.institution, intent.field].filter(Boolean);
   return (
-    <nav aria-label="Steps" className={styles.trail}>
-      <ol className={styles.trailList}>
-        {trail.map((item, index) => {
-          const position = index + 1;
-          const isCurrent = position === step;
-          const returnHref = position < step ? item.href : null;
+    <section className={styles.applicationContext} aria-labelledby="saved-application-heading">
+      <div>
+        <p className={styles.groupHeading}>Application context</p>
+        <h2 id="saved-application-heading">{applicationObjectiveKindLabel(kind)}</h2>
+        {details.length ? <p>{details.join(" · ")}</p> : null}
+      </div>
+      <Link className={styles.explicitPathLink} href="/applications/new">Create another application</Link>
+    </section>
+  );
+}
 
-          return (
-            <li
-              aria-current={isCurrent ? "step" : undefined}
-              className={[
-                styles.trailStep,
-                isCurrent ? styles.trailStepCurrent : "",
-                position < step ? styles.trailStepDone : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              key={item.label}
-            >
-              {returnHref ? (
-                <Link className={styles.trailLink} href={returnHref}>
-                  <span className={styles.trailLabel}>{item.label}</span>
-                  <span className={styles.trailValue}>{item.value}</span>
-                </Link>
-              ) : (
-                <span className={styles.trailStatic}>
-                  <span className={styles.trailLabel}>{item.label}</span>
-                  {item.value ? <span className={styles.trailValue}>{item.value}</span> : null}
-                </span>
-              )}
-            </li>
-          );
-        })}
+function StepTrail({ applicationId, step, type }: { applicationId: string; step: number; type: ShippingDocumentTypeKey | null }) {
+  return (
+    <nav aria-label="Document steps" className={styles.trail}>
+      <ol className={styles.trailList}>
+        <li className={`${styles.trailStep} ${styles.trailStepDone}`}><Link className={styles.trailLink} href={`/applications/${encodeURIComponent(applicationId)}/recommendation`}><span className={styles.trailLabel}>Recommendation</span><span className={styles.trailValue}>Review</span></Link></li>
+        <li className={`${styles.trailStep} ${step === 1 ? styles.trailStepCurrent : styles.trailStepDone}`} aria-current={step === 1 ? "step" : undefined}>
+          {step > 1 ? <Link className={styles.trailLink} href={`/documents/new?applicationId=${applicationId}`}><span className={styles.trailLabel}>Document</span><span className={styles.trailValue}>{type ? documentTypeLabel(type) : null}</span></Link> : <span className={styles.trailStatic}><span className={styles.trailLabel}>Document</span></span>}
+        </li>
+        <li className={`${styles.trailStep} ${step === 2 ? styles.trailStepCurrent : ""}`} aria-current={step === 2 ? "step" : undefined}><span className={styles.trailStatic}><span className={styles.trailLabel}>Compose</span></span></li>
       </ol>
     </nav>
   );
 }
 
-/* ---------------------------------------------------------------------------
-   Step 1 — application purpose
---------------------------------------------------------------------------- */
-
-function PurposeStep() {
-  return (
-    <>
-      <ul className={styles.optionGrid}>
-        {applicationObjectiveKindList.map((objective) => (
-          <li className={styles.option} key={objective.key}>
-            <Link className={styles.optionLink} href={`/documents/new?objective=${objective.key}`}>
-              {objective.label}
-            </Link>
-            <p className={styles.optionNote}>{applicationObjectiveKindDescription(objective.key)}</p>
-          </li>
-        ))}
-      </ul>
-      <div className={styles.explicitPath}>
-        <p>I already know which document I want.</p>
-        <Link className={styles.explicitPathLink} href="/documents/new?path=document">
-          Choose a document type directly
-        </Link>
-      </div>
-    </>
-  );
-}
-
-/* ---------------------------------------------------------------------------
-   Step 2 — document type and recommended package
---------------------------------------------------------------------------- */
-
-/**
- * What this pursuit calls for, graded rather than filtered.
- *
- * `gradeDocumentTypes` returns every document in the catalogue against this objective, so
- * this screen can do three honest things at once: lead with what the application
- * conventionally wants, offer the other documents that suit it without comment, and say
- * plainly which of the conventional documents the engine cannot produce yet.
- *
- * Nothing is refused. A résumé for a research post is unusual, not wrong, and the user may
- * know something we do not — so unconventional choices are kept, one disclosure away, with
- * a note instead of a block.
- */
-function DocumentStep({ objective }: { objective: ApplicationObjectiveKind | null }) {
-  const graded = objective ? gradeDocumentTypes(objective) : [];
-  const recommendedPackage = objective ? documentSetFor(objective) : null;
-  const available: readonly DocumentOption[] = objective
-    ? graded.filter((entry) => entry.available)
-    : [
-        "professional_cv",
-        "professional_resume",
-        "academic_cv",
-      ].map((type) => ({
-        type: type as ShippingDocumentTypeKey,
-        level: "permitted" as const,
-        available: true,
-      }));
-
+function DocumentStep({ applicationId, objective }: { applicationId: string; objective: ApplicationObjectiveKind }) {
+  const graded = gradeDocumentTypes(objective);
+  const recommendedPackage = documentSetFor(objective);
+  const available = graded.filter((entry) => entry.available) as readonly DocumentOption[];
   const recommended = available.filter((entry) => entry.level === "recommended");
   const alsoSuitable = available.filter((entry) => entry.level === "permitted");
   const unusual = available.filter((entry) => entry.level === "unconventional");
-  /* Conventional for this pursuit, and not yet producible. Said out loud, not hidden. */
   const notYet = graded.filter((entry) => !entry.available && entry.level === "recommended");
 
   return (
     <>
-      {recommendedPackage ? (
-        <section aria-labelledby="recommended-package-heading" className={styles.packageSummary}>
-          <p className={styles.groupHeading}>Based on this purpose</p>
-          <h2 id="recommended-package-heading">Recommended application package</h2>
-          <ol className={styles.packageMembers}>
-            {recommendedPackage.members.map((member) => (
-              <li key={member.type}>
-                <span>{member.label}</span>
-                <small>{member.role === "primary" ? "Primary document" : "Supporting document"} · {member.available ? "Available now" : "Not available yet"}</small>
-              </li>
-            ))}
-          </ol>
-          <p className={styles.packageNote}>
-            This is the domain recommendation, not a package created or confirmed on your behalf. You can choose a different document below; preparation creates and reviews the persisted package later.
-          </p>
-        </section>
-      ) : (
-        <p className={styles.note}>Choose the document you already know you need. You can add Application context while composing it.</p>
-      )}
-
-      {recommended.length > 0 ? (
-        <section className={styles.group}>
-          <h2 className={styles.groupHeading}>Recommended for this</h2>
-          <DocumentOptions entries={recommended} objective={objective} recommended />
-        </section>
-      ) : null}
-
-      {alsoSuitable.length > 0 ? (
-        <section className={styles.group}>
-          <h2 className={styles.groupHeading}>
-            {recommended.length > 0 ? "Also suitable" : "Suitable for this"}
-          </h2>
-          <DocumentOptions entries={alsoSuitable} objective={objective} />
-        </section>
-      ) : null}
-
-      {notYet.length > 0 ? (
-        <p className={styles.note}>
-          An application like this often includes {listOf(notYet.map((e) => documentTypeLabel(e.type).toLowerCase()))} as
-          well. We don't produce {notYet.length > 1 ? "those" : "that"} yet — when we do, you'll
-          be able to add {notYet.length > 1 ? "them" : "it"} from here, built from the same
-          dossier.
-        </p>
-      ) : null}
-
-      {unusual.length > 0 ? (
-        <details className={styles.more}>
-          <summary className={styles.moreSummary}>Other documents</summary>
-          <p className={styles.moreNote}>
-            Not what this purpose usually calls for. If you've been asked for one, it is yours
-            to choose.
-          </p>
-          <DocumentOptions entries={unusual} objective={objective} />
-        </details>
-      ) : null}
-
-      <div className={styles.stepFooter}>
-        <Link className={shell.backLink} href="/documents/new">
-          {objective ? "Choose a different purpose" : "Use the purpose-guided path"}
-        </Link>
-      </div>
+      <section aria-labelledby="recommended-package-heading" className={styles.packageSummary}>
+        <p className={styles.groupHeading}>Based on this purpose</p>
+        <h2 id="recommended-package-heading">Recommended application package</h2>
+        <ol className={styles.packageMembers}>{recommendedPackage.members.map((member) => <li key={member.type}><span>{member.label}</span><small>{member.role === "primary" ? "Primary document" : "Supporting document"} · {member.available ? "Available now" : "Not available yet"}</small></li>)}</ol>
+        <p className={styles.packageNote}>This is the existing deterministic recommendation, not a package created or confirmed on your behalf.</p>
+      </section>
+      {recommended.length ? <section className={styles.group}><h2 className={styles.groupHeading}>Recommended for this</h2><DocumentOptions applicationId={applicationId} entries={recommended} recommended /></section> : null}
+      {alsoSuitable.length ? <section className={styles.group}><h2 className={styles.groupHeading}>Also suitable</h2><DocumentOptions applicationId={applicationId} entries={alsoSuitable} /></section> : null}
+      {notYet.length ? <p className={styles.note}>This application often includes {listOf(notYet.map((entry) => documentTypeLabel(entry.type).toLowerCase()))}. We don't produce {notYet.length > 1 ? "those" : "that"} yet.</p> : null}
+      {unusual.length ? <details className={styles.more}><summary className={styles.moreSummary}>Other documents</summary><p className={styles.moreNote}>Not what this purpose usually calls for. If you've been asked for one, it is yours to choose.</p><DocumentOptions applicationId={applicationId} entries={unusual} /></details> : null}
     </>
   );
 }
 
 type DocumentOption = Pick<DocumentCompatibility, "type" | "level" | "available">;
-
-function DocumentOptions({
-  entries,
-  objective,
-  recommended = false,
-}: {
-  entries: readonly DocumentOption[];
-  objective: ApplicationObjectiveKind | null;
-  recommended?: boolean;
-}) {
-  return (
-    <ul className={styles.optionGrid}>
-      {entries.map((entry) => (
-        <li className={styles.option} key={entry.type}>
-          <Link
-            className={styles.optionLink}
-            href={`/documents/new?${objective ? `objective=${objective}&` : "path=document&"}type=${entry.type}`}
-          >
-            {documentTypeLabel(entry.type)}
-          </Link>
-          {recommended ? <span className={styles.badge}>Usual choice</span> : null}
-          <p className={styles.optionNote}>{documentTypeDescription(entry.type)}</p>
-          <p className={styles.optionMeta}>{describeLength(documentTypePageBudget(entry.type))}</p>
-        </li>
-      ))}
-    </ul>
-  );
+function DocumentOptions({ applicationId, entries, recommended = false }: { applicationId: string; entries: readonly DocumentOption[]; recommended?: boolean }) {
+  return <ul className={styles.optionGrid}>{entries.map((entry) => <li className={styles.option} key={entry.type}><Link className={styles.optionLink} href={`/documents/new?applicationId=${applicationId}&type=${entry.type}`}>{documentTypeLabel(entry.type)}</Link>{recommended ? <span className={styles.badge}>Usual choice</span> : null}<p className={styles.optionNote}>{documentTypeDescription(entry.type)}</p><p className={styles.optionMeta}>{describeLength(documentTypePageBudget(entry.type))}</p></li>)}</ul>;
 }
 
-/**
- * How long this kind of document usually runs.
- *
- * A property of the document type, in the reader's terms — "typically 1–2 pages" is a real
- * editorial convention a person choosing a document wants to know. It is not a setting, and
- * there is nothing here about how the renderer achieves it.
- */
 function describeLength(budget: DocumentPageBudget): string {
   if (budget === null) return "Length follows your history";
-  if (budget.target === budget.max) {
-    return `Typically ${budget.target} page${budget.target === 1 ? "" : "s"}`;
-  }
-
-  return `Typically ${budget.target}–${budget.max} pages`;
+  return budget.target === budget.max ? `Typically ${budget.target} page${budget.target === 1 ? "" : "s"}` : `Typically ${budget.target}–${budget.max} pages`;
 }
-
-function listOf(items: readonly string[]): string {
-  if (items.length <= 1) return items[0] ?? "";
-  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
-}
-
+function listOf(items: readonly string[]): string { return items.length <= 1 ? items[0] ?? "" : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`; }
