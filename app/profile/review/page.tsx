@@ -128,8 +128,8 @@ export default async function DossierReviewPage({ searchParams }: ReviewPageProp
               from it, start here — you can also come back to this later.
             </p>
             <div className={styles.handoffActions}>
-              <Link className={styles.primaryButton} href="/documents/new">
-                Create a document
+              <Link className={styles.primaryButton} href="/applications/new">
+                Create an application
               </Link>
               <Link className={styles.secondaryButton} href="/profile">
                 Keep building the dossier
