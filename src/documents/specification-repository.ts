@@ -2,6 +2,7 @@ import "server-only";
 
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/auth/database";
+import { listValidPackageEvidenceSelections } from "@/applications/evidence-selection-repository";
 import { isDocumentTypeKey, type DocumentTypeKey } from "@/documents/catalogue";
 import { documents } from "@/documents/schema";
 import {
@@ -70,6 +71,8 @@ async function ownedMember(userId: string, memberId: string) {
   const [row] = await db
     .select({
       member: applicationPackageMembers,
+      package: applicationPackages,
+      plan: applicationPlans,
       applicationId: applicationPlans.applicationId,
       documentApplicationId: documents.applicationId,
       documentOwnerId: documents.userId,
@@ -123,7 +126,9 @@ async function ownedSpecification(userId: string, specificationId: string) {
 }
 
 async function validateReferences(
+  userId: string,
   applicationId: string,
+  packageId: string,
   input: Pick<DocumentSpecificationInput, "opportunityId" | "requirementIds" | "evidenceIds">,
 ) {
   const requirementIds = [...new Set(input.requirementIds ?? [])];
@@ -150,8 +155,11 @@ async function validateReferences(
     const rows = await db
       .select({ id: evidence.id })
       .from(evidence)
-      .where(and(eq(evidence.applicationId, applicationId), inArray(evidence.id, evidenceIds)));
+      .where(and(eq(evidence.applicationId, applicationId), eq(evidence.lifecycle, "active"), inArray(evidence.id, evidenceIds)));
     if (rows.length !== evidenceIds.length) return null;
+    const selections = await listValidPackageEvidenceSelections(userId, applicationId, packageId);
+    if (!selections || evidenceIds.some((evidenceId) => !selections.some((selection) => selection.evidenceId === evidenceId))) return null;
+    if (requirementIds.length > 0 && evidenceIds.some((evidenceId) => !selections.some((selection) => selection.evidenceId === evidenceId && requirementIds.includes(selection.requirementId)))) return null;
   }
 
   return { requirementIds, evidenceIds };
@@ -219,9 +227,9 @@ export async function createDocumentSpecification(
   input: DocumentSpecificationInput,
 ) {
   const member = await ownedMember(userId, packageMemberId);
-  if (!member || !isDocumentTypeKey(input.documentType) || input.documentType !== member.member.documentType) return null;
+  if (!member || member.plan.status !== "confirmed" || member.plan.confirmation !== "confirmed" || member.package.status !== "confirmed" || member.package.confirmation !== "confirmed" || !isDocumentTypeKey(input.documentType) || input.documentType !== member.member.documentType) return null;
   if (!validPurpose(input.purpose)) return null;
-  const references = await validateReferences(member.applicationId, input);
+  const references = await validateReferences(userId, member.applicationId, member.package.id, input);
   if (!references) return null;
 
   const created = await db.transaction(async (transaction) => {
@@ -317,7 +325,9 @@ export async function updateDocumentSpecification(
   const current = await hydrate(owned.specification);
   const next = { ...current, ...input };
   if (!validPurpose(next.purpose)) return null;
-  const references = await validateReferences(owned.applicationId, next);
+  const member = await ownedMember(userId, current.packageMemberId);
+  if (!member) return null;
+  const references = await validateReferences(userId, owned.applicationId, member.package.id, next);
   if (!references) return null;
 
   return createDocumentSpecification(userId, current.packageMemberId, {
@@ -342,6 +352,11 @@ export async function transitionDocumentSpecification(
   if (!validStatus(status)) return null;
   const owned = await ownedSpecification(userId, specificationId);
   if (!owned || !transitions[owned.specification.status].includes(status)) return null;
+  if (status === "ready_for_review" || status === "approved") {
+    const current = await hydrate(owned.specification);
+    const member = await ownedMember(userId, current.packageMemberId);
+    if (!member || !(await validateReferences(userId, owned.applicationId, member.package.id, current))) return null;
+  }
 
   const [updated] = await db
     .update(documentSpecifications)
