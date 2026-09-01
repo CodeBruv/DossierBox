@@ -4,6 +4,11 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/auth/database";
 import { users } from "@/auth/schema";
 import { freeEntitlement } from "@/entitlements/entitlements";
+import {
+  opportunities,
+  opportunitySources,
+  requirements,
+} from "@/applications/opportunity-schema";
 import { applications } from "@/applications/schema";
 import {
   applicationPackageMembers,
@@ -27,9 +32,12 @@ import {
   acceptGeneratedContentVersion,
   appendProviderExecution,
   completeGenerationAttempt,
+  completeOpportunityInterpretationAttempt,
   createGenerationAttempt,
+  createOpportunityInterpretationAttempt,
   failGenerationAttempt,
   findOwnedGenerationAttempt,
+  findOwnedOpportunityInterpretationAttempt,
   getOwnedGenerationWorkItem,
   getLatestOwnedGenerationForApplication,
   reserveGenerationUnits,
@@ -164,6 +172,66 @@ async function makeSucceededContent(
   });
   if (!completed) throw new Error("Succeeded content fixture was not created.");
   return completed;
+}
+
+async function createInterpretationFixture(
+  fixture: Awaited<ReturnType<typeof createFixture>>,
+  label: string,
+) {
+  const opportunityId = fixtureId(`${label}-opportunity`);
+  const sourceId = fixtureId(`${label}-source`);
+  const sourceFingerprint = `source-${label}`;
+  const sourceText = "Applicants must submit a CV in PDF format by 30 September.";
+  await db.insert(opportunities).values({
+    id: opportunityId,
+    applicationId: fixture.applicationId,
+    extractedText: sourceText,
+    sourceType: "pasted_text",
+  });
+  await db.insert(opportunitySources).values({
+    id: sourceId,
+    opportunityId,
+    sourceType: "pasted_text",
+    contentFingerprint: sourceFingerprint,
+    extractedContentStatus: "available",
+  });
+  return { opportunityId, sourceId, sourceFingerprint, sourceText };
+}
+
+async function makeRunningInterpretationAttempt(
+  fixture: Awaited<ReturnType<typeof createFixture>>,
+  label: string,
+) {
+  const target = await createInterpretationFixture(fixture, label);
+  const attempt = await createOpportunityInterpretationAttempt({
+    userId: fixture.ownerId,
+    applicationId: fixture.applicationId,
+    opportunityId: target.opportunityId,
+    opportunitySourceId: target.sourceId,
+    sourceFingerprint: target.sourceFingerprint,
+    contractVersion: "opportunity-interpretation@1",
+    requestFingerprint: `interpretation-request-${label}`,
+    endpoint: "opportunity-interpretation",
+    idempotencyKey: `interpretation-key-${label}`,
+    entitlementPlan: "plus",
+    estimatedUnits: 1,
+  });
+  if (!attempt) throw new Error("Interpretation Attempt fixture was not created.");
+  await db.insert(iuAccounts).values({
+    userId: fixture.ownerId,
+    availableUnits: 1,
+  }).onConflictDoUpdate({
+    target: iuAccounts.userId,
+    set: { availableUnits: 1, reservedUnits: 0, updatedAt: new Date() },
+  });
+  expect(await reserveGenerationUnits({
+    userId: fixture.ownerId,
+    attemptId: attempt.id,
+    units: 1,
+    entitlementPlan: "plus",
+  })).not.toBeNull();
+  expect(await transitionGenerationAttempt(fixture.ownerId, attempt.id, "running")).not.toBeNull();
+  return { attempt, target };
 }
 
 async function addWorkItem(attemptId: string, label: string) {
@@ -650,6 +718,198 @@ describeDatabase("durable Generation repository", () => {
       id: accepted!.version.id,
       contentFingerprint: `content-accept-immutable-attempt`,
     });
+  });
+
+  it("atomically persists Opportunity Interpretation, preserves reviewed Requirements, and allocates IU exactly once", async () => {
+    const fixture = await createFixture("interpretation-success");
+    const { attempt, target } = await makeRunningInterpretationAttempt(
+      fixture,
+      "interpretation-success",
+    );
+    await db.insert(requirements).values([
+      {
+        applicationId: fixture.applicationId,
+        opportunityId: target.opportunityId,
+        text: "Stale machine extraction",
+        interpretationStatus: "extracted",
+      },
+      {
+        applicationId: fixture.applicationId,
+        opportunityId: target.opportunityId,
+        text: "Reviewed requirement",
+        interpretationStatus: "user_confirmed",
+      },
+    ]);
+    const interpretation = {
+      context: [],
+      requirements: [{
+        text: "Submit a CV",
+        normalized: "CV required",
+        category: "document" as const,
+        priority: "required" as const,
+        support: "explicit" as const,
+        confidence: 0.99,
+        sourceReference: "submit a CV",
+        constraints: ["PDF format"],
+      }],
+      requestedDocuments: [{
+        name: "CV",
+        details: "PDF format",
+        priority: "required" as const,
+        support: "explicit" as const,
+        confidence: 0.99,
+        sourceReference: "CV in PDF format",
+        constraints: ["PDF format"],
+      }],
+      constraints: [{
+        text: "Submit by 30 September",
+        category: "administrative_constraint" as const,
+        support: "explicit" as const,
+        confidence: 0.99,
+        sourceReference: "by 30 September",
+      }],
+    };
+
+    const completed = await completeOpportunityInterpretationAttempt({
+      userId: fixture.ownerId,
+      attemptId: attempt.id,
+      entitlementPlan: "plus",
+      interpretation,
+      schemaVersion: "1",
+      validationFingerprint: "interpretation-validation",
+    });
+    expect(completed?.attempt.status).toBe("succeeded");
+    expect(completed?.opportunity).toMatchObject({
+      interpretationStatus: "extracted",
+      interpretationVersion: "opportunity-interpretation@1",
+    });
+
+    const persistedRequirements = await db
+      .select()
+      .from(requirements)
+      .where(eq(requirements.opportunityId, target.opportunityId));
+    expect(persistedRequirements.map((row) => row.text)).toEqual(expect.arrayContaining([
+      "Reviewed requirement",
+      "Submit a CV",
+      "CV",
+    ]));
+    expect(persistedRequirements.map((row) => row.text)).not.toContain("Stale machine extraction");
+    expect(persistedRequirements.find((row) => row.text === "Reviewed requirement")?.interpretationStatus)
+      .toBe("user_confirmed");
+
+    const replay = await completeOpportunityInterpretationAttempt({
+      userId: fixture.ownerId,
+      attemptId: attempt.id,
+      entitlementPlan: "plus",
+      interpretation,
+      schemaVersion: "1",
+      validationFingerprint: "interpretation-validation",
+    });
+    expect(replay?.attempt.status).toBe("succeeded");
+    const ledger = await db.select().from(iuLedgerEntries).where(eq(iuLedgerEntries.attemptId, attempt.id));
+    expect(ledger.filter((entry) => entry.kind === "reservation")).toHaveLength(1);
+    expect(ledger.filter((entry) => entry.kind === "allocation")).toHaveLength(1);
+    const [account] = await db.select().from(iuAccounts).where(eq(iuAccounts.userId, fixture.ownerId));
+    expect(account).toMatchObject({ availableUnits: 0, reservedUnits: 0 });
+  });
+
+  it("releases the complete Interpretation reservation on failure and permits a changed source identity", async () => {
+    const fixture = await createFixture("interpretation-failure");
+    const { attempt, target } = await makeRunningInterpretationAttempt(
+      fixture,
+      "interpretation-failure",
+    );
+    expect(await failGenerationAttempt({
+      userId: fixture.ownerId,
+      attemptId: attempt.id,
+      failureKind: "response",
+      failureDetail: ["malformed_json"],
+      validation: {
+        kind: "response",
+        status: "failed",
+        fingerprint: "failed-interpretation-validation",
+        issues: ["malformed_json"],
+      },
+    })).toMatchObject({ status: "failed" });
+    const [account] = await db.select().from(iuAccounts).where(eq(iuAccounts.userId, fixture.ownerId));
+    expect(account).toMatchObject({ availableUnits: 1, reservedUnits: 0 });
+    const ledger = await db.select().from(iuLedgerEntries).where(eq(iuLedgerEntries.attemptId, attempt.id));
+    expect(ledger.filter((entry) => entry.kind === "release")).toHaveLength(1);
+    expect(ledger.filter((entry) => entry.kind === "allocation")).toHaveLength(0);
+
+    await db.update(opportunitySources).set({ contentFingerprint: "changed-source" })
+      .where(eq(opportunitySources.id, target.sourceId));
+    expect(await findOwnedOpportunityInterpretationAttempt(
+      fixture.ownerId,
+      target.sourceId,
+      target.sourceFingerprint,
+      "opportunity-interpretation@1",
+    )).toMatchObject({ id: attempt.id, status: "failed" });
+    expect(await findOwnedOpportunityInterpretationAttempt(
+      fixture.ownerId,
+      target.sourceId,
+      "changed-source",
+      "opportunity-interpretation@1",
+    )).toBeNull();
+    expect(await createOpportunityInterpretationAttempt({
+      userId: fixture.ownerId,
+      applicationId: fixture.applicationId,
+      opportunityId: target.opportunityId,
+      opportunitySourceId: target.sourceId,
+      sourceFingerprint: "changed-source",
+      contractVersion: "opportunity-interpretation@1",
+      requestFingerprint: "changed-request",
+      endpoint: "opportunity-interpretation",
+      idempotencyKey: "changed-key",
+      entitlementPlan: "plus",
+      estimatedUnits: 1,
+    })).toMatchObject({ sourceFingerprint: "changed-source", status: "created" });
+  });
+
+  it("enforces operation target shapes and operation-level provider sequence uniqueness in PostgreSQL", async () => {
+    const fixture = await createFixture("interpretation-shape");
+    const { attempt } = await makeRunningInterpretationAttempt(fixture, "interpretation-shape");
+    await expect(db.insert(generationAttempts).values({
+      userId: fixture.ownerId,
+      applicationId: fixture.applicationId,
+      operationKind: "opportunity_interpretation",
+      specificationId: fixture.specificationId,
+      specificationRevision: 1,
+      specificationFingerprint: "invalid-specification",
+      evidenceFingerprint: "invalid-evidence",
+      requestFingerprint: "invalid-shape-request",
+      endpoint: "invalid-shape",
+      idempotencyKey: "invalid-shape",
+      entitlementPlan: "plus",
+      estimatedUnits: 1,
+    })).rejects.toThrow();
+
+    const startedAt = new Date();
+    const first = await appendProviderExecution(fixture.ownerId, {
+      attemptId: attempt.id,
+      workItemId: null,
+      sequence: 1,
+      promptId: "opportunity-interpretation@1",
+      requestFingerprint: "provider-request",
+      provider: "test-provider",
+      model: "test-model",
+      status: "succeeded",
+      startedAt,
+    });
+    const replay = await appendProviderExecution(fixture.ownerId, {
+      attemptId: attempt.id,
+      workItemId: null,
+      sequence: 1,
+      promptId: "opportunity-interpretation@1",
+      requestFingerprint: "provider-request",
+      provider: "test-provider",
+      model: "test-model",
+      status: "succeeded",
+      startedAt,
+    });
+    expect(replay?.id).toBe(first?.id);
+    const executions = await db.select().from(providerExecutions).where(eq(providerExecutions.attemptId, attempt.id));
+    expect(executions).toHaveLength(1);
   });
 
   it("stores bounded evidence references and fingerprints without duplicating Dossier facts", async () => {
