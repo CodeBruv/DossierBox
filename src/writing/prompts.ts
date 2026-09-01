@@ -27,7 +27,7 @@
  * the contract back as prose, the integrity check catches it before it reaches a document.
  */
 
-import type { WorkloadKind } from "@/entitlements/usage";
+import type { WritingWorkloadKind } from "@/entitlements/usage";
 import { contentMarker, type WritingConstraints, type WritingContext } from "./context";
 
 /**
@@ -60,7 +60,7 @@ export const contextRequirements = ["facts", "drafts", "section"] as const;
 export type ContextRequirement = (typeof contextRequirements)[number];
 
 export type PromptDefinition = {
-  workload: WorkloadKind;
+  workload: WritingWorkloadKind;
   /**
    * Incremented when the text changes in a way that would change output.
    *
@@ -156,13 +156,13 @@ const define = (
 });
 
 /**
- * The library.
+ * The writing library.
  *
- * Ordered as the workload table is — cheapest first — so the two tables read against each
- * other. Every workload named in `entitlements/usage.ts` appears exactly once, and the tests
- * assert that in both directions.
+ * Ordered as the writing workload table is — cheapest first — so the two tables read against
+ * each other. Interpretation has its own prompt and response contract and is deliberately not
+ * accepted by this writing-only library.
  */
-export const promptLibrary: Readonly<Record<WorkloadKind, PromptDefinition>> = {
+export const promptLibrary: Readonly<Record<WritingWorkloadKind, PromptDefinition>> = {
   achievement_reframing: define({
     workload: "achievement_reframing",
     version: 1,
@@ -363,12 +363,12 @@ export const promptLibrary: Readonly<Record<WorkloadKind, PromptDefinition>> = {
   }),
 };
 
-export function promptFor(workload: WorkloadKind): PromptDefinition {
+export function promptFor(workload: WritingWorkloadKind): PromptDefinition {
   return promptLibrary[workload];
 }
 
 /** `resume_tailoring@1` — the identifier recorded against a generation. */
-export function promptId(workload: WorkloadKind): string {
+export function promptId(workload: WritingWorkloadKind): string {
   return promptLibrary[workload].id;
 }
 
