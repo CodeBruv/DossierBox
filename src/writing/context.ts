@@ -33,7 +33,7 @@
  * separation here is what makes the statement possible.
  */
 
-import type { WorkloadKind } from "@/entitlements/usage";
+import type { WritingWorkloadKind } from "@/entitlements/usage";
 
 /**
  * Limits on what a single request may carry.
@@ -179,7 +179,7 @@ export type SectionRequirement = {
 };
 
 export type WritingContext = {
-  workload: WorkloadKind;
+  workload: WritingWorkloadKind;
   purpose: WritingPurpose;
   target: WritingTarget;
   facts: readonly WritingFact[];
@@ -205,7 +205,7 @@ export type WritingContext = {
 };
 
 export type WritingContextDraft = {
-  workload: WorkloadKind;
+  workload: WritingWorkloadKind;
   purpose: WritingPurpose;
   target?: Partial<WritingTarget>;
   facts?: readonly WritingFact[];
