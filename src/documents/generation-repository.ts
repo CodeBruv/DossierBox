@@ -2,6 +2,12 @@ import "server-only";
 
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/auth/database";
+import {
+  opportunities,
+  opportunitySources,
+  requirements,
+} from "@/applications/opportunity-schema";
+import type { OpportunityInterpretation } from "@/applications/opportunity-interpretation-response";
 import { applications } from "@/applications/schema";
 import {
   applicationPackageMembers,
@@ -45,16 +51,30 @@ type AttemptCreate = {
   readonly estimatedUnits: number;
 };
 
+type InterpretationAttemptCreate = {
+  readonly userId: string;
+  readonly applicationId: string;
+  readonly opportunityId: string;
+  readonly opportunitySourceId: string;
+  readonly sourceFingerprint: string;
+  readonly contractVersion: string;
+  readonly requestFingerprint: string;
+  readonly endpoint: string;
+  readonly idempotencyKey: string;
+  readonly entitlementPlan: string;
+  readonly estimatedUnits: number;
+};
+
 async function ownedAttempt(userId: string, attemptId: string) {
   const [row] = await db
-    .select({ attempt: generationAttempts, documentType: documentSpecifications.documentType })
+    .select({ attempt: generationAttempts })
     .from(generationAttempts)
     .innerJoin(applications, eq(applications.id, generationAttempts.applicationId))
-    .innerJoin(applicationPlans, eq(applicationPlans.applicationId, applications.id))
-    .innerJoin(applicationPackages, eq(applicationPackages.planId, applicationPlans.id))
-    .innerJoin(applicationPackageMembers, eq(applicationPackageMembers.packageId, applicationPackages.id))
-    .innerJoin(documentSpecifications, eq(documentSpecifications.packageMemberId, applicationPackageMembers.id))
-    .where(and(eq(generationAttempts.id, attemptId), eq(generationAttempts.userId, userId), eq(applications.userId, userId), eq(documentSpecifications.id, generationAttempts.specificationId)))
+    .where(and(
+      eq(generationAttempts.id, attemptId),
+      eq(generationAttempts.userId, userId),
+      eq(applications.userId, userId),
+    ))
     .limit(1);
   return row ?? null;
 }
@@ -66,6 +86,25 @@ async function ownedAttemptIn(
   lock = false,
 ) {
   const query = transaction
+    .select({ attempt: generationAttempts })
+    .from(generationAttempts)
+    .innerJoin(applications, eq(applications.id, generationAttempts.applicationId))
+    .where(and(
+      eq(generationAttempts.id, attemptId),
+      eq(generationAttempts.userId, userId),
+      eq(applications.userId, userId),
+    ))
+    .limit(1);
+  const rows = lock ? await query.for("update", { of: generationAttempts }) : await query;
+  return rows[0] ?? null;
+}
+
+export async function getOwnedIntelligenceAttempt(userId: string, attemptId: string) {
+  return (await ownedAttempt(userId, attemptId))?.attempt ?? null;
+}
+
+export async function getOwnedGenerationContext(userId: string, attemptId: string) {
+  const [owned] = await db
     .select({ attempt: generationAttempts, documentType: documentSpecifications.documentType })
     .from(generationAttempts)
     .innerJoin(applications, eq(applications.id, generationAttempts.applicationId))
@@ -73,23 +112,19 @@ async function ownedAttemptIn(
     .innerJoin(applicationPackages, eq(applicationPackages.planId, applicationPlans.id))
     .innerJoin(applicationPackageMembers, eq(applicationPackageMembers.packageId, applicationPackages.id))
     .innerJoin(documentSpecifications, eq(documentSpecifications.packageMemberId, applicationPackageMembers.id))
-    .where(and(eq(generationAttempts.id, attemptId), eq(generationAttempts.userId, userId), eq(applications.userId, userId), eq(documentSpecifications.id, generationAttempts.specificationId)))
+    .where(and(
+      eq(generationAttempts.id, attemptId),
+      eq(generationAttempts.operationKind, "document_generation"),
+      eq(generationAttempts.userId, userId),
+      eq(applications.userId, userId),
+      eq(documentSpecifications.id, generationAttempts.specificationId),
+    ))
     .limit(1);
-  const rows = lock ? await query.for("update", { of: generationAttempts }) : await query;
-  return rows[0] ?? null;
-}
-
-export async function getOwnedGenerationContext(userId: string, attemptId: string) {
-  const owned = await ownedAttempt(userId, attemptId);
-  if (!owned) return null;
-  return {
-    attempt: owned.attempt,
-    documentType: owned.documentType,
-  };
+  return owned ?? null;
 }
 
 export async function getOwnedGenerationWorkItem(userId: string, attemptId: string, sectionKey: string) {
-  const owned = await ownedAttempt(userId, attemptId);
+  const owned = await getOwnedGenerationContext(userId, attemptId);
   if (!owned) return null;
   const [workItem] = await db
     .select()
@@ -100,7 +135,7 @@ export async function getOwnedGenerationWorkItem(userId: string, attemptId: stri
 }
 
 export async function findOwnedGenerationAttempt(userId: string, attemptId: string) {
-  const owned = await ownedAttempt(userId, attemptId);
+  const owned = await getOwnedGenerationContext(userId, attemptId);
   if (!owned) return null;
   const attempt = owned.attempt;
   const [workItems, validations, executions, artifacts, evidence] = await Promise.all([
@@ -140,20 +175,139 @@ export async function createGenerationAttempt(input: AttemptCreate) {
     .limit(1);
   if (!owned || owned.specification.status !== "approved") return null;
 
-  const [created] = await db.insert(generationAttempts).values(input).onConflictDoNothing({ target: [generationAttempts.userId, generationAttempts.endpoint, generationAttempts.idempotencyKey] }).returning();
+  const [created] = await db.insert(generationAttempts).values({ ...input, operationKind: "document_generation" }).onConflictDoNothing({ target: [generationAttempts.userId, generationAttempts.endpoint, generationAttempts.idempotencyKey] }).returning();
   if (created) return created;
   const [raced] = await db.select().from(generationAttempts).where(idempotencyIdentity).limit(1);
   if (raced?.requestFingerprint !== input.requestFingerprint) throw new Error("Idempotency key was reused for a different generation request.");
   return raced ?? null;
 }
 
+export async function getOwnedOpportunityInterpretationContext(
+  userId: string,
+  applicationId: string,
+  opportunityId: string,
+  opportunitySourceId: string,
+) {
+  const [owned] = await db
+    .select({
+      application: applications,
+      opportunity: opportunities,
+      source: opportunitySources,
+    })
+    .from(applications)
+    .innerJoin(opportunities, eq(opportunities.applicationId, applications.id))
+    .innerJoin(opportunitySources, eq(opportunitySources.opportunityId, opportunities.id))
+    .where(and(
+      eq(applications.id, applicationId),
+      eq(applications.userId, userId),
+      eq(opportunities.id, opportunityId),
+      eq(opportunitySources.id, opportunitySourceId),
+    ))
+    .limit(1);
+  return owned ?? null;
+}
+
+export async function findOwnedOpportunityInterpretationAttempt(
+  userId: string,
+  opportunitySourceId: string,
+  sourceFingerprint: string,
+  contractVersion: string,
+) {
+  const [attempt] = await db
+    .select()
+    .from(generationAttempts)
+    .innerJoin(applications, eq(applications.id, generationAttempts.applicationId))
+    .where(and(
+      eq(generationAttempts.userId, userId),
+      eq(applications.userId, userId),
+      eq(generationAttempts.operationKind, "opportunity_interpretation"),
+      eq(generationAttempts.opportunitySourceId, opportunitySourceId),
+      eq(generationAttempts.sourceFingerprint, sourceFingerprint),
+      eq(generationAttempts.contractVersion, contractVersion),
+    ))
+    .orderBy(desc(generationAttempts.createdAt))
+    .limit(1);
+  return attempt?.generation_attempts ?? null;
+}
+
+export async function countOwnedSuccessfulOpportunityInterpretations(
+  userId: string,
+  since: Date,
+): Promise<number> {
+  const [result] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(generationAttempts)
+    .innerJoin(applications, eq(applications.id, generationAttempts.applicationId))
+    .where(and(
+      eq(generationAttempts.userId, userId),
+      eq(applications.userId, userId),
+      eq(generationAttempts.operationKind, "opportunity_interpretation"),
+      eq(generationAttempts.status, "succeeded"),
+      sql`${generationAttempts.completedAt} >= ${since}`,
+    ));
+  return result?.count ?? 0;
+}
+
+export async function createOpportunityInterpretationAttempt(
+  input: InterpretationAttemptCreate,
+) {
+  const identity = and(
+    eq(generationAttempts.userId, input.userId),
+    eq(generationAttempts.endpoint, input.endpoint),
+    eq(generationAttempts.idempotencyKey, input.idempotencyKey),
+  );
+  const existing = await db.select().from(generationAttempts).where(identity).limit(1);
+  if (existing[0]) {
+    if (existing[0].requestFingerprint !== input.requestFingerprint) {
+      throw new Error("Idempotency key was reused for a different interpretation request.");
+    }
+    return existing[0];
+  }
+
+  const owned = await getOwnedOpportunityInterpretationContext(
+    input.userId,
+    input.applicationId,
+    input.opportunityId,
+    input.opportunitySourceId,
+  );
+  if (
+    !owned
+    || owned.source.extractedContentStatus !== "available"
+    || owned.source.contentFingerprint !== input.sourceFingerprint
+    || !owned.opportunity.extractedText?.trim()
+  ) return null;
+
+  const [created] = await db
+    .insert(generationAttempts)
+    .values({
+      ...input,
+      operationKind: "opportunity_interpretation",
+    })
+    .onConflictDoNothing({
+      target: [
+        generationAttempts.userId,
+        generationAttempts.endpoint,
+        generationAttempts.idempotencyKey,
+      ],
+    })
+    .returning();
+  if (created) return created;
+  const [raced] = await db.select().from(generationAttempts).where(identity).limit(1);
+  if (raced?.requestFingerprint !== input.requestFingerprint) {
+    throw new Error("Idempotency key was reused for a different interpretation request.");
+  }
+  return raced ?? null;
+}
+
 export async function addGenerationWorkItems(userId: string, attemptId: string, items: readonly Omit<typeof generationWorkItems.$inferInsert, "attemptId">[]) {
-  if (items.length === 0 || !(await ownedAttempt(userId, attemptId))) return [];
+  const owned = await ownedAttempt(userId, attemptId);
+  if (items.length === 0 || owned?.attempt.operationKind !== "document_generation") return [];
   return db.insert(generationWorkItems).values(items.map((item) => ({ ...item, attemptId }))).onConflictDoNothing().returning();
 }
 
 export async function addEvidenceManifest(userId: string, attemptId: string, items: readonly Omit<typeof generationEvidenceManifestItems.$inferInsert, "attemptId">[]) {
-  if (items.length === 0 || !(await ownedAttempt(userId, attemptId))) return [];
+  const owned = await ownedAttempt(userId, attemptId);
+  if (items.length === 0 || owned?.attempt.operationKind !== "document_generation") return [];
   return db.insert(generationEvidenceManifestItems).values(items.map((item) => ({ ...item, attemptId }))).onConflictDoNothing().returning();
 }
 
@@ -175,7 +329,7 @@ export async function reserveGenerationUnits(input: { userId: string; attemptId:
     const [account] = await transaction.select().from(iuAccounts).where(eq(iuAccounts.userId, input.userId)).for("update");
     if (!account || account.availableUnits < input.units) return null;
     await transaction.update(iuAccounts).set({ availableUnits: sql`${iuAccounts.availableUnits} - ${input.units}`, reservedUnits: sql`${iuAccounts.reservedUnits} + ${input.units}`, updatedAt: new Date() }).where(eq(iuAccounts.userId, input.userId));
-    const [entry] = await transaction.insert(iuLedgerEntries).values({ userId: input.userId, attemptId: input.attemptId, kind: "reservation", units: input.units, entitlementPlan: input.entitlementPlan, reason: "generation_attempt_reservation" }).returning();
+    const [entry] = await transaction.insert(iuLedgerEntries).values({ userId: input.userId, attemptId: input.attemptId, kind: "reservation", units: input.units, entitlementPlan: input.entitlementPlan, reason: `${attempt.attempt.operationKind}_reservation` }).returning();
     await transaction.update(generationAttempts).set({ status: "reserved" }).where(and(eq(generationAttempts.id, input.attemptId), eq(generationAttempts.status, "created")));
     return entry ?? null;
   });
@@ -193,7 +347,7 @@ export async function settleGenerationUnits(input: { userId: string; attemptId: 
     if (existing) return existing;
     const [conflict] = await transaction.select().from(iuLedgerEntries).where(and(eq(iuLedgerEntries.attemptId, input.attemptId), eq(iuLedgerEntries.kind, opposite))).limit(1);
     if (conflict) return null;
-    const [entry] = await transaction.insert(iuLedgerEntries).values({ userId: input.userId, attemptId: input.attemptId, kind, units: reservation.units, entitlementPlan: input.entitlementPlan, reason: input.succeeded ? "generation_attempt_consumption" : "generation_attempt_release" }).returning();
+    const [entry] = await transaction.insert(iuLedgerEntries).values({ userId: input.userId, attemptId: input.attemptId, kind, units: reservation.units, entitlementPlan: input.entitlementPlan, reason: input.succeeded ? `${attempt.attempt.operationKind}_consumption` : `${attempt.attempt.operationKind}_release` }).returning();
     const [account] = await transaction.update(iuAccounts).set({ reservedUnits: sql`${iuAccounts.reservedUnits} - ${reservation.units}`, ...(input.succeeded ? {} : { availableUnits: sql`${iuAccounts.availableUnits} + ${reservation.units}` }), updatedAt: new Date() }).where(and(eq(iuAccounts.userId, input.userId), sql`${iuAccounts.reservedUnits} >= ${reservation.units}`)).returning();
     if (!account) throw new Error("Reserved Generation units could not be settled.");
     return entry ?? null;
@@ -221,16 +375,24 @@ export async function updateGenerationWorkItemStatus(input: {
 
 export async function appendProviderExecution(userId: string, input: typeof providerExecutions.$inferInsert) {
   if (!(await ownedAttempt(userId, input.attemptId))) return null;
-  const [workItem] = await db
-    .select({ id: generationWorkItems.id })
-    .from(generationWorkItems)
-    .where(and(eq(generationWorkItems.id, input.workItemId), eq(generationWorkItems.attemptId, input.attemptId)))
-    .limit(1);
-  if (!workItem) return null;
+  if (input.workItemId) {
+    const [workItem] = await db
+      .select({ id: generationWorkItems.id })
+      .from(generationWorkItems)
+      .where(and(eq(generationWorkItems.id, input.workItemId), eq(generationWorkItems.attemptId, input.attemptId)))
+      .limit(1);
+    if (!workItem) return null;
+  }
   const existing = await db
     .select()
     .from(providerExecutions)
-    .where(and(eq(providerExecutions.workItemId, input.workItemId), eq(providerExecutions.sequence, input.sequence)))
+    .where(and(
+      eq(providerExecutions.attemptId, input.attemptId),
+      input.workItemId
+        ? eq(providerExecutions.workItemId, input.workItemId)
+        : sql`${providerExecutions.workItemId} is null`,
+      eq(providerExecutions.sequence, input.sequence),
+    ))
     .limit(1);
   if (existing[0]) return existing[0];
   const [row] = await db.insert(providerExecutions).values(input).returning();
@@ -274,7 +436,7 @@ export async function failGenerationAttempt(input: {
           kind: "release",
           units: reservation.units,
           entitlementPlan: owned.attempt.entitlementPlan,
-          reason: "generation_attempt_release",
+          reason: `${owned.attempt.operationKind}_release`,
         });
         const [account] = await transaction
           .update(iuAccounts)
@@ -357,7 +519,11 @@ export async function completeGenerationAttempt(input: {
 }) {
   return db.transaction(async (transaction) => {
     const attempt = await ownedAttemptIn(transaction, input.userId, input.attemptId, true);
-    if (!attempt || attempt.attempt.entitlementPlan !== input.entitlementPlan) return null;
+    if (
+      !attempt
+      || attempt.attempt.operationKind !== "document_generation"
+      || attempt.attempt.entitlementPlan !== input.entitlementPlan
+    ) return null;
     if (attempt.attempt.status === "succeeded") {
       const [existingArtifact] = await transaction
         .select()
@@ -375,13 +541,218 @@ export async function completeGenerationAttempt(input: {
     await transaction.insert(generationValidations).values({ ...input.compilerValidation, attemptId: input.attemptId });
     const [allocation] = await transaction.select().from(iuLedgerEntries).where(and(eq(iuLedgerEntries.attemptId, input.attemptId), eq(iuLedgerEntries.kind, "allocation"))).limit(1);
     if (!allocation) {
-      await transaction.insert(iuLedgerEntries).values({ userId: input.userId, attemptId: input.attemptId, kind: "allocation", units: reservation.units, entitlementPlan: input.entitlementPlan, reason: "generation_attempt_consumption" });
+      await transaction.insert(iuLedgerEntries).values({ userId: input.userId, attemptId: input.attemptId, kind: "allocation", units: reservation.units, entitlementPlan: input.entitlementPlan, reason: "document_generation_consumption" });
     }
     const [account] = await transaction.update(iuAccounts).set({ reservedUnits: sql`${iuAccounts.reservedUnits} - ${reservation.units}`, updatedAt: new Date() }).where(and(eq(iuAccounts.userId, input.userId), sql`${iuAccounts.reservedUnits} >= ${reservation.units}`)).returning();
     if (!account) throw new Error("Reserved Generation units could not be allocated.");
     const [completed] = await transaction.update(generationAttempts).set({ status: "succeeded", completedAt: new Date() }).where(and(eq(generationAttempts.id, input.attemptId), eq(generationAttempts.status, "running"))).returning();
     if (!artifact || !completed) throw new Error("Generation Attempt could not be completed atomically.");
     return { attempt: completed, artifact };
+  });
+}
+
+export async function completeOpportunityInterpretationAttempt(input: {
+  userId: string;
+  attemptId: string;
+  entitlementPlan: string;
+  interpretation: OpportunityInterpretation;
+  schemaVersion: string;
+  validationFingerprint: string;
+}) {
+  return db.transaction(async (transaction) => {
+    const owned = await ownedAttemptIn(
+      transaction,
+      input.userId,
+      input.attemptId,
+      true,
+    );
+    const attempt = owned?.attempt;
+    if (
+      !attempt
+      || attempt.operationKind !== "opportunity_interpretation"
+      || attempt.entitlementPlan !== input.entitlementPlan
+      || !attempt.opportunityId
+      || !attempt.opportunitySourceId
+      || !attempt.sourceFingerprint
+      || !attempt.contractVersion
+    ) return null;
+
+    const [target] = await transaction
+      .select({
+        opportunity: opportunities,
+        source: opportunitySources,
+      })
+      .from(opportunities)
+      .innerJoin(
+        opportunitySources,
+        eq(opportunitySources.opportunityId, opportunities.id),
+      )
+      .innerJoin(
+        applications,
+        eq(applications.id, opportunities.applicationId),
+      )
+      .where(and(
+        eq(opportunities.id, attempt.opportunityId),
+        eq(opportunities.applicationId, attempt.applicationId),
+        eq(opportunitySources.id, attempt.opportunitySourceId),
+        eq(applications.userId, input.userId),
+      ))
+      .for("update");
+
+    if (
+      !target
+      || target.source.extractedContentStatus !== "available"
+      || target.source.contentFingerprint !== attempt.sourceFingerprint
+      || !target.opportunity.extractedText?.trim()
+    ) return null;
+
+    const persisted = target.opportunity.interpretation;
+    if (attempt.status === "succeeded") {
+      return target.opportunity.interpretationVersion === attempt.contractVersion
+        && persisted?.sourceId === attempt.opportunitySourceId
+        && persisted?.sourceFingerprint === attempt.sourceFingerprint
+        ? { attempt, opportunity: target.opportunity }
+        : null;
+    }
+    if (attempt.status !== "running") return null;
+
+    const [reservation] = await transaction
+      .select()
+      .from(iuLedgerEntries)
+      .where(and(
+        eq(iuLedgerEntries.attemptId, input.attemptId),
+        eq(iuLedgerEntries.kind, "reservation"),
+      ))
+      .limit(1);
+    if (
+      !reservation
+      || reservation.userId !== input.userId
+      || reservation.units !== attempt.estimatedUnits
+      || reservation.entitlementPlan !== input.entitlementPlan
+    ) return null;
+
+    const [settlement] = await transaction
+      .select({ kind: iuLedgerEntries.kind })
+      .from(iuLedgerEntries)
+      .where(and(
+        eq(iuLedgerEntries.attemptId, input.attemptId),
+        sql`${iuLedgerEntries.kind} in ('allocation', 'release')`,
+      ))
+      .limit(1);
+    if (settlement) return null;
+
+    await transaction
+      .delete(requirements)
+      .where(and(
+        eq(requirements.applicationId, attempt.applicationId),
+        eq(requirements.opportunityId, attempt.opportunityId),
+        eq(requirements.interpretationStatus, "extracted"),
+      ));
+
+    const extractedRequirements = [
+      ...input.interpretation.requirements.map((requirement) => ({
+        applicationId: attempt.applicationId,
+        opportunityId: attempt.opportunityId,
+        text: requirement.text,
+        category: requirement.category,
+        priority: requirement.priority,
+        sourceId: attempt.opportunitySourceId,
+        sourceReference: requirement.sourceReference,
+        confidence: requirement.confidence,
+        interpretationStatus: "extracted" as const,
+        normalizedInterpretation: requirement.normalized,
+        constraints: {
+          items: requirement.constraints,
+          support: requirement.support,
+        },
+      })),
+      ...input.interpretation.requestedDocuments.map((document) => ({
+        applicationId: attempt.applicationId,
+        opportunityId: attempt.opportunityId,
+        text: document.name,
+        category: "document" as const,
+        priority: document.priority,
+        sourceId: attempt.opportunitySourceId,
+        sourceReference: document.sourceReference,
+        confidence: document.confidence,
+        interpretationStatus: "extracted" as const,
+        normalizedInterpretation: document.details ?? document.name,
+        constraints: {
+          items: document.constraints,
+          support: document.support,
+        },
+      })),
+    ];
+    if (extractedRequirements.length > 0) {
+      await transaction.insert(requirements).values(extractedRequirements);
+    }
+
+    const interpretation = {
+      schemaVersion: input.schemaVersion,
+      contractVersion: attempt.contractVersion,
+      sourceId: attempt.opportunitySourceId,
+      sourceFingerprint: attempt.sourceFingerprint,
+      context: input.interpretation.context,
+      requirements: input.interpretation.requirements,
+      requestedDocuments: input.interpretation.requestedDocuments,
+      constraints: input.interpretation.constraints,
+    } satisfies Record<string, unknown>;
+    const [opportunity] = await transaction
+      .update(opportunities)
+      .set({
+        interpretationStatus: "extracted",
+        interpretation,
+        interpretationVersion: attempt.contractVersion,
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(opportunities.id, attempt.opportunityId),
+        eq(opportunities.applicationId, attempt.applicationId),
+      ))
+      .returning();
+
+    await transaction.insert(generationValidations).values({
+      attemptId: input.attemptId,
+      kind: "provenance",
+      status: "passed",
+      fingerprint: input.validationFingerprint,
+      issues: [],
+    });
+    await transaction.insert(iuLedgerEntries).values({
+      userId: input.userId,
+      attemptId: input.attemptId,
+      kind: "allocation",
+      units: reservation.units,
+      entitlementPlan: input.entitlementPlan,
+      reason: "opportunity_interpretation_consumption",
+    });
+    const [account] = await transaction
+      .update(iuAccounts)
+      .set({
+        reservedUnits: sql`${iuAccounts.reservedUnits} - ${reservation.units}`,
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(iuAccounts.userId, input.userId),
+        sql`${iuAccounts.reservedUnits} >= ${reservation.units}`,
+      ))
+      .returning();
+    if (!account) {
+      throw new Error("Reserved Opportunity Interpretation units could not be allocated.");
+    }
+
+    const [completed] = await transaction
+      .update(generationAttempts)
+      .set({ status: "succeeded", completedAt: new Date() })
+      .where(and(
+        eq(generationAttempts.id, input.attemptId),
+        eq(generationAttempts.status, "running"),
+      ))
+      .returning();
+    if (!opportunity || !completed) {
+      throw new Error("Opportunity Interpretation could not be completed atomically.");
+    }
+    return { attempt: completed, opportunity };
   });
 }
 
@@ -416,7 +787,16 @@ export async function acceptGeneratedContentVersion(input: {
       ))
       .for("update", { of: applicationPackageMembers });
 
-    if (!source || source.attempt.status !== "succeeded" || source.attempt.applicationId !== source.application.id || source.artifact.documentType !== source.specification.documentType || source.member.documentType !== source.artifact.documentType) return null;
+    if (
+      !source
+      || source.attempt.operationKind !== "document_generation"
+      || source.attempt.status !== "succeeded"
+      || source.attempt.applicationId !== source.application.id
+      || !source.attempt.specificationFingerprint
+      || !source.attempt.evidenceFingerprint
+      || source.artifact.documentType !== source.specification.documentType
+      || source.member.documentType !== source.artifact.documentType
+    ) return null;
 
     let document = source.member.documentId
       ? (await transaction.select().from(documents).where(and(eq(documents.id, source.member.documentId), eq(documents.userId, input.userId))).for("update"))[0]
