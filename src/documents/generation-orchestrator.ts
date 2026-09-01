@@ -36,7 +36,10 @@ import {
   type AccessDecision,
   type Entitlement,
 } from "@/entitlements/entitlements";
-import { estimatedUnits, type WorkloadKind } from "@/entitlements/usage";
+import {
+  estimatedUnits,
+  type WritingWorkloadKind,
+} from "@/entitlements/usage";
 import {
   requestWriting,
   type WritingContextDraft,
@@ -374,7 +377,7 @@ function makeWorkItem(
   };
 }
 
-function workloadFor(layout: DocumentSectionLayout): WorkloadKind {
+function workloadFor(layout: DocumentSectionLayout): WritingWorkloadKind {
   if (layout === "entries") return "resume_tailoring";
   if (layout === "prose") return "cover_letter_generation";
   return "achievement_reframing";
