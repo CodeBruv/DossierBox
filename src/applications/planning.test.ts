@@ -1,7 +1,26 @@
 import { describe, expect, it } from "vitest";
 import { emptyApplicationObjective } from "./objective";
 import { deterministicallyMatch } from "./matching-repository";
-import { resolveDeterministicApplicationPlan } from "./planning";
+import { resolveDeterministicApplicationPlan, resolveHybridApplicationPlan } from "./planning";
+import type { OpportunityInterpretation } from "./opportunity-interpretation-response";
+
+function interpretation(
+  requestedDocuments: OpportunityInterpretation["requestedDocuments"],
+): OpportunityInterpretation {
+  return { context: [], requirements: [], constraints: [], requestedDocuments };
+}
+
+function request(name: string, support: "explicit" | "inferred" = "explicit") {
+  return {
+    name,
+    details: null,
+    priority: "required" as const,
+    support,
+    confidence: 1,
+    sourceReference: `${name} requested`,
+    constraints: [],
+  };
+}
 
 describe("deterministic application bridge", () => {
   it("suggests a skill relationship without asserting satisfaction", () => {
@@ -72,5 +91,60 @@ describe("deterministic application bridge", () => {
 
     expect(proposal.recommendedDocuments).not.toContain("academic_cv");
     expect(proposal.packageMembers.map((member) => member.documentType)).not.toContain("academic_cv");
+  });
+
+  it("adds only explicit catalogue-backed opportunity requests to the baseline", () => {
+    const proposal = resolveHybridApplicationPlan(emptyApplicationObjective("general_profile"), {
+      requirements: 0,
+      evidence: 0,
+      openGaps: 0,
+      interpretation: interpretation([request("Cover letter")]),
+      maxPackageSize: 3,
+    });
+
+    expect(proposal.recommendedDocuments).toEqual(["professional_cv", "cover_letter"]);
+    expect(proposal.packageMembers[0].reason).toBe("application");
+    expect(proposal.packageMembers[1]).toMatchObject({
+      documentType: "cover_letter",
+      reason: "opportunity_explicit",
+      availability: "unavailable",
+    });
+  });
+
+  it("keeps inferred requests advisory and unsupported explicit requests visible", () => {
+    const proposal = resolveHybridApplicationPlan(emptyApplicationObjective("general_profile"), {
+      requirements: 0,
+      evidence: 0,
+      openGaps: 0,
+      interpretation: interpretation([
+        request("Cover letter", "inferred"),
+        request("Portfolio dossier"),
+      ]),
+    });
+
+    expect(proposal.recommendedDocuments).toEqual(["professional_cv"]);
+    expect(proposal.advisoryDocuments?.map((item) => item.name)).toEqual(["Cover letter"]);
+    expect(proposal.unsupportedDocuments?.map((item) => item.name)).toEqual(["Portfolio dossier"]);
+  });
+
+  it("preserves the objective baseline when an explicit request conflicts or exceeds the package limit", () => {
+    const proposal = resolveHybridApplicationPlan(emptyApplicationObjective("employment"), {
+      requirements: 0,
+      evidence: 0,
+      openGaps: 0,
+      interpretation: interpretation([request("Academic CV"), request("Research statement")]),
+      maxPackageSize: 3,
+    });
+
+    expect(proposal.recommendedDocuments.slice(0, 2)).toEqual(["professional_resume", "cover_letter"]);
+    expect(proposal.recommendedDocuments).toContain("academic_cv");
+    expect(proposal.recommendedDocuments).not.toContain("research_statement");
+    expect(proposal.unsupportedDocuments).toEqual([]);
+    expect(proposal.constrainedDocuments?.map((item) => item.name)).toEqual(["Research statement"]);
+    expect(proposal.warnings).toEqual(expect.arrayContaining([
+      expect.stringContaining("differs from the Application Intent baseline"),
+      expect.stringContaining("package's document limit"),
+    ]));
+    expect(proposal.constrained).toBe(true);
   });
 });
