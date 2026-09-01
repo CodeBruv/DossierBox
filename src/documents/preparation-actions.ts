@@ -2,15 +2,11 @@
 
 import { randomUUID } from "node:crypto";
 import { redirect, unstable_rethrow } from "next/navigation";
-import { createEvidence } from "@/applications/evidence-repository";
-import { evidenceSourceType } from "@/applications/planning-schema";
 import { requireProfileUser } from "@/profile/authorization";
 import { isDocumentTypeKey } from "./catalogue";
 import { getOwnedDocument } from "./repository";
 import { getDocumentPreparation, initializeDocumentPreparation, runApprovedDocumentGeneration } from "./preparation";
 import { createDocumentSpecification, getOwnedDocumentSpecification, transitionDocumentSpecification } from "./specification-repository";
-
-const sourceTypes = new Set<string>(evidenceSourceType.enumValues);
 
 function value(formData: FormData, name: string) {
   const candidate = formData.get(name);
@@ -36,27 +32,10 @@ export async function initializeDocumentPreparationAction(formData: FormData) {
 
 export async function addDocumentEvidenceAction(formData: FormData) {
   const documentId = value(formData, "documentId");
-  const source = value(formData, "source");
-  const separator = source.indexOf(":");
-  const sourceType = source.slice(0, separator);
-  const sourceRecordId = source.slice(separator + 1);
   const user = await requireProfileUser();
   const document = await getOwnedDocument(user.id, documentId);
-  if (!document?.applicationId || separator < 1 || !sourceTypes.has(sourceType) || !sourceRecordId) redirect(preparationUrl(documentId, "error=evidence-invalid"));
-  try {
-    const created = await createEvidence(user.id, document.applicationId, {
-      sourceType: sourceType as (typeof evidenceSourceType.enumValues)[number],
-      sourceRecordId,
-      confirmation: "confirmed",
-      provenance: { selectedFrom: "dossier" },
-    });
-    if (!created) redirect(preparationUrl(documentId, "error=evidence-invalid"));
-  } catch (error) {
-    unstable_rethrow(error);
-    console.error(`[documents] Failed to add Evidence for ${documentId}`, error);
-    redirect(preparationUrl(documentId, "error=evidence-failed"));
-  }
-  redirect(preparationUrl(documentId, "status=evidence-added"));
+  if (!document?.applicationId) redirect(preparationUrl(documentId, "error=evidence-invalid"));
+  redirect(`/applications/${encodeURIComponent(document.applicationId)}/recommendation?error=stale`);
 }
 
 export async function createDocumentSpecificationAction(formData: FormData) {
