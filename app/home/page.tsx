@@ -108,10 +108,10 @@ export default async function HomePage() {
             <Link className={styles.textLink} href="/profile">Open dossier <span aria-hidden="true">→</span></Link>
           </section>
           <section className={styles.actionCard} aria-labelledby="document-action-title">
-            <p className={styles.eyebrow}>Derived work</p>
-            <h2 id="document-action-title">Create a document</h2>
-            <p>Choose a purpose and turn the information in your dossier into a focused professional document.</p>
-            <Link className={styles.textLink} href="/documents/new">Start a document <span aria-hidden="true">→</span></Link>
+            <p className={styles.eyebrow}>Application work</p>
+            <h2 id="document-action-title">Create an application</h2>
+            <p>Describe what you are applying for, save its context, then review the documents it may need.</p>
+            <Link className={styles.textLink} href="/applications/new">Start an application <span aria-hidden="true">→</span></Link>
           </section>
         </div>
 
