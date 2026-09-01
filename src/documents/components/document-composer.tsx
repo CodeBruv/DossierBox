@@ -3,10 +3,6 @@
 import { useState } from "react";
 import type { FormHTMLAttributes } from "react";
 import {
-  applicationObjectiveKindList,
-  type ApplicationObjectiveKind,
-} from "@/applications";
-import {
   composeDocument,
   composableSections,
   isComposedDocumentEmpty,
@@ -28,18 +24,15 @@ import shell from "@/styles/pages/documents.module.css";
 
 export type DocumentComposerProps = {
   type: ShippingDocumentTypeKey;
-  objective: ApplicationObjectiveKind | null;
+  applicationId: string;
   snapshot: DossierSnapshot;
   createAction: FormHTMLAttributes<HTMLFormElement>["action"];
 };
 
-export function DocumentComposer({ type, objective, snapshot, createAction }: DocumentComposerProps) {
+export function DocumentComposer({ type, applicationId, snapshot, createAction }: DocumentComposerProps) {
   const presentationStyles = compatiblePresentationStyles(type);
   const [presentationStyle, setPresentationStyle] = useState<PresentationStyleId>(() =>
     defaultPresentationStyleFor(type),
-  );
-  const [selectedObjective, setSelectedObjective] = useState<ApplicationObjectiveKind | "">(
-    objective ?? "",
   );
   const initialSections = composableSections(type, snapshot);
   const [sectionOrder, setSectionOrder] = useState<readonly string[]>(() =>
@@ -80,29 +73,6 @@ export function DocumentComposer({ type, objective, snapshot, createAction }: Do
             with its own purpose, style, and section choices.
           </p>
         </div>
-        <div className={settingsStyles.field}>
-          <label className={settingsStyles.label} htmlFor="document-objective">
-            Application context <span className={styles.optionalLabel}>(optional)</span>
-          </label>
-          <select
-            className={settingsStyles.input}
-            id="document-objective"
-            onChange={(event) =>
-              setSelectedObjective(event.target.value as ApplicationObjectiveKind | "")
-            }
-            value={selectedObjective}
-          >
-            <option value="">No specific application</option>
-            {applicationObjectiveKindList.map((kind) => (
-              <option key={kind.key} value={kind.key}>{kind.label}</option>
-            ))}
-          </select>
-          <p className={settingsStyles.hint}>
-            This records what the document is for. It helps you keep drafts organised; it does
-            not tailor the content yet and it never changes your Dossier.
-          </p>
-        </div>
-
         <fieldset className={settingsStyles.fieldset}>
           <legend className={settingsStyles.legend}>Presentation style</legend>
           <p className={settingsStyles.hint}>
@@ -149,7 +119,7 @@ export function DocumentComposer({ type, objective, snapshot, createAction }: Do
         ) : null}
 
         <form action={createAction} className={styles.createForm}>
-          <input name="objective" type="hidden" value={selectedObjective} />
+          <input name="applicationId" type="hidden" value={applicationId} />
           <input name="type" type="hidden" value={type} />
           <input name="template" type="hidden" value={presentationStyle} />
           {sectionOrder.map((key) => (
