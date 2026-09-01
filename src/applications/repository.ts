@@ -68,6 +68,19 @@ export async function getOwnedApplication(userId: string, applicationId: string)
   return application ?? null;
 }
 
+/** Retrieves an owned Application and its normalized Intent without loading downstream resources. */
+export async function getOwnedApplicationWithIntent(userId: string, applicationId: string) {
+  const application = await getOwnedApplication(userId, applicationId);
+  if (!application) return null;
+
+  const [intent] = await db
+    .select()
+    .from(applicationIntents)
+    .where(eq(applicationIntents.applicationId, application.id));
+
+  return { ...application, intent: intent ?? null };
+}
+
 /** Retrieves an owned Application together with its normalized intent and owned Documents. */
 export async function getOwnedApplicationWithDocuments(userId: string, applicationId: string) {
   const application = await getOwnedApplication(userId, applicationId);
