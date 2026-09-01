@@ -75,5 +75,5 @@ export async function acceptRecommendationAction(formData: FormData) {
   }, true);
   if (!confirmed) redirect(`${destination}?error=save-failed`);
 
-  redirect(`/documents/new?applicationId=${encodeURIComponent(applicationId)}&planId=${encodeURIComponent(confirmed.plan.id)}&packageId=${encodeURIComponent(confirmed.package.id)}&status=recommendation-confirmed`);
+  redirect(`/applications/${encodeURIComponent(applicationId)}/evidence?planId=${encodeURIComponent(confirmed.plan.id)}&packageId=${encodeURIComponent(confirmed.package.id)}&status=recommendation-confirmed`);
 }
