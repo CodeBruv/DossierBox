@@ -7,6 +7,7 @@ import {
   type ApplicationObjectiveKind,
   type DocumentCompatibility,
 } from "@/applications";
+import { packageHasConfirmedEvidenceBoundary } from "@/applications/evidence-selection-repository";
 import { getOwnedApplicationWithDocuments } from "@/applications/repository";
 import { getOwnedApplicationPlan } from "@/applications/plans-repository";
 import { getOwnedApplicationPackage } from "@/applications/packages-repository";
@@ -61,6 +62,9 @@ export default async function NewDocumentPage({ searchParams }: NewDocumentPageP
       || applicationPackage.status !== "confirmed"
       || applicationPackage.confirmation !== "confirmed"
     ) redirect(`/applications/${encodeURIComponent(application.id)}/recommendation?error=stale`);
+    if (!(await packageHasConfirmedEvidenceBoundary(session.user.id, application.id, applicationPackage.id))) {
+      redirect(`/applications/${encodeURIComponent(application.id)}/evidence?planId=${encodeURIComponent(plan.id)}&packageId=${encodeURIComponent(applicationPackage.id)}&error=confirmation-required`);
+    }
   }
 
   const kind = application.intent.kind as ApplicationObjectiveKind;
@@ -85,7 +89,7 @@ export default async function NewDocumentPage({ searchParams }: NewDocumentPageP
         <ApplicationContextSummary application={application} kind={kind} />
         <StepTrail applicationId={application.id} step={step} type={type} />
         {error ? <p className={shell.errorStatus} role="alert">{error}</p> : null}
-        {query.status === "recommendation-confirmed" ? <p className={styles.reviewStatus} role="status">Recommendation accepted. Your confirmed planning history is saved; choose an available document when you are ready.</p> : null}
+        {query.status === "evidence-confirmed" ? <p className={styles.reviewStatus} role="status">Evidence selection confirmed. Choose an available document when you are ready.</p> : null}
 
         {step === 1 ? <DocumentStep applicationId={application.id} objective={kind} /> : null}
         {type ? (
