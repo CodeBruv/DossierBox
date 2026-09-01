@@ -80,16 +80,18 @@ export const planRegistry: Readonly<Record<PlanKey, PlanDefinition>> = {
     quotas: {
       stored_documents: limited(1),
       writing_units: limited(30),
+      opportunity_interpretations: limited(0),
     },
   },
   plus: {
     key: "plus",
     label: "Starter",
     tagline: "The full set of documents an application needs, from one profile.",
-    capabilities: ["document_set_generation"],
+    capabilities: ["document_set_generation", "opportunity_interpretation"],
     quotas: {
       stored_documents: limited(10),
       writing_units: limited(150),
+      opportunity_interpretations: limited(10),
     },
   },
   professional: {
@@ -101,10 +103,12 @@ export const planRegistry: Readonly<Record<PlanKey, PlanDefinition>> = {
       "objective_tailoring",
       "document_rewrite",
       "advanced_writing_assistance",
+      "opportunity_interpretation",
     ],
     quotas: {
       stored_documents: unlimited,
       writing_units: limited(600),
+      opportunity_interpretations: limited(30),
     },
   },
 };
