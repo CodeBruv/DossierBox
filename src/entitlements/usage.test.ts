@@ -89,14 +89,10 @@ describe("the workload table", () => {
     expect(workloadUnits("application_set_alignment")).toBe(heaviest);
   });
 
-  it("names every workload it will need a prompt for", () => {
-    /*
-     * The prompt library in the next phase is keyed by these names. Listed here so that adding
-     * a prompt without a weight, or a weight without a prompt, is a visible change rather than
-     * a quota that silently costs nothing.
-     */
+  it("names every metered intelligence workload", () => {
     expect([...workloadKinds].sort()).toEqual(
       [
+        "opportunity_interpretation",
         "achievement_reframing",
         "academic_statement_generation",
         "application_set_alignment",
