@@ -40,7 +40,7 @@ import {
   type ProviderCost,
   type UsageOutcome,
   type UsageRecord,
-  type WorkloadKind,
+  type WritingWorkloadKind,
 } from "@/entitlements/usage";
 import {
   buildWritingContext,
@@ -103,7 +103,7 @@ export type WritingOptions = {
 };
 
 type OutcomeBase = {
-  workload: WorkloadKind;
+  workload: WritingWorkloadKind;
   /** `resume_tailoring@1`. Which contract produced this. */
   promptId: string;
   /** The bounded context as sent. Returned so a caller can report what was considered. */
