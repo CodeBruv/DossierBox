@@ -66,7 +66,7 @@ export default async function DocumentsPage({ searchParams }: DocumentsPageProps
             <h1>Your documents</h1>
             <p className={styles.lead}>Documents are created from your dossier for a specific purpose. Your reusable information stays in the dossier.</p>
           </div>
-          <Link className={styles.primaryButton} href="/documents/new">Create a document</Link>
+          <Link className={styles.primaryButton} href="/applications/new">Create application</Link>
         </div>
 
         {error ? (
@@ -105,8 +105,8 @@ export default async function DocumentsPage({ searchParams }: DocumentsPageProps
         ) : (
           <div className={styles.emptyState}>
             <h2>Your document workspace is ready when you are.</h2>
-            <p>Start with a purpose and create a draft connected to your dossier.</p>
-            <Link className={styles.primaryButton} href="/documents/new">Create a document</Link>
+            <p>Start by saving what you are applying for, then choose a document for that Application.</p>
+            <Link className={styles.primaryButton} href="/applications/new">Create application</Link>
           </div>
         )}
       </Container>
