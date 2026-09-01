@@ -13,9 +13,11 @@ import {
 } from "drizzle-orm/pg-core";
 import { users } from "@/auth/schema";
 import { applications } from "@/applications/schema";
+import { opportunities, opportunitySources } from "@/applications/opportunity-schema";
 import { documentSpecifications } from "./specification-schema";
 import {
   generationAttemptStatuses,
+  intelligenceOperationKinds,
   generationWorkItemStatuses,
   iuLedgerEntryKinds,
   providerExecutionStatuses,
@@ -34,10 +36,18 @@ export const generationAttempts = pgTable(
     id: text("id").$defaultFn(id).notNull().primaryKey(),
     userId: text("userId").notNull().references(() => users.id, { onDelete: "restrict" }),
     applicationId: text("applicationId").notNull().references(() => applications.id, { onDelete: "restrict" }),
-    specificationId: text("specificationId").notNull().references(() => documentSpecifications.id, { onDelete: "restrict" }),
-    specificationRevision: integer("specificationRevision").notNull(),
-    specificationFingerprint: text("specificationFingerprint").notNull(),
-    evidenceFingerprint: text("evidenceFingerprint").notNull(),
+    operationKind: text("operationKind")
+      .$type<(typeof intelligenceOperationKinds)[number]>()
+      .notNull()
+      .default("document_generation"),
+    specificationId: text("specificationId").references(() => documentSpecifications.id, { onDelete: "restrict" }),
+    specificationRevision: integer("specificationRevision"),
+    specificationFingerprint: text("specificationFingerprint"),
+    evidenceFingerprint: text("evidenceFingerprint"),
+    opportunityId: text("opportunityId").references(() => opportunities.id, { onDelete: "restrict" }),
+    opportunitySourceId: text("opportunitySourceId").references(() => opportunitySources.id, { onDelete: "restrict" }),
+    sourceFingerprint: text("sourceFingerprint"),
+    contractVersion: text("contractVersion"),
     requestFingerprint: text("requestFingerprint").notNull(),
     endpoint: text("endpoint").notNull(),
     idempotencyKey: text("idempotencyKey").notNull(),
@@ -53,8 +63,40 @@ export const generationAttempts = pgTable(
     ownerEndpointIdempotencyUnique: uniqueIndex("generation_attempts_userId_endpoint_idempotencyKey_unique").on(table.userId, table.endpoint, table.idempotencyKey),
     requestIndex: index("generation_attempts_userId_requestFingerprint_idx").on(table.userId, table.requestFingerprint),
     ownerStatusIndex: index("generation_attempts_userId_status_createdAt_idx").on(table.userId, table.status, table.createdAt),
-    revisionPositive: check("generation_attempts_specificationRevision_positive", sql`${table.specificationRevision} > 0`),
+    interpretationIdentityIndex: index("generation_attempts_interpretation_identity_idx").on(
+      table.userId,
+      table.opportunitySourceId,
+      table.sourceFingerprint,
+      table.contractVersion,
+      table.status,
+    ),
+    revisionPositive: check("generation_attempts_specificationRevision_positive", sql`${table.specificationRevision} is null or ${table.specificationRevision} > 0`),
     unitsNonNegative: check("generation_attempts_estimatedUnits_non_negative", sql`${table.estimatedUnits} >= 0`),
+    knownOperation: check("generation_attempts_operationKind_check", sql`${table.operationKind} in ('document_generation', 'opportunity_interpretation')`),
+    operationTarget: check(
+      "generation_attempts_operation_target_check",
+      sql`(
+        ${table.operationKind} = 'document_generation'
+        and ${table.specificationId} is not null
+        and ${table.specificationRevision} is not null
+        and ${table.specificationFingerprint} is not null
+        and ${table.evidenceFingerprint} is not null
+        and ${table.opportunityId} is null
+        and ${table.opportunitySourceId} is null
+        and ${table.sourceFingerprint} is null
+        and ${table.contractVersion} is null
+      ) or (
+        ${table.operationKind} = 'opportunity_interpretation'
+        and ${table.specificationId} is null
+        and ${table.specificationRevision} is null
+        and ${table.specificationFingerprint} is null
+        and ${table.evidenceFingerprint} is null
+        and ${table.opportunityId} is not null
+        and ${table.opportunitySourceId} is not null
+        and ${table.sourceFingerprint} is not null
+        and ${table.contractVersion} is not null
+      )`,
+    ),
     knownStatus: check("generation_attempts_status_check", sql`${table.status} in ('created', 'reserved', 'running', 'succeeded', 'failed', 'cancelled')`),
   }),
 );
@@ -89,7 +131,7 @@ export const providerExecutions = pgTable(
   {
     id: text("id").$defaultFn(id).notNull().primaryKey(),
     attemptId: text("attemptId").notNull().references(() => generationAttempts.id, { onDelete: "restrict" }),
-    workItemId: text("workItemId").notNull().references(() => generationWorkItems.id, { onDelete: "restrict" }),
+    workItemId: text("workItemId").references(() => generationWorkItems.id, { onDelete: "restrict" }),
     sequence: integer("sequence").notNull(),
     promptId: text("promptId").notNull(),
     requestFingerprint: text("requestFingerprint").notNull(),
@@ -105,7 +147,12 @@ export const providerExecutions = pgTable(
     completedAt: timestamp("completedAt", { mode: "date", withTimezone: true }),
   },
   (table) => ({
-    workSequenceUnique: uniqueIndex("generation_provider_executions_workItemId_sequence_unique").on(table.workItemId, table.sequence),
+    workSequenceUnique: uniqueIndex("generation_provider_executions_workItemId_sequence_unique")
+      .on(table.workItemId, table.sequence)
+      .where(sql`${table.workItemId} is not null`),
+    attemptSequenceUnique: uniqueIndex("generation_provider_executions_attemptId_sequence_without_workItem_unique")
+      .on(table.attemptId, table.sequence)
+      .where(sql`${table.workItemId} is null`),
     attemptIndex: index("generation_provider_executions_attemptId_idx").on(table.attemptId),
     sequencePositive: check("generation_provider_executions_sequence_positive", sql`${table.sequence} > 0`),
     amountNonNegative: check("generation_provider_executions_amountMinor_non_negative", sql`${table.amountMinor} is null or ${table.amountMinor} >= 0`),
