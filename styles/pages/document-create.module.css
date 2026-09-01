@@ -186,6 +186,179 @@
   vertical-align: 0.1em;
 }
 
+/* ---- Application context ------------------------------------------------ */
+
+.applicationForm {
+  display: grid;
+  gap: var(--ds-space-lg);
+  max-width: 42rem;
+  margin-top: var(--ds-space-xl);
+}
+
+.applicationSummary,
+.applicationContext {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ds-space-lg);
+  padding: var(--ds-space-md) 0;
+  border-top: 1px solid var(--ds-color-border-default);
+  border-bottom: 1px solid var(--ds-color-border-default);
+}
+
+.applicationSummary {
+  display: grid;
+  gap: var(--ds-space-3xs);
+}
+
+.applicationSummary span {
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.applicationContext {
+  margin-top: var(--ds-space-lg);
+}
+
+.applicationContext h2 {
+  margin-top: var(--ds-space-3xs);
+  font-size: var(--ds-heading-size-md);
+}
+
+.applicationContext p:last-child {
+  margin-top: var(--ds-space-2xs);
+  color: var(--ds-color-text-secondary);
+}
+
+.contextFields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ds-space-md);
+}
+
+.opportunityForm {
+  display: grid;
+  gap: var(--ds-space-lg);
+  max-width: 42rem;
+  margin-top: var(--ds-space-xl);
+}
+
+.opportunityTextarea {
+  min-height: 18rem;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.reviewStatus {
+  max-width: 42rem;
+  margin-top: var(--ds-space-lg);
+  padding: var(--ds-space-sm) var(--ds-space-md);
+  border-left: 3px solid var(--ds-color-brand-primary);
+  background: var(--ds-color-surface-subtle);
+  color: var(--ds-color-text-secondary);
+}
+
+.interpretationSection {
+  max-width: 56rem;
+  margin-top: var(--ds-space-2xl);
+  padding-top: var(--ds-space-xl);
+  border-top: 1px solid var(--ds-color-border-default);
+}
+
+.interpretationHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ds-space-lg);
+}
+
+.interpretationHeading h2 {
+  margin-top: var(--ds-space-3xs);
+  font-size: var(--ds-heading-size-lg);
+}
+
+.interpretationHeading p:last-child,
+.reviewLocked p {
+  max-width: 42rem;
+  margin-top: var(--ds-space-2xs);
+  color: var(--ds-color-text-secondary);
+}
+
+.paidLock {
+  flex: 0 0 auto;
+  padding: var(--ds-space-2xs) var(--ds-space-sm);
+  border: 1px solid var(--ds-color-border-default);
+  border-radius: var(--ds-border-radius-sm);
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.reviewLocked {
+  display: grid;
+  gap: var(--ds-space-md);
+  margin-top: var(--ds-space-lg);
+  padding: var(--ds-space-lg) 0;
+  border-top: 1px solid var(--ds-color-border-default);
+}
+
+.reviewLocked button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.interpretationGroups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: var(--ds-space-xl);
+  margin-top: var(--ds-space-xl);
+}
+
+.interpretationGroup h3 {
+  font-size: var(--ds-heading-size-sm);
+}
+
+.interpretationGroup ul {
+  display: grid;
+  gap: var(--ds-space-md);
+  margin: var(--ds-space-sm) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.interpretationGroup li {
+  display: grid;
+  gap: var(--ds-space-3xs);
+  padding-top: var(--ds-space-sm);
+  border-top: 1px solid var(--ds-color-border-default);
+  overflow-wrap: anywhere;
+}
+
+.interpretationGroup span {
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-text-sm);
+}
+
+.interpretationGroup small {
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-text-xs);
+}
+
+@media (max-width: 40rem) {
+  .interpretationHeading,
+  .applicationContext {
+    display: grid;
+  }
+
+  .paidLock {
+    width: fit-content;
+  }
+}
+
 /* ---- Guided recommendation and explicit path --------------------------- */
 
 .explicitPath {
@@ -578,6 +751,15 @@
 }
 
 @media (max-width: 48rem) {
+  .contextFields {
+    grid-template-columns: 1fr;
+  }
+
+  .applicationContext {
+    flex-direction: column;
+    gap: var(--ds-space-sm);
+  }
+
   .previewPanelHeader {
     align-items: flex-start;
     flex-direction: column;
@@ -585,7 +767,8 @@
 }
 
 @media (max-width: 22rem) {
-  .createForm button {
+  .createForm button,
+  .opportunityForm button {
     width: 100%;
   }
 }
