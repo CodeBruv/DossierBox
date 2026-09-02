@@ -6,13 +6,10 @@ import {
 } from "@/applications";
 import { authSessionConfiguration } from "@/auth/auth";
 import { getSession } from "@/auth/session";
-import {
-  composableSections,
-  composeDocument,
-  isComposedDocumentEmpty,
-} from "@/documents/composition";
+import { composeDocument, isComposedDocumentEmpty } from "@/documents/composition";
 import { DocumentPreview } from "@/documents/components/document-preview";
-import { DocumentSettings } from "@/documents/components/document-settings";
+import { DocumentWorkspace } from "@/documents/components/document-workspace";
+import { updateDocumentAction } from "@/documents/actions";
 import { DeleteDocument } from "@/documents/components/delete-document";
 import { resolvePresentationStyle } from "@/documents/presentation";
 import { readOwnedDocumentComposition } from "@/documents/read-composition";
@@ -118,17 +115,6 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
     ? applicationObjectiveKindLabel(objective.kind)
     : "No specific application";
 
-  /*
-   * The arrangement control lists every section this dossier *could* show, which
-   * is not the same as what the document currently shows — a hidden section has
-   * to stay in the list or there would be no way to bring it back. Composed with
-   * the document's order but no hiding, for exactly that reason: the user needs to
-   * see a cleared section sitting in the place it will reappear in.
-   */
-  const offeredSections = !versionBacked && snapshot
-    ? composableSections(document.type, snapshot, document.sectionOrder)
-    : [];
-
   return (
     <div className={styles.page}>
       <Container>
@@ -204,14 +190,9 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
                 Export PDF
               </a>
             ) : (
-              <div>
-                <Link className={styles.primaryButton} href={`/documents/${document.id}/prepare`}>
-                  Prepare for generation
-                </Link>
-                <p className={styles.lifecycleNote}>
-                  Preparation uses this draft's existing Application. The live draft stays mutable and cannot be exported; only acceptance creates an immutable, exportable version.
-                </p>
-              </div>
+              <p className={styles.lifecycleNote}>
+                This is your working document. Customize it below and save when it looks right. Export becomes available after an accepted version is created.
+              </p>
             )}
           </div>
           {versions.length > 1 ? (
@@ -246,33 +227,23 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
             </div>
           </div>
         ) : (
-          /*
-           * Controls beside the sheet on a wide screen, above it on a narrow one.
-           * The sheet is second in the DOM so that on a phone the settings — the
-           * only things on this page that can be operated — come first, rather
-           * than sitting below a document that is several screens tall.
-           */
           <div className={styles.workspace}>
-            {!versionBacked ? (
-              <aside
-                aria-label="Document settings"
-                className={styles.workspaceControls}
-                data-print-skip
-              >
-                <DocumentSettings
-                  documentId={document.id}
-                  documentType={document.type}
-                  hiddenSections={document.hiddenSections}
-                  sections={offeredSections}
-                  presentationStyle={presentationStyle.id}
-                  title={document.title}
-                />
-              </aside>
-            ) : null}
-
-            <div className={styles.workspacePreview}>
-              <DocumentPreview document={composed} presentationStyle={presentationStyle} />
-            </div>
+            {!versionBacked && snapshot ? (
+              <DocumentWorkspace
+                documentId={document.id}
+                documentType={document.type}
+                hiddenSections={document.hiddenSections}
+                presentationStyle={presentationStyle.id}
+                saveAction={updateDocumentAction}
+                sectionOrder={document.sectionOrder}
+                snapshot={snapshot}
+                title={document.title}
+              />
+            ) : (
+              <div className={styles.workspacePreview}>
+                <DocumentPreview document={composed!} presentationStyle={presentationStyle} />
+              </div>
+            )}
           </div>
         )}
 
