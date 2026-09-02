@@ -1,0 +1,3 @@
+ALTER TABLE "application_evidence_selections" ADD COLUMN "lastConfirmedAt" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "application_evidence_selections" ADD COLUMN "lastConfirmedByUserId" text;--> statement-breakpoint
+ALTER TABLE "application_evidence_selections" ADD CONSTRAINT "application_evidence_selections_lastConfirmedByUserId_users_id_fk" FOREIGN KEY ("lastConfirmedByUserId") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;
