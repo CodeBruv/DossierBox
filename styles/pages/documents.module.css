@@ -473,6 +473,77 @@
   padding-bottom: var(--ds-space-lg);
 }
 
+.workspaceShell {
+  display: grid;
+  gap: var(--ds-space-sm);
+  width: 100%;
+}
+
+.workspaceToolbar,
+.previewToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-sm);
+}
+
+.workspaceTitle {
+  font-size: var(--ds-heading-size-md);
+}
+
+.previewToggle,
+.previewClose {
+  min-height: 2.75rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--ds-color-border-control);
+  border-radius: var(--ds-border-radius-sm);
+  background: var(--ds-color-surface);
+  color: var(--ds-color-text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.previewToolbar {
+  margin-bottom: var(--ds-space-sm);
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.workspaceGroup {
+  border-top: 1px solid var(--ds-color-border-default);
+  padding-top: var(--ds-space-sm);
+}
+
+.workspaceGroup summary {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--ds-space-sm);
+  min-height: 2.75rem;
+  align-items: center;
+  cursor: pointer;
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.workspaceGroup summary span {
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-font-weight-regular);
+}
+
+.previewFullscreen {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  overflow: auto;
+  padding: var(--ds-space-md);
+  background: var(--ds-color-background);
+}
+
 @media (min-width: 64rem) {
   .workspace {
     /* `minmax(0, …)` on both tracks: without it a long unbroken string in
@@ -535,6 +606,22 @@
 }
 
 @media (max-width: 48rem) {
+  .workspaceToolbar {
+    align-items: flex-start;
+  }
+
+  .workspaceShell {
+    gap: var(--ds-space-md);
+  }
+
+  .workspaceControls {
+    order: 2;
+  }
+
+  .workspacePreview {
+    order: 1;
+  }
+
   .lifecyclePanel,
   .preparationCard {
     padding: var(--ds-space-md);
