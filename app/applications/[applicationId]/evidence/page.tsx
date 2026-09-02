@@ -140,7 +140,7 @@ export default async function EvidencePage({ params, searchParams }: Props) {
           </div>
           <div className={styles.confirmBar}><div><strong>Confirm Evidence Selection</strong><p>New checked Evidence is added to this package. Existing choices remain unless you explicitly remove them.</p></div><Button type="submit">Confirm Evidence Selection</Button></div>
         </form>
-        {query.status === "confirmed" ? <div className={styles.continue}><Link href={`/documents/new?applicationId=${encodeURIComponent(applicationId)}&planId=${encodeURIComponent(review.plan.id)}&packageId=${encodeURIComponent(review.package.id)}&status=evidence-confirmed`}>Continue to documents</Link></div> : null}
+        {query.status === "confirmed" ? <div className={styles.continue}><Link href={`/applications/${encodeURIComponent(applicationId)}/specification?planId=${encodeURIComponent(review.plan.id)}&packageId=${encodeURIComponent(review.package.id)}&status=confirmed`}>Continue to Document Specification</Link></div> : null}
       </Container>
     </div>
   );
@@ -154,7 +154,7 @@ function StepTrail({ applicationId }: { applicationId: string }) {
         <li><Link href={`/applications/${encodeURIComponent(applicationId)}/opportunity`}>Instructions</Link></li>
         <li><Link href={`/applications/${encodeURIComponent(applicationId)}/recommendation`}>Recommendation</Link></li>
         <li aria-current="step"><span>Evidence</span></li>
-        <li><span>Documents</span></li>
+        <li><span>Document Specification</span></li>
       </ol>
     </nav>
   );
