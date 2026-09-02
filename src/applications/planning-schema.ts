@@ -146,6 +146,8 @@ export const evidenceSelections = pgTable("application_evidence_selections", {
   status: evidenceSelectionStatus("status").notNull(),
   confirmedAt: timestamp("confirmedAt", { mode: "date", withTimezone: true }),
   confirmedByUserId: text("confirmedByUserId").references(() => users.id, { onDelete: "restrict" }),
+  lastConfirmedAt: timestamp("lastConfirmedAt", { mode: "date", withTimezone: true }),
+  lastConfirmedByUserId: text("lastConfirmedByUserId").references(() => users.id, { onDelete: "restrict" }),
   requirementFingerprint: text("requirementFingerprint").notNull(),
   evidenceFingerprint: text("evidenceFingerprint").notNull(),
   matchingResultId: text("matchingResultId").references(() => matchingResults.id, { onDelete: "set null" }),
