@@ -61,6 +61,7 @@ async function deleteUserFixture(userId: string) {
       .where(inArray(documentSpecifications.packageMemberId, members.map((member) => member.id)));
   }
   await db.delete(evidenceSelections).where(eq(evidenceSelections.confirmedByUserId, userId));
+  await db.delete(evidenceSelections).where(eq(evidenceSelections.lastConfirmedByUserId, userId));
   await db.delete(users).where(eq(users.id, userId));
 }
 
