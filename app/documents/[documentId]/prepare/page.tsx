@@ -4,7 +4,6 @@ import { authSessionConfiguration } from "@/auth/auth";
 import { getSession } from "@/auth/session";
 import { acceptGeneratedContentAction } from "@/documents/actions";
 import {
-  addDocumentEvidenceAction,
   approveDocumentSpecificationAction,
   createDocumentSpecificationAction,
   generatePreparedDocumentAction,
@@ -46,8 +45,6 @@ export default async function PrepareDocumentPage({ params, searchParams }: Prop
   const preparation = await getDocumentPreparation(session.user.id, documentId);
   if (!preparation) notFound();
   const { status, error } = await searchParams;
-  const selectedSourceIds = new Set(preparation.evidence.map((item) => `${item.sourceType}:${item.sourceRecordId}`));
-  const availableSources = preparation.sources.filter((source) => !selectedSourceIds.has(`${source.sourceType}:${source.sourceRecordId}`));
   const specification = preparation.specification;
   const generation = preparation.generation;
   const artifact = generation?.artifact ?? null;
@@ -107,16 +104,10 @@ export default async function PrepareDocumentPage({ params, searchParams }: Prop
 
           <li className={styles.preparationCard}>
             <p className={styles.eyebrow}>2 · Evidence</p>
-            <h2>Select facts from your Dossier</h2>
-            <p>Evidence keeps a reference to the original Dossier fact; it does not copy or rewrite it.</p>
-            {preparation.evidence.length ? <ul className={styles.evidenceList}>{preparation.evidence.map((item) => <li key={item.id}>{item.sourceType} · {item.lifecycle === "active" ? "available" : "unavailable"}</li>)}</ul> : <p className={styles.lifecycleNote}>No Evidence selected yet.</p>}
-            {preparation.member && availableSources.length ? <form action={addDocumentEvidenceAction} className={styles.preparationForm}>
-              <input name="documentId" type="hidden" value={documentId} />
-              <label htmlFor="source">Dossier fact</label>
-              <select id="source" name="source" required defaultValue=""><option disabled value="">Choose a fact</option>{availableSources.map((source) => <option key={`${source.sourceType}:${source.sourceRecordId}`} value={`${source.sourceType}:${source.sourceRecordId}`}>{source.sourceType} · {source.label}</option>)}</select>
-              <button className={styles.secondaryButton} type="submit">Add Evidence</button>
-            </form> : null}
-            {!preparation.sources.length ? <p className={styles.lifecycleNote}>Add a named profile or a section entry to your Dossier before selecting Evidence.</p> : null}
+            <h2>Review confirmed Evidence</h2>
+            <p>Evidence is selected and confirmed for the Application Package before this preparation flow begins. Dossier facts cannot be added here.</p>
+            {preparation.evidence.length ? <ul className={styles.evidenceList}>{preparation.evidence.map((item) => <li key={item.id}>{item.sourceType} · {item.lifecycle === "active" ? "available" : "unavailable"}</li>)}</ul> : <p className={styles.lifecycleNote}>No Evidence is attached to this legacy draft.</p>}
+            <p className={styles.lifecycleNote}>Return to the Application Evidence review to confirm or update the package Evidence boundary.</p>
           </li>
 
           <li className={styles.preparationCard}>
