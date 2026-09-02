@@ -80,7 +80,7 @@ export default async function EvidencePage({ params, searchParams }: Props) {
                           {rejected ? <p className={styles.rejected}>Rejected for this package</p> : null}
                           <div className={styles.cardActions}>
                             <label className={styles.choice}><input defaultChecked={selected} disabled={unavailable || stale || rejected} name="selection" type="checkbox" value={`${requirement.id}:${match.evidence.id}:${match.id}`} /><span>{selected ? "Keep selected" : "Select this Evidence"}</span></label>
-                            {!selected && !rejected ? <button className={styles.reject} formAction={rejectEvidenceCandidateAction} name="rejection" type="submit" value={`${requirement.id}:${match.evidence.id}:${match.id}`}>Reject<span className={styles.srOnly}> {match.source?.label ?? "candidate"}</span></button> : null}
+                            {!unavailable && !stale ? <button className={styles.reject} formAction={rejectEvidenceCandidateAction} name="rejection" type="submit" value={`${requirement.id}:${match.evidence.id}:${match.id}`}>{selected ? "Remove selection" : "Reject"}<span className={styles.srOnly}> {match.source?.label ?? "candidate"}</span></button> : null}
                           </div>
                         </article>
                       );
@@ -101,19 +101,33 @@ export default async function EvidencePage({ params, searchParams }: Props) {
                         const unavailable = !source || evidence.lifecycle !== "active";
                         const stale = selection?.status === "stale" || selection?.status === "invalidated";
                         return (
-                          <label className={styles.manualChoice} key={evidence.id}>
-                            <input
-                              defaultChecked={selected}
-                              disabled={unavailable || stale}
-                              name="selection"
-                              type="checkbox"
-                              value={`${requirement.id}:${evidence.id}:`}
-                            />
-                            <span>
-                              <strong>{source?.label ?? "Dossier source unavailable"}</strong>
-                              <small>{evidence.sourceType}{unavailable ? " · unavailable" : stale ? " · stale" : " · manual selection"}</small>
-                            </span>
-                          </label>
+                          <div className={styles.manualChoice} key={evidence.id}>
+                            <label>
+                              <input
+                                defaultChecked={selected}
+                                disabled={unavailable || stale}
+                                name="selection"
+                                type="checkbox"
+                                value={`${requirement.id}:${evidence.id}:`}
+                              />
+                              <span>
+                                <strong>{source?.label ?? "Dossier source unavailable"}</strong>
+                                <small>{evidence.sourceType}{unavailable ? " · unavailable" : stale ? " · stale" : " · manual selection"}</small>
+                              </span>
+                            </label>
+                            {selected && !unavailable && !stale ? (
+                              <button
+                                className={styles.reject}
+                                formAction={rejectEvidenceCandidateAction}
+                                name="rejection"
+                                type="submit"
+                                value={`${requirement.id}:${evidence.id}:`}
+                              >
+                                Remove selection
+                                <span className={styles.srOnly}> {source?.label ?? "Evidence"}</span>
+                              </button>
+                            ) : null}
+                          </div>
                         );
                       })}
                     {review.availableEvidence.every(({ evidence }) => requirement.matches.some((match) => match.evidence.id === evidence.id)) ? (
@@ -124,7 +138,7 @@ export default async function EvidencePage({ params, searchParams }: Props) {
               </section>
             ))}
           </div>
-          <div className={styles.confirmBar}><div><strong>Confirm Evidence Selection</strong><p>Checked Evidence becomes authoritative for this package. Unchecked prior choices are removed from the confirmed set.</p></div><Button type="submit">Confirm Evidence Selection</Button></div>
+          <div className={styles.confirmBar}><div><strong>Confirm Evidence Selection</strong><p>New checked Evidence is added to this package. Existing choices remain unless you explicitly remove them.</p></div><Button type="submit">Confirm Evidence Selection</Button></div>
         </form>
         {query.status === "confirmed" ? <div className={styles.continue}><Link href={`/documents/new?applicationId=${encodeURIComponent(applicationId)}&planId=${encodeURIComponent(review.plan.id)}&packageId=${encodeURIComponent(review.package.id)}&status=evidence-confirmed`}>Continue to documents</Link></div> : null}
       </Container>
