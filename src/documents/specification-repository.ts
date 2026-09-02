@@ -106,6 +106,10 @@ async function ownedMember(userId: string, memberId: string) {
   return row;
 }
 
+export async function getOwnedPackageMemberContext(userId: string, memberId: string) {
+  return ownedMember(userId, memberId);
+}
+
 async function ownedSpecification(userId: string, specificationId: string) {
   const [row] = await db
     .select({ specification: documentSpecifications, applicationId: applicationPlans.applicationId })
