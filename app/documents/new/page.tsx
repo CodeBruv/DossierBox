@@ -44,6 +44,7 @@ export default async function NewDocumentPage({ searchParams }: NewDocumentPageP
 
   const query = await searchParams;
   if (!query.applicationId) redirect("/applications/new");
+  if (query.planId && query.packageId) redirect(`/applications/${encodeURIComponent(query.applicationId)}/specification?planId=${encodeURIComponent(query.planId)}&packageId=${encodeURIComponent(query.packageId)}`);
   const application = await getOwnedApplicationWithDocuments(session.user.id, query.applicationId);
   if (!application?.intent) redirect("/applications/new?error=application-required");
   if (query.planId || query.packageId) {
@@ -89,7 +90,7 @@ export default async function NewDocumentPage({ searchParams }: NewDocumentPageP
         <ApplicationContextSummary application={application} kind={kind} />
         <StepTrail applicationId={application.id} step={step} type={type} />
         {error ? <p className={shell.errorStatus} role="alert">{error}</p> : null}
-        {query.status === "evidence-confirmed" ? <p className={styles.reviewStatus} role="status">Evidence selection confirmed. Choose an available document when you are ready.</p> : null}
+        {query.status === "evidence-confirmed" ? <p className={styles.reviewStatus} role="status">Evidence selection confirmed. Continue to the Document Specification review before any document is created.</p> : null}
 
         {step === 1 ? <DocumentStep applicationId={application.id} objective={kind} /> : null}
         {type ? (
