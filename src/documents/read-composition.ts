@@ -2,6 +2,7 @@ import "server-only";
 
 import type { DocumentTypeKey } from "./catalogue";
 import {
+  composeEvidenceBoundDocument,
   composeStructuredDocument,
   type ComposedDocument,
   type DocumentConfiguration,
@@ -19,7 +20,11 @@ import {
   resolvePresentationStyle,
   type PresentationStyle,
 } from "./presentation";
-import { getOwnedDocumentReadSource } from "./repository";
+import { listValidPackageEvidenceSelections } from "@/applications/evidence-selection-repository";
+import { getOwnedEvidence } from "@/applications/evidence-repository";
+import { getDossierSnapshot } from "@/profile/repository";
+import { getOwnedDocumentPackageMember, getOwnedDocumentReadSource } from "./repository";
+import { listDocumentSpecifications } from "./specification-repository";
 import type { DocumentType } from "./schema";
 
 export type VersionBackedDocumentRead = {
@@ -34,12 +39,21 @@ export type VersionBackedDocumentRead = {
   readonly createdAt: Date;
 };
 
+export type CurrentDraftDocumentRead = {
+  readonly kind: "draft";
+  readonly document: NonNullable<Awaited<ReturnType<typeof getOwnedDocumentReadSource>>>["document"];
+  readonly composed: ComposedDocument;
+  readonly presentationStyle: PresentationStyle;
+  readonly selectedEvidence: readonly SelectedEvidence[];
+};
+
 export type DocumentReadComposition =
   | VersionBackedDocumentRead
   | {
       readonly kind: "legacy";
       readonly document: NonNullable<Awaited<ReturnType<typeof getOwnedDocumentReadSource>>>["document"];
     }
+  | CurrentDraftDocumentRead
   | { readonly kind: "not_found" }
   | {
       readonly kind: "invalid_version";
@@ -60,6 +74,57 @@ export type DocumentReadComposition =
  * entitlement, provider, IU, or billing data. An explicit version id is meaningful only inside
  * the already-authorized Document supplied alongside it.
  */
+/**
+ * Resolves a current draft only through its attached, owner-authorized package member.
+ * Missing or stale upstream state is returned as an incomplete draft rather than composed
+ * from unrestricted Dossier data.
+ */
+export async function readOwnedCurrentDraftComposition(
+  userId: string,
+  documentId: string,
+): Promise<DocumentReadComposition> {
+  const document = await getOwnedDocumentReadSource(userId, documentId);
+  if (!document) return { kind: "not_found" };
+  if (document.state !== "legacy") return readOwnedDocumentComposition(userId, documentId);
+
+  const context = await getOwnedDocumentPackageMember(userId, documentId);
+  if (!context || context.plan.status !== "confirmed" || context.plan.confirmation !== "confirmed" || context.package.status !== "confirmed" || context.package.confirmation !== "confirmed") {
+    return { kind: "legacy", document: document.document };
+  }
+
+  const specifications = await listDocumentSpecifications(userId, context.member.id);
+  const specification = specifications.find((candidate) => candidate.status === "approved");
+  if (!specification || specification.documentType !== document.document.type) {
+    return { kind: "legacy", document: document.document };
+  }
+
+  const selections = await listValidPackageEvidenceSelections(userId, context.application.id, context.package.id);
+  if (!selections || specification.evidenceIds.some((id) => !selections.some((selection) => selection.evidenceId === id))) {
+    return { kind: "legacy", document: document.document };
+  }
+
+  const selectedEvidence: SelectedEvidence[] = [];
+  for (const selection of selections.filter((candidate) => specification.evidenceIds.includes(candidate.evidenceId))) {
+    const evidence = await getOwnedEvidence(userId, selection.evidenceId);
+    if (!evidence || evidence.lifecycle !== "active") return { kind: "legacy", document: document.document };
+    selectedEvidence.push({ evidenceId: evidence.id, sourceType: evidence.sourceType, sourceRecordId: evidence.sourceRecordId });
+  }
+
+  const snapshot = await getDossierSnapshot(userId);
+  if (!snapshot) return { kind: "legacy", document: document.document };
+  const presentationStyle = resolvePresentationStyle(document.document.template, document.document.type);
+  return {
+    kind: "draft",
+    document: document.document,
+    composed: composeEvidenceBoundDocument(document.document.type, snapshot, selectedEvidence, {
+      hiddenSections: document.document.hiddenSections,
+      sectionOrder: document.document.sectionOrder,
+    }),
+    presentationStyle,
+    selectedEvidence,
+  };
+}
+
 export async function readOwnedDocumentComposition(
   userId: string,
   documentId: string,
