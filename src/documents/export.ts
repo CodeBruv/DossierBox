@@ -17,8 +17,9 @@ export async function exportOwnedDocumentVersion(input: ExportOwnedDocumentInput
   if (input.format !== "pdf") return { kind: "unsupported-presentation" };
   const read = await readOwnedDocumentComposition(input.userId, input.documentId, input.documentVersionId);
   if (read.kind === "not_found") return read;
-  if (read.kind === "legacy") return { kind: "accepted-version-required" };
+  if (read.kind === "legacy" || read.kind === "draft" || read.kind === "incomplete") return { kind: "accepted-version-required" };
   if (read.kind === "invalid_version") return read.reason === "version_not_found" ? { kind: "not_found" } : { kind: "invalid-version" };
+  if (read.kind !== "version") return { kind: "accepted-version-required" };
 
   try {
     const model = compilePresentationModel({ document: read.composed, presentationContractVersion: read.presentationContractVersion, presentationStyleId: read.presentationStyle.id });
