@@ -6,13 +6,14 @@ import {
 } from "@/applications";
 import { authSessionConfiguration } from "@/auth/auth";
 import { getSession } from "@/auth/session";
-import { composeDocument, isComposedDocumentEmpty } from "@/documents/composition";
+import { composeEvidenceBoundDocument, isComposedDocumentEmpty } from "@/documents/composition";
 import { DocumentPreview } from "@/documents/components/document-preview";
 import { DocumentWorkspace } from "@/documents/components/document-workspace";
 import { updateDocumentAction } from "@/documents/actions";
 import { DeleteDocument } from "@/documents/components/delete-document";
 import { resolvePresentationStyle } from "@/documents/presentation";
 import { readOwnedDocumentComposition } from "@/documents/read-composition";
+import { getDocumentPreparation } from "@/documents/preparation";
 import { documentTypeLabel, listOwnedDocumentVersions } from "@/documents/repository";
 import { getDossierSnapshot } from "@/profile/repository";
 import { Container } from "@/ui";
@@ -51,14 +52,27 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
 
   let read;
   let snapshot;
+  let selectedEvidence: { evidenceId: string; sourceType: string; sourceRecordId: string }[] = [];
   try {
     read = await readOwnedDocumentComposition(
       session.user.id,
       documentId,
       requestedVersionId,
     );
-    /* The mutable Dossier is reachable only through the explicit legacy result. */
-    if (read.kind === "legacy") snapshot = await getDossierSnapshot(session.user.id);
+    /* Draft composition is bounded by the approved Specification's selected Evidence. */
+    if (read.kind === "legacy") {
+      snapshot = await getDossierSnapshot(session.user.id);
+      const preparation = await getDocumentPreparation(session.user.id, documentId);
+      if (preparation?.specification?.status === "approved") {
+        selectedEvidence = preparation.evidence
+          .filter((evidence) => preparation.specification?.evidenceIds.includes(evidence.id))
+          .map((evidence) => ({
+            evidenceId: evidence.id,
+            sourceType: evidence.sourceType,
+            sourceRecordId: evidence.sourceRecordId,
+          }));
+      }
+    }
   } catch (loadError) {
     console.error(`[documents] Failed to load document ${documentId}`, loadError);
     return (
@@ -103,7 +117,7 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
   const composed = versionRead
     ? versionRead.composed
     : snapshot
-      ? composeDocument(document.type, snapshot, {
+      ? composeEvidenceBoundDocument(document.type, snapshot, selectedEvidence, {
           hiddenSections: document.hiddenSections,
           sectionOrder: document.sectionOrder,
         })
@@ -132,7 +146,7 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
             <p>
               {versionRead
                 ? `Composed from immutable accepted version ${versionRead.version}.`
-                : "Composed from your dossier. Update your dossier and this document follows — your information lives in one place."}
+                : "Composed from the approved Document Specification and confirmed Evidence for this Application."}
             </p>
           </header>
 
@@ -155,6 +169,11 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
               Changes saved.
             </p>
           ) : null}
+          {status === "specification-approved" && !error ? (
+            <p className={styles.successStatus} role="status">
+              Your reviewed document contract is ready. Customize the document below.
+            </p>
+          ) : null}
         </div>
 
         <section aria-labelledby="document-state-heading" className={styles.lifecyclePanel} data-print-skip>
@@ -165,7 +184,7 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
             </div>
             <div>
               <p className={styles.lifecycleLabel}>Document state</p>
-              <p>{versionRead ? `Immutable version ${versionRead.version}` : "Mutable · follows your Dossier"}</p>
+              <p>{versionRead ? `Immutable version ${versionRead.version}` : "Draft · bounded by approved Evidence"}</p>
             </div>
             <div>
               <p className={styles.lifecycleLabel}>Export readiness</p>
@@ -180,7 +199,7 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
             <p>
               {versionRead
                 ? "This preview is composed only from the accepted immutable artifact. Export uses this same saved version."
-                : "Keep refining the live preview, or open the guided preparation path to select Evidence, approve a specification, generate, review, and accept an immutable version."}
+                : "Review the live preview, then open the guided preparation path to confirm Evidence and approve the Document Specification before generation."}
             </p>
             {versionRead ? (
               <a
@@ -217,11 +236,11 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
         {isEmpty ? (
           <div className={styles.narrow}>
             <div className={styles.emptyState}>
-              <h2>{versionBacked ? "This accepted version has no visible content." : "There is nothing in your dossier to compose yet."}</h2>
+              <h2>{versionBacked ? "This accepted version has no visible content." : "There is no approved Evidence to compose yet."}</h2>
               <p>
                 {versionBacked
                   ? "The immutable content and configuration snapshot were composed without substituting current dossier data."
-                  : "This document draws entirely on what you have recorded. Add your name, contact details and at least one section, and it will appear here."}
+                  : "Confirm Evidence and approve the Document Specification for this Application before the Workspace can show document content."}
               </p>
               {!versionBacked ? <Link className={styles.primaryButton} href="/profile">Go to your dossier</Link> : null}
             </div>
@@ -236,6 +255,7 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
                 presentationStyle={presentationStyle.id}
                 saveAction={updateDocumentAction}
                 sectionOrder={document.sectionOrder}
+                selectedEvidence={selectedEvidence}
                 snapshot={snapshot}
                 title={document.title}
               />
