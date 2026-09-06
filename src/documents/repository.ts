@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import type { ApplicationObjective } from "@/applications";
 import {
   applicationPackageMembers,
@@ -107,6 +107,62 @@ export async function createDocument(
   }
 
   return created;
+}
+
+/**
+ * Resolves the mutable Document represented by an Application Package Member,
+ * creating and attaching it atomically when the approved specification is the
+ * first point at which that member needs a workspace.
+ */
+export async function getOrCreateOwnedMemberDocument(userId: string, memberId: string) {
+  return db.transaction(async (transaction) => {
+    const [member] = await transaction
+      .select({ member: applicationPackageMembers, applicationId: applicationPlans.applicationId })
+      .from(applicationPackageMembers)
+      .innerJoin(applicationPackages, eq(applicationPackages.id, applicationPackageMembers.packageId))
+      .innerJoin(applicationPlans, eq(applicationPlans.id, applicationPackages.planId))
+      .innerJoin(applications, eq(applications.id, applicationPlans.applicationId))
+      .where(and(eq(applicationPackageMembers.id, memberId), eq(applications.userId, userId)))
+      .for("update");
+
+    if (!member || !isDocumentType(member.member.documentType)) return null;
+
+    if (member.member.documentId) {
+      const [existing] = await transaction
+        .select()
+        .from(documents)
+        .where(and(eq(documents.id, member.member.documentId), eq(documents.userId, userId)))
+        .limit(1);
+      return existing?.applicationId === member.applicationId && existing.type === member.member.documentType
+        ? existing
+        : null;
+    }
+
+    const [created] = await transaction
+      .insert(documents)
+      .values({
+        userId,
+        applicationId: member.applicationId,
+        type: member.member.documentType,
+        title: `${catalogueDocumentTypeLabel(member.member.documentType)} draft`,
+        status: "draft",
+        template: defaultPresentationStyleFor(member.member.documentType),
+      })
+      .returning();
+    if (!created) throw new Error("Document could not be created.");
+
+    const [attached] = await transaction
+      .update(applicationPackageMembers)
+      .set({ documentId: created.id, updatedAt: new Date() })
+      .where(and(eq(applicationPackageMembers.id, memberId), isNull(applicationPackageMembers.documentId)))
+      .returning({ id: applicationPackageMembers.id });
+    if (!attached) throw new Error("Package Member could not be attached to the Document.");
+    return created;
+  });
+}
+
+function isDocumentType(value: string): value is DocumentType {
+  return value === "professional_cv" || value === "professional_resume" || value === "academic_cv";
 }
 
 export type DocumentConfigurationPatch = {
