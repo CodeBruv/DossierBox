@@ -5,6 +5,7 @@ import { getSession } from "@/auth/session";
 import { resolvePresentationStyle } from "@/documents/presentation";
 import { DocumentMiniature } from "@/documents/components/document-miniature";
 import { listDocuments, documentTypeLabel } from "@/documents/repository";
+import { readOwnedCurrentDraftComposition } from "@/documents/read-composition";
 import { Container } from "@/ui";
 import styles from "@/styles/pages/documents.module.css";
 
@@ -31,13 +32,18 @@ const errorMessages: Record<string, string> = {
 export default async function DocumentsPage({ searchParams }: DocumentsPageProps) {
   if (!authSessionConfiguration) redirect("/auth/sign-in?callbackUrl=%2Fdocuments&error=Configuration");
   const session = await getSession();
-  if (!session?.user?.id) redirect("/auth/sign-in?callbackUrl=%2Fdocuments&error=SessionRequired");
+  const userId = session?.user?.id;
+  if (!userId) redirect("/auth/sign-in?callbackUrl=%2Fdocuments&error=SessionRequired");
 
   const { status, error } = await searchParams;
 
   let documents;
+  let documentReads;
   try {
-    documents = await listDocuments(session.user.id);
+    documents = await listDocuments(userId);
+    documentReads = await Promise.all(
+      documents.map((document) => readOwnedCurrentDraftComposition(userId, document.id)),
+    );
   } catch (error) {
     console.error("[documents] Failed to load documents", error);
     return (
@@ -81,17 +87,23 @@ export default async function DocumentsPage({ searchParams }: DocumentsPageProps
 
         {documents.length ? (
           <div className={styles.documentGrid}>
-            {documents.map((document) => {
-              const style = resolvePresentationStyle(document.template, document.type);
+            {documents.map((document, index) => {
+              const read = documentReads[index];
+              const style = read && (read.kind === "draft" || read.kind === "version")
+                ? read.presentationStyle
+                : resolvePresentationStyle(document.template, document.type);
+              const preview = read && (read.kind === "draft" || read.kind === "version")
+                ? read.composed
+                : { type: document.type, header: { name: document.title, headline: documentTypeLabel(document.type), contacts: [] }, sections: [] };
               return (
                 <article className={styles.documentCard} key={document.id}>
                   <Link className={styles.documentCardPreview} href={`/documents/${document.id}`} aria-label={`Open ${document.title}`}>
-                    <DocumentMiniature document={{ type: document.type, header: { name: document.title, headline: documentTypeLabel(document.type), contacts: [] }, sections: [] }} presentationStyle={style} />
+                    <DocumentMiniature document={preview} presentationStyle={style} />
                   </Link>
                   <div className={styles.documentCardBody}>
                     <p className={styles.documentType}>{documentTypeLabel(document.type)}</p>
                     <h2><Link href={`/documents/${document.id}`}>{document.title}</Link></h2>
-                    <p className={styles.documentMeta}>{document.status === "draft" ? "Draft" : document.status} · {style.label} · Updated {document.updatedAt.toLocaleDateString()}</p>
+                    <p className={styles.documentMeta}>{read?.kind === "incomplete" ? "Review required" : document.status === "draft" ? "Draft" : document.status} · {style.label} · Updated {document.updatedAt.toLocaleDateString()}</p>
                     <Link className={styles.secondaryButton} href={`/documents/${document.id}`}>Open document</Link>
                   </div>
                 </article>
