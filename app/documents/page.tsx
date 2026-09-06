@@ -41,9 +41,17 @@ export default async function DocumentsPage({ searchParams }: DocumentsPageProps
   let documentReads;
   try {
     documents = await listDocuments(userId);
-    documentReads = await Promise.all(
-      documents.map((document) => readOwnedCurrentDraftComposition(userId, document.id)),
-    );
+    // A document's current composition is an optional discovery enhancement. The
+    // listing remains usable for legacy/incomplete entries, while unexpected
+    // per-document failures remain observable and do not erase the collection.
+    documentReads = await Promise.all(documents.map(async (document) => {
+      try {
+        return await readOwnedCurrentDraftComposition(userId, document.id);
+      } catch (error) {
+        console.error(`[documents] Failed to resolve document ${document.id}`, error);
+        return { kind: "listing-unavailable" as const };
+      }
+    }));
   } catch (error) {
     console.error("[documents] Failed to load documents", error);
     return (
@@ -103,7 +111,7 @@ export default async function DocumentsPage({ searchParams }: DocumentsPageProps
                   <div className={styles.documentCardBody}>
                     <p className={styles.documentType}>{documentTypeLabel(document.type)}</p>
                     <h2><Link href={`/documents/${document.id}`}>{document.title}</Link></h2>
-                    <p className={styles.documentMeta}>{read?.kind === "incomplete" ? "Review required" : document.status === "draft" ? "Draft" : document.status} · {style.label} · Updated {document.updatedAt.toLocaleDateString()}</p>
+                    <p className={styles.documentMeta}>{read?.kind === "incomplete" || read?.kind === "listing-unavailable" ? "Review required" : document.status === "draft" ? "Draft" : document.status} · {style.label} · Updated {document.updatedAt.toLocaleDateString()}</p>
                     <Link className={styles.secondaryButton} href={`/documents/${document.id}`}>Open document</Link>
                   </div>
                 </article>
