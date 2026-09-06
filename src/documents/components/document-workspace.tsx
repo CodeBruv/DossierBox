@@ -3,9 +3,10 @@
 import { useState } from "react";
 import type { FormHTMLAttributes } from "react";
 import {
-  composeDocument,
+  composeEvidenceBoundDocument,
   isComposedDocumentEmpty,
   composableSections,
+  type SelectedEvidence,
 } from "@/documents/composition";
 import { DocumentPreview } from "@/documents/components/document-preview";
 import { SectionArrangement } from "@/documents/components/section-arrangement";
@@ -26,6 +27,7 @@ type DocumentWorkspaceProps = {
   presentationStyle: PresentationStyleId;
   hiddenSections: readonly string[];
   sectionOrder: readonly string[];
+  selectedEvidence: readonly SelectedEvidence[];
   snapshot: DossierSnapshot;
   saveAction: FormHTMLAttributes<HTMLFormElement>["action"];
 };
@@ -41,17 +43,18 @@ export function DocumentWorkspace({
   presentationStyle: initialStyle,
   hiddenSections: initialHidden,
   sectionOrder: initialOrder,
+  selectedEvidence,
   snapshot,
   saveAction,
 }: DocumentWorkspaceProps) {
-  const sections = composableSections(documentType, snapshot, initialOrder);
+  const sections = composableSections(documentType, snapshot, initialOrder, selectedEvidence);
   const [workingTitle, setWorkingTitle] = useState(title);
   const [styleId, setStyleId] = useState<PresentationStyleId>(initialStyle);
   const [sectionOrder, setSectionOrder] = useState<readonly string[]>(initialOrder.length ? initialOrder : sections.map((section) => section.key));
   const [hiddenSections, setHiddenSections] = useState<readonly string[]>(initialHidden);
   const [previewOpen, setPreviewOpen] = useState(false);
   const style = resolvePresentationStyle(styleId, documentType);
-  const composed = composeDocument(documentType, snapshot, { hiddenSections, sectionOrder });
+  const composed = composeEvidenceBoundDocument(documentType, snapshot, selectedEvidence, { hiddenSections, sectionOrder });
   const hasContent = !isComposedDocumentEmpty(composed);
 
   return (
@@ -67,6 +70,14 @@ export function DocumentWorkspace({
       </div>
 
       <div className={styles.workspace}>
+        <div aria-label="Live document preview" className={`${styles.workspacePreview} ${previewOpen ? styles.previewFullscreen : ""}`}>
+          <div className={styles.previewToolbar} data-print-skip>
+            <span>Live preview · {style.label}</span>
+            {previewOpen ? <button className={styles.previewClose} onClick={() => setPreviewOpen(false)} type="button">Close preview</button> : null}
+          </div>
+          {hasContent ? <DocumentPreview document={composed} presentationStyle={style} /> : <div className={styles.emptyNotice}><h2>There is no approved Evidence to show yet.</h2><p>Open the preparation path to confirm Evidence and approve the Document Specification before customizing this document.</p></div>}
+        </div>
+
         <aside aria-label="Document customization" className={styles.workspaceControls} data-print-skip>
           <form action={saveAction} className={settings.settings}>
             <input name="documentId" type="hidden" value={documentId} />
@@ -105,13 +116,6 @@ export function DocumentWorkspace({
           </form>
         </aside>
 
-        <div aria-label="Live document preview" className={`${styles.workspacePreview} ${previewOpen ? styles.previewFullscreen : ""}`}>
-          <div className={styles.previewToolbar} data-print-skip>
-            <span>Live preview · {style.label}</span>
-            {previewOpen ? <button className={styles.previewClose} onClick={() => setPreviewOpen(false)} type="button">Close preview</button> : null}
-          </div>
-          {hasContent ? <DocumentPreview document={composed} presentationStyle={style} /> : <div className={styles.emptyNotice}><h2>There is nothing in your dossier to show yet.</h2><p>Add your name, contact details and one section to see the document here.</p></div>}
-        </div>
       </div>
     </div>
   );
