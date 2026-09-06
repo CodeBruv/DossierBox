@@ -4,6 +4,7 @@ import type { DocumentTypeKey } from "./catalogue";
 import {
   composeEvidenceBoundDocument,
   composeStructuredDocument,
+  evidenceBoundDossierSnapshot,
   type ComposedDocument,
   type DocumentConfiguration,
   type DocumentSpecificationSemantics,
@@ -45,6 +46,16 @@ export type CurrentDraftDocumentRead = {
   readonly composed: ComposedDocument;
   readonly presentationStyle: PresentationStyle;
   readonly selectedEvidence: readonly SelectedEvidence[];
+  readonly snapshot: import("@/profile/dossier").DossierSnapshot;
+};
+
+export type IncompleteCurrentDraftRead = {
+  readonly kind: "incomplete";
+  readonly document: NonNullable<Awaited<ReturnType<typeof getOwnedDocumentReadSource>>>["document"];
+  readonly reason: "unconfirmed-package" | "specification-required" | "evidence-required" | "stale-evidence" | "dossier-unavailable";
+  readonly applicationId: string;
+  readonly planId: string;
+  readonly packageId: string;
 };
 
 export type DocumentReadComposition =
@@ -54,6 +65,7 @@ export type DocumentReadComposition =
       readonly document: NonNullable<Awaited<ReturnType<typeof getOwnedDocumentReadSource>>>["document"];
     }
   | CurrentDraftDocumentRead
+  | IncompleteCurrentDraftRead
   | { readonly kind: "not_found" }
   | {
       readonly kind: "invalid_version";
@@ -88,30 +100,37 @@ export async function readOwnedCurrentDraftComposition(
   if (document.state !== "legacy") return readOwnedDocumentComposition(userId, documentId);
 
   const context = await getOwnedDocumentPackageMember(userId, documentId);
-  if (!context || context.plan.status !== "confirmed" || context.plan.confirmation !== "confirmed" || context.package.status !== "confirmed" || context.package.confirmation !== "confirmed") {
-    return { kind: "legacy", document: document.document };
+  if (!context) return { kind: "legacy", document: document.document };
+  const contextIds = {
+    applicationId: context.application.id,
+    planId: context.plan.id,
+    packageId: context.package.id,
+  } as const;
+  if (context.plan.status !== "confirmed" || context.plan.confirmation !== "confirmed" || context.package.status !== "confirmed" || context.package.confirmation !== "confirmed") {
+    return { kind: "incomplete", document: document.document, reason: "unconfirmed-package", ...contextIds };
   }
 
   const specifications = await listDocumentSpecifications(userId, context.member.id);
-  const specification = specifications.find((candidate) => candidate.status === "approved");
-  if (!specification || specification.documentType !== document.document.type) {
-    return { kind: "legacy", document: document.document };
+  const specification = specifications.find((candidate) => candidate.status === "approved" && candidate.documentType === document.document.type);
+  if (!specification) {
+    return { kind: "incomplete", document: document.document, reason: "specification-required", ...contextIds };
   }
 
   const selections = await listValidPackageEvidenceSelections(userId, context.application.id, context.package.id);
-  if (!selections || specification.evidenceIds.some((id) => !selections.some((selection) => selection.evidenceId === id))) {
-    return { kind: "legacy", document: document.document };
+  if (!selections) return { kind: "incomplete", document: document.document, reason: "evidence-required", ...contextIds };
+  if (specification.evidenceIds.some((id) => !selections.some((selection) => selection.evidenceId === id))) {
+    return { kind: "incomplete", document: document.document, reason: "stale-evidence", ...contextIds };
   }
 
   const selectedEvidence: SelectedEvidence[] = [];
   for (const selection of selections.filter((candidate) => specification.evidenceIds.includes(candidate.evidenceId))) {
     const evidence = await getOwnedEvidence(userId, selection.evidenceId);
-    if (!evidence || evidence.lifecycle !== "active") return { kind: "legacy", document: document.document };
+    if (!evidence || evidence.lifecycle !== "active") return { kind: "incomplete", document: document.document, reason: "stale-evidence", ...contextIds };
     selectedEvidence.push({ evidenceId: evidence.id, sourceType: evidence.sourceType, sourceRecordId: evidence.sourceRecordId });
   }
 
   const snapshot = await getDossierSnapshot(userId);
-  if (!snapshot) return { kind: "legacy", document: document.document };
+  if (!snapshot) return { kind: "incomplete", document: document.document, reason: "dossier-unavailable", ...contextIds };
   const presentationStyle = resolvePresentationStyle(document.document.template, document.document.type);
   return {
     kind: "draft",
@@ -122,6 +141,7 @@ export async function readOwnedCurrentDraftComposition(
     }),
     presentationStyle,
     selectedEvidence,
+    snapshot: evidenceBoundDossierSnapshot(snapshot, selectedEvidence),
   };
 }
 
