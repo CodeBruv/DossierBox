@@ -220,6 +220,34 @@
   border-top: 1px solid var(--ds-color-border-default);
 }
 
+.documentGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: var(--ds-space-lg);
+  margin-top: var(--ds-space-xl);
+}
+
+.documentCard {
+  overflow: hidden;
+  border: 1px solid var(--ds-color-border-default);
+  background: var(--ds-color-surface);
+}
+
+.documentCardPreview {
+  display: block;
+  padding: var(--ds-space-md);
+  background: var(--ds-color-background);
+}
+
+.documentCardBody {
+  padding: var(--ds-space-md);
+}
+
+.documentCardBody h2 a {
+  color: inherit;
+  text-decoration: none;
+}
+
 .documentRow {
   display: flex;
   align-items: center;
@@ -546,14 +574,7 @@
 
 @media (min-width: 64rem) {
   .workspace {
-    /* `minmax(0, …)` on both tracks: without it a long unbroken string in
-       either column can force the grid wider than its container.
-
-       20rem rather than 18: the section rows carry a grip, a checkbox, a
-       position and two move buttons alongside the heading, and at 18rem a
-       heading like "Professional memberships" was truncated in a control whose
-       purpose is to tell the user what is on the page. */
-    grid-template-columns: minmax(0, 20rem) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 20rem);
     align-items: start;
   }
 
@@ -606,6 +627,22 @@
 }
 
 @media (max-width: 48rem) {
+  .page {
+    padding-top: var(--ds-space-md);
+  }
+
+  .pageHeader {
+    display: block;
+  }
+
+  .documentGrid {
+    grid-template-columns: 1fr;
+    gap: var(--ds-space-md);
+  }
+
+  .documentCardPreview {
+    padding: var(--ds-space-sm);
+  }
   .workspaceToolbar {
     align-items: flex-start;
   }
