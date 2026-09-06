@@ -515,6 +515,26 @@
   gap: var(--ds-space-sm);
 }
 
+.workspaceToolbarActions {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-xs);
+}
+
+.customizeToggle {
+  display: none;
+  min-height: 2.75rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--ds-color-brand-primary);
+  border-radius: var(--ds-border-radius-sm);
+  background: var(--ds-color-brand-primary);
+  color: var(--ds-color-brand-foreground);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
 .workspaceTitle {
   font-size: var(--ds-heading-size-md);
 }
@@ -651,8 +671,18 @@
     gap: var(--ds-space-md);
   }
 
+  .customizeToggle {
+    display: inline-flex;
+    align-items: center;
+  }
+
   .workspaceControls {
+    display: none;
     order: 2;
+  }
+
+  .workspaceControlsOpen {
+    display: block;
   }
 
   .workspacePreview {
