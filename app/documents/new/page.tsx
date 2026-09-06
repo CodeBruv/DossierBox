@@ -13,7 +13,6 @@ import { getOwnedApplicationPlan } from "@/applications/plans-repository";
 import { getOwnedApplicationPackage } from "@/applications/packages-repository";
 import { authSessionConfiguration } from "@/auth/auth";
 import { getSession } from "@/auth/session";
-import { createDocumentAction } from "@/documents/actions";
 import {
   documentTypeDescription,
   documentTypeLabel,
@@ -22,8 +21,6 @@ import {
   type DocumentPageBudget,
   type ShippingDocumentTypeKey,
 } from "@/documents/catalogue";
-import { DocumentComposer } from "@/documents/components/document-composer";
-import { getDossierSnapshot } from "@/profile/repository";
 import { Container } from "@/ui";
 import styles from "@/styles/pages/document-create.module.css";
 import shell from "@/styles/pages/documents.module.css";
@@ -70,20 +67,21 @@ export default async function NewDocumentPage({ searchParams }: NewDocumentPageP
 
   const kind = application.intent.kind as ApplicationObjectiveKind;
   const type = isAvailableDocumentType(query.type) ? query.type : null;
-  const step = type ? 2 : 1;
+  if (type) {
+    const evidenceUrl = `/applications/${encodeURIComponent(application.id)}/evidence${query.planId && query.packageId ? `?planId=${encodeURIComponent(query.planId)}&packageId=${encodeURIComponent(query.packageId)}` : ""}`;
+    redirect(evidenceUrl);
+  }
+  const step = 1;
   const error = query.error ? errorMessages[query.error] : null;
-  const snapshot = type ? await getDossierSnapshot(session.user.id) : null;
 
   return (
     <div className={shell.page}>
       <Container>
         <header className={styles.header}>
           <p className={shell.eyebrow}>Saved application</p>
-          <h1>{type ? "Compose your document" : "Choose your document"}</h1>
+          <h1>Choose your document</h1>
           <p className={shell.lead}>
-            {type
-              ? "Choose a style, arrange the sections, and create only when the preview looks right."
-              : "Review the purpose-informed recommendation for this saved Application, or choose another valid document type."}
+            Review the purpose-informed recommendation for this saved Application, or choose another valid document type. Document setup continues through Evidence and Document Specification review.
           </p>
         </header>
 
@@ -92,12 +90,7 @@ export default async function NewDocumentPage({ searchParams }: NewDocumentPageP
         {error ? <p className={shell.errorStatus} role="alert">{error}</p> : null}
         {query.status === "evidence-confirmed" ? <p className={styles.reviewStatus} role="status">Evidence selection confirmed. Continue to the Document Specification review before any document is created.</p> : null}
 
-        {step === 1 ? <DocumentStep applicationId={application.id} objective={kind} /> : null}
-        {type ? (
-          snapshot ? (
-            <DocumentComposer applicationId={application.id} createAction={createDocumentAction} snapshot={snapshot} type={type} />
-          ) : <p className={shell.errorStatus} role="alert">We couldn't load your dossier to compose this document. Your saved Application and dossier haven't been changed.</p>
-        ) : null}
+        <DocumentStep applicationId={application.id} objective={kind} />
       </Container>
     </div>
   );
@@ -126,7 +119,7 @@ function StepTrail({ applicationId, step, type }: { applicationId: string; step:
         <li className={`${styles.trailStep} ${step === 1 ? styles.trailStepCurrent : styles.trailStepDone}`} aria-current={step === 1 ? "step" : undefined}>
           {step > 1 ? <Link className={styles.trailLink} href={`/documents/new?applicationId=${applicationId}`}><span className={styles.trailLabel}>Document</span><span className={styles.trailValue}>{type ? documentTypeLabel(type) : null}</span></Link> : <span className={styles.trailStatic}><span className={styles.trailLabel}>Document</span></span>}
         </li>
-        <li className={`${styles.trailStep} ${step === 2 ? styles.trailStepCurrent : ""}`} aria-current={step === 2 ? "step" : undefined}><span className={styles.trailStatic}><span className={styles.trailLabel}>Compose</span></span></li>
+        <li className={`${styles.trailStep} ${styles.trailStepCurrent}`} aria-current="step"><span className={styles.trailStatic}><span className={styles.trailLabel}>Review Evidence & Specification</span></span></li>
       </ol>
     </nav>
   );
@@ -159,7 +152,7 @@ function DocumentStep({ applicationId, objective }: { applicationId: string; obj
 
 type DocumentOption = Pick<DocumentCompatibility, "type" | "level" | "available">;
 function DocumentOptions({ applicationId, entries, recommended = false }: { applicationId: string; entries: readonly DocumentOption[]; recommended?: boolean }) {
-  return <ul className={styles.optionGrid}>{entries.map((entry) => <li className={styles.option} key={entry.type}><Link className={styles.optionLink} href={`/documents/new?applicationId=${applicationId}&type=${entry.type}`}>{documentTypeLabel(entry.type)}</Link>{recommended ? <span className={styles.badge}>Usual choice</span> : null}<p className={styles.optionNote}>{documentTypeDescription(entry.type)}</p><p className={styles.optionMeta}>{describeLength(documentTypePageBudget(entry.type))}</p></li>)}</ul>;
+  return <ul className={styles.optionGrid}>{entries.map((entry) => <li className={styles.option} key={entry.type}><Link className={styles.optionLink} href={`/documents/new?applicationId=${encodeURIComponent(applicationId)}&type=${entry.type}`}>{documentTypeLabel(entry.type)}</Link>{recommended ? <span className={styles.badge}>Usual choice</span> : null}<p className={styles.optionNote}>{documentTypeDescription(entry.type)}</p><p className={styles.optionMeta}>{describeLength(documentTypePageBudget(entry.type))}</p></li>)}</ul>;
 }
 
 function describeLength(budget: DocumentPageBudget): string {
