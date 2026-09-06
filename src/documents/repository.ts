@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import type { ApplicationObjective } from "@/applications";
 import {
   applicationPackageMembers,
@@ -50,7 +50,10 @@ export async function getOwnedDocumentPackageMember(userId: string, documentId: 
       eq(documents.userId, userId),
       eq(applications.userId, userId),
       eq(documents.applicationId, applicationPlans.applicationId),
-      eq(applicationPackageMembers.documentType, documents.type),
+      // `documentType` predates the documents table and is plain text, while
+      // documents.type is a PostgreSQL enum. PostgreSQL does not implicitly
+      // compare text with an enum, so make the cast explicit at this boundary.
+      sql`${applicationPackageMembers.documentType} = cast(${documents.type} as text)`,
     ))
     .limit(1);
 
@@ -331,7 +334,9 @@ export async function getOwnedDocumentReadSource(
       eq(documentVersions.applicationId, applications.id),
       eq(documents.applicationId, applications.id),
       eq(applications.userId, userId),
-      eq(applicationPackageMembers.documentType, document.type),
+      // Keep the legacy text column comparison explicit for the same reason as
+      // getOwnedDocumentPackageMember: the stored document type is an enum.
+      sql`${applicationPackageMembers.documentType} = cast(${documents.type} as text)`,
     ))
     .limit(1);
 
