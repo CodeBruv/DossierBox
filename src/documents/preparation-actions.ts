@@ -5,7 +5,7 @@ import { redirect, unstable_rethrow } from "next/navigation";
 import { requireProfileUser } from "@/profile/authorization";
 import { listValidPackageEvidenceSelections } from "@/applications/evidence-selection-repository";
 import { isDocumentTypeKey, type DocumentTypeKey } from "./catalogue";
-import { getOwnedDocument } from "./repository";
+import { getOwnedDocument, getOrCreateOwnedMemberDocument } from "./repository";
 import { getDocumentPreparation, initializeDocumentPreparation, runApprovedDocumentGeneration } from "./preparation";
 import { createDocumentSpecification, getOwnedDocumentSpecification, getOwnedPackageMemberContext, transitionDocumentSpecification } from "./specification-repository";
 
@@ -128,7 +128,9 @@ export async function approveApplicationDocumentSpecificationAction(formData: Fo
     console.error(`[documents] Failed to approve application specification ${specificationId}`, error);
     redirect(specificationUrl(applicationId, planId, packageId, "error=approval-failed"));
   }
-  redirect(specificationUrl(applicationId, planId, packageId, "status=approved"));
+  const document = await getOrCreateOwnedMemberDocument(user.id, specification.packageMemberId);
+  if (!document) redirect(specificationUrl(applicationId, planId, packageId, "error=approval-failed"));
+  redirect(`/documents/${encodeURIComponent(document.id)}?status=specification-approved`);
 }
 
 export async function approveDocumentSpecificationAction(formData: FormData) {
@@ -147,7 +149,7 @@ export async function approveDocumentSpecificationAction(formData: FormData) {
     console.error(`[documents] Failed to approve specification ${specificationId}`, error);
     redirect(preparationUrl(documentId, "error=approval-failed"));
   }
-  redirect(preparationUrl(documentId, "status=approved"));
+  redirect(`/documents/${encodeURIComponent(documentId)}?status=specification-approved`);
 }
 
 export async function generatePreparedDocumentAction(formData: FormData) {
