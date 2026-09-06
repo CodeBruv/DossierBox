@@ -386,6 +386,7 @@ export async function getDossierSnapshot(
 ): Promise<DossierSnapshot | null> {
   const [row] = await db
     .select({
+      id: profiles.id,
       displayName: profiles.displayName,
       headline: profiles.headline,
       careerDirection: profiles.careerDirection,
@@ -396,6 +397,7 @@ export async function getDossierSnapshot(
       country: profiles.country,
       website: profiles.website,
       experience: jsonRowsFor<DossierExperience>(experiences, {
+        id: experiences.id,
         type: experiences.type,
         organization: experiences.organization,
         role: experiences.role,
@@ -408,6 +410,7 @@ export async function getDossierSnapshot(
         description: experiences.description,
       }),
       education: jsonRowsFor<DossierEducation>(education, {
+        id: education.id,
         institution: education.institution,
         qualification: education.qualification,
         field: education.field,
@@ -423,6 +426,7 @@ export async function getDossierSnapshot(
         description: education.description,
       }),
       projects: jsonRowsFor<DossierProject>(projects, {
+        id: projects.id,
         name: projects.name,
         role: projects.role,
         context: projects.context,
@@ -435,11 +439,13 @@ export async function getDossierSnapshot(
         description: projects.description,
       }),
       skills: jsonRowsFor<DossierSkill>(skills, {
+        id: skills.id,
         name: skills.name,
         type: skills.type,
         notes: skills.notes,
       }),
       credentials: jsonRowsFor<DossierCredential>(credentials, {
+        id: credentials.id,
         type: credentials.type,
         name: credentials.name,
         issuer: credentials.issuer,
@@ -452,6 +458,7 @@ export async function getDossierSnapshot(
         description: credentials.description,
       }),
       achievements: jsonRowsFor<DossierAchievement>(achievements, {
+        id: achievements.id,
         type: achievements.type,
         title: achievements.title,
         issuer: achievements.issuer,
@@ -460,11 +467,13 @@ export async function getDossierSnapshot(
         description: achievements.description,
       }),
       languages: jsonRowsFor<DossierLanguage>(languages, {
+        id: languages.id,
         language: languages.language,
         proficiency: languages.proficiency,
         notes: languages.notes,
       }),
       publications: jsonRowsFor<DossierPublication>(publications, {
+        id: publications.id,
         title: publications.title,
         publisher: publications.publisher,
         month: publications.month,
@@ -473,6 +482,7 @@ export async function getDossierSnapshot(
         description: publications.description,
       }),
       memberships: jsonRowsFor<DossierMembership>(memberships, {
+        id: memberships.id,
         organization: memberships.organization,
         role: memberships.role,
         startMonth: memberships.startMonth,
@@ -483,6 +493,7 @@ export async function getDossierSnapshot(
         description: memberships.description,
       }),
       links: jsonRowsFor<DossierLink>(profileLinks, {
+        id: profileLinks.id,
         type: profileLinks.type,
         label: profileLinks.label,
         url: profileLinks.url,
@@ -495,6 +506,7 @@ export async function getDossierSnapshot(
 
   return {
     identity: {
+      id: row.id,
       displayName: row.displayName,
       headline: row.headline,
       careerDirection: row.careerDirection,
