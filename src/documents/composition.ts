@@ -284,14 +284,12 @@ export function composeDocument(
  * Evidence boundary. This adapter is deterministic and read-only: it never discovers,
  * selects, or creates Evidence. Callers must pass the already-authorized source references.
  */
-export function composeEvidenceBoundDocument(
-  type: DocumentTypeKey,
+export function evidenceBoundDossierSnapshot(
   snapshot: DossierSnapshot,
   selectedEvidence: readonly SelectedEvidence[],
-  configuration: DocumentConfiguration = {},
-): ComposedDocument {
+): DossierSnapshot {
   const allowed = new Set(selectedEvidence.map((evidence) => `${evidence.sourceType}:${evidence.sourceRecordId}`));
-  const bounded: DossierSnapshot = {
+  return {
     identity: allowed.has(`identity:${snapshot.identity.id ?? ""}`) ? snapshot.identity : { ...snapshot.identity, displayName: null, headline: null, careerDirection: null, contactEmail: null, phone: null, city: null, region: null, country: null, website: null },
     experience: snapshot.experience.filter((row) => row.id && allowed.has(`experience:${row.id}`)),
     education: snapshot.education.filter((row) => row.id && allowed.has(`education:${row.id}`)),
@@ -304,7 +302,15 @@ export function composeEvidenceBoundDocument(
     memberships: snapshot.memberships.filter((row) => row.id && allowed.has(`memberships:${row.id}`)),
     links: snapshot.links.filter((row) => row.id && allowed.has(`links:${row.id}`)),
   };
-  return composeDocument(type, bounded, configuration);
+}
+
+export function composeEvidenceBoundDocument(
+  type: DocumentTypeKey,
+  snapshot: DossierSnapshot,
+  selectedEvidence: readonly SelectedEvidence[],
+  configuration: DocumentConfiguration = {},
+): ComposedDocument {
+  return composeDocument(type, evidenceBoundDossierSnapshot(snapshot, selectedEvidence), configuration);
 }
 
 /**
