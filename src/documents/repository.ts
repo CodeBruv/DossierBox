@@ -31,6 +31,32 @@ export async function getOwnedDocument(userId: string, documentId: string) {
   return document ?? null;
 }
 
+/** Resolves the complete owner-scoped application package member for a document. */
+export async function getOwnedDocumentPackageMember(userId: string, documentId: string) {
+  const [row] = await db
+    .select({
+      member: applicationPackageMembers,
+      package: applicationPackages,
+      plan: applicationPlans,
+      application: applications,
+    })
+    .from(documents)
+    .innerJoin(applicationPackageMembers, eq(applicationPackageMembers.documentId, documents.id))
+    .innerJoin(applicationPackages, eq(applicationPackages.id, applicationPackageMembers.packageId))
+    .innerJoin(applicationPlans, eq(applicationPlans.id, applicationPackages.planId))
+    .innerJoin(applications, eq(applications.id, applicationPlans.applicationId))
+    .where(and(
+      eq(documents.id, documentId),
+      eq(documents.userId, userId),
+      eq(applications.userId, userId),
+      eq(documents.applicationId, applicationPlans.applicationId),
+      eq(applicationPackageMembers.documentType, documents.type),
+    ))
+    .limit(1);
+
+  return row ?? null;
+}
+
 /**
  * What the create flow decided, beyond the document's type.
  *
