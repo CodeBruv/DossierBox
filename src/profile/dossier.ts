@@ -34,6 +34,8 @@ export type DossierPeriod = {
 type Period = DossierPeriod;
 
 export type DossierIdentity = {
+  /** Canonical profile row identifier used when this identity is selected as Evidence. */
+  id?: string;
   displayName: string | null;
   headline: string | null;
   careerDirection: string | null;
@@ -46,6 +48,8 @@ export type DossierIdentity = {
 };
 
 export type DossierExperience = Period & {
+  /** Canonical Dossier row identifier used for Evidence-bound composition. */
+  id?: string;
   type: (typeof experienceTypes)[number];
   organization: string;
   role: string;
@@ -54,6 +58,7 @@ export type DossierExperience = Period & {
 };
 
 export type DossierEducation = Period & {
+  id?: string;
   institution: string;
   qualification: string | null;
   field: string | null;
@@ -65,6 +70,7 @@ export type DossierEducation = Period & {
 };
 
 export type DossierProject = Period & {
+  id?: string;
   name: string;
   role: string | null;
   context: string | null;
@@ -73,12 +79,14 @@ export type DossierProject = Period & {
 };
 
 export type DossierSkill = {
+  id?: string;
   name: string;
   type: (typeof skillTypes)[number];
   notes: string | null;
 };
 
 export type DossierCredential = {
+  id?: string;
   type: (typeof credentialTypes)[number];
   name: string;
   issuer: string | null;
@@ -92,6 +100,7 @@ export type DossierCredential = {
 };
 
 export type DossierAchievement = {
+  id?: string;
   type: (typeof achievementTypes)[number];
   title: string;
   issuer: string | null;
@@ -101,12 +110,14 @@ export type DossierAchievement = {
 };
 
 export type DossierLanguage = {
+  id?: string;
   language: string;
   proficiency: string | null;
   notes: string | null;
 };
 
 export type DossierPublication = {
+  id?: string;
   title: string;
   publisher: string | null;
   month: number | null;
@@ -116,12 +127,14 @@ export type DossierPublication = {
 };
 
 export type DossierMembership = Period & {
+  id?: string;
   organization: string;
   role: string | null;
   description: string | null;
 };
 
 export type DossierLink = {
+  id?: string;
   type: (typeof linkTypes)[number];
   label: string;
   url: string;
