@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { authSessionConfiguration } from "@/auth/auth";
 import { getSession } from "@/auth/session";
 import { resolvePresentationStyle } from "@/documents/presentation";
+import { DocumentMiniature } from "@/documents/components/document-miniature";
 import { listDocuments, documentTypeLabel } from "@/documents/repository";
 import { Container } from "@/ui";
 import styles from "@/styles/pages/documents.module.css";
@@ -79,28 +80,23 @@ export default async function DocumentsPage({ searchParams }: DocumentsPageProps
         ) : null}
 
         {documents.length ? (
-          <div className={styles.documentList}>
-            {documents.map((document) => (
-              <article className={styles.documentRow} key={document.id}>
-                <div>
-                  <p className={styles.documentType}>{documentTypeLabel(document.type)}</p>
-                  <h2>{document.title}</h2>
-                  {/*
-                    Updated, not created, because the list is ordered by
-                    updatedAt — showing a different date than the one the order
-                    is based on makes the ordering look arbitrary. The style is
-                    named too: two documents of the same type can now differ
-                    only by style, and this is where the user tells them apart.
-                  */}
-                  <p className={styles.documentMeta}>
-                    {document.status === "draft" ? "Draft" : document.status} ·{" "}
-                    {resolvePresentationStyle(document.template, document.type).label} · Updated{" "}
-                    {document.updatedAt.toLocaleDateString()}
-                  </p>
-                </div>
-                <Link className={styles.secondaryButton} href={`/documents/${document.id}`}>Open</Link>
-              </article>
-            ))}
+          <div className={styles.documentGrid}>
+            {documents.map((document) => {
+              const style = resolvePresentationStyle(document.template, document.type);
+              return (
+                <article className={styles.documentCard} key={document.id}>
+                  <Link className={styles.documentCardPreview} href={`/documents/${document.id}`} aria-label={`Open ${document.title}`}>
+                    <DocumentMiniature document={{ type: document.type, header: { name: document.title, headline: documentTypeLabel(document.type), contacts: [] }, sections: [] }} presentationStyle={style} />
+                  </Link>
+                  <div className={styles.documentCardBody}>
+                    <p className={styles.documentType}>{documentTypeLabel(document.type)}</p>
+                    <h2><Link href={`/documents/${document.id}`}>{document.title}</Link></h2>
+                    <p className={styles.documentMeta}>{document.status === "draft" ? "Draft" : document.status} · {style.label} · Updated {document.updatedAt.toLocaleDateString()}</p>
+                    <Link className={styles.secondaryButton} href={`/documents/${document.id}`}>Open document</Link>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         ) : (
           <div className={styles.emptyState}>
