@@ -53,6 +53,7 @@ export function DocumentWorkspace({
   const [sectionOrder, setSectionOrder] = useState<readonly string[]>(initialOrder.length ? initialOrder : sections.map((section) => section.key));
   const [hiddenSections, setHiddenSections] = useState<readonly string[]>(initialHidden);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [customizeOpen, setCustomizeOpen] = useState(false);
   const style = resolvePresentationStyle(styleId, documentType);
   const composed = composeEvidenceBoundDocument(documentType, snapshot, selectedEvidence, { hiddenSections, sectionOrder });
   const hasContent = !isComposedDocumentEmpty(composed);
@@ -64,9 +65,14 @@ export function DocumentWorkspace({
           <p className={styles.eyebrow}>Your document workspace</p>
           <h2 className={styles.workspaceTitle}>{workingTitle || "Untitled document"}</h2>
         </div>
-        <button className={styles.previewToggle} onClick={() => setPreviewOpen(true)} type="button">
-          Preview
-        </button>
+        <div className={styles.workspaceToolbarActions}>
+          <button className={styles.previewToggle} onClick={() => setPreviewOpen(true)} type="button">
+            Preview
+          </button>
+          <button aria-expanded={customizeOpen} className={styles.customizeToggle} onClick={() => setCustomizeOpen((open) => !open)} type="button">
+            {customizeOpen ? "Close customize" : "Customize"}
+          </button>
+        </div>
       </div>
 
       <div className={styles.workspace}>
@@ -75,10 +81,10 @@ export function DocumentWorkspace({
             <span>Live preview · {style.label}</span>
             {previewOpen ? <button className={styles.previewClose} onClick={() => setPreviewOpen(false)} type="button">Close preview</button> : null}
           </div>
-          {hasContent ? <DocumentPreview document={composed} presentationStyle={style} /> : <div className={styles.emptyNotice}><h2>There is no approved Evidence to show yet.</h2><p>Open the preparation path to confirm Evidence and approve the Document Specification before customizing this document.</p></div>}
+          {hasContent ? <DocumentPreview document={composed} presentationStyle={style} /> : <div className={styles.emptyNotice}><h2>This document has no visible content.</h2><p>Change the section choices or complete the application review before customizing this document.</p></div>}
         </div>
 
-        <aside aria-label="Document customization" className={styles.workspaceControls} data-print-skip>
+        <aside aria-label="Document customization" className={`${styles.workspaceControls} ${customizeOpen ? styles.workspaceControlsOpen : ""}`} data-print-skip>
           <form action={saveAction} className={settings.settings}>
             <input name="documentId" type="hidden" value={documentId} />
             <input name="template" type="hidden" value={styleId} />
