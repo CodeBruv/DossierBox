@@ -280,6 +280,34 @@ export function composeDocument(
 }
 
 /**
+ * Restrict a live Dossier snapshot to the canonical source rows named by the approved
+ * Evidence boundary. This adapter is deterministic and read-only: it never discovers,
+ * selects, or creates Evidence. Callers must pass the already-authorized source references.
+ */
+export function composeEvidenceBoundDocument(
+  type: DocumentTypeKey,
+  snapshot: DossierSnapshot,
+  selectedEvidence: readonly SelectedEvidence[],
+  configuration: DocumentConfiguration = {},
+): ComposedDocument {
+  const allowed = new Set(selectedEvidence.map((evidence) => `${evidence.sourceType}:${evidence.sourceRecordId}`));
+  const bounded: DossierSnapshot = {
+    identity: allowed.has(`identity:${snapshot.identity.id ?? ""}`) ? snapshot.identity : { ...snapshot.identity, displayName: null, headline: null, careerDirection: null, contactEmail: null, phone: null, city: null, region: null, country: null, website: null },
+    experience: snapshot.experience.filter((row) => row.id && allowed.has(`experience:${row.id}`)),
+    education: snapshot.education.filter((row) => row.id && allowed.has(`education:${row.id}`)),
+    projects: snapshot.projects.filter((row) => row.id && allowed.has(`projects:${row.id}`)),
+    skills: snapshot.skills.filter((row) => row.id && allowed.has(`skills:${row.id}`)),
+    credentials: snapshot.credentials.filter((row) => row.id && allowed.has(`credentials:${row.id}`)),
+    achievements: snapshot.achievements.filter((row) => row.id && allowed.has(`achievements:${row.id}`)),
+    languages: snapshot.languages.filter((row) => row.id && allowed.has(`languages:${row.id}`)),
+    publications: snapshot.publications.filter((row) => row.id && allowed.has(`publications:${row.id}`)),
+    memberships: snapshot.memberships.filter((row) => row.id && allowed.has(`memberships:${row.id}`)),
+    links: snapshot.links.filter((row) => row.id && allowed.has(`links:${row.id}`)),
+  };
+  return composeDocument(type, bounded, configuration);
+}
+
+/**
  * The sections this dossier could show in this family, in order, whether or not
  * the user has hidden them.
  *
@@ -294,8 +322,12 @@ export function composableSections(
   type: DocumentTypeKey,
   snapshot: DossierSnapshot,
   sectionOrder: readonly string[] = [],
+  selectedEvidence?: readonly SelectedEvidence[],
 ): readonly { key: ComposedSectionKey; heading: string }[] {
-  return composeDocument(type, snapshot, { sectionOrder }).sections.map((section) => ({
+  const composed = selectedEvidence
+    ? composeEvidenceBoundDocument(type, snapshot, selectedEvidence, { sectionOrder })
+    : composeDocument(type, snapshot, { sectionOrder });
+  return composed.sections.map((section) => ({
     key: section.key,
     heading: section.heading,
   }));
