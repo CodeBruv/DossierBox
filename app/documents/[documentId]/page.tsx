@@ -6,16 +6,14 @@ import {
 } from "@/applications";
 import { authSessionConfiguration } from "@/auth/auth";
 import { getSession } from "@/auth/session";
-import { composeEvidenceBoundDocument, isComposedDocumentEmpty } from "@/documents/composition";
+import { isComposedDocumentEmpty } from "@/documents/composition";
 import { DocumentPreview } from "@/documents/components/document-preview";
 import { DocumentWorkspace } from "@/documents/components/document-workspace";
 import { updateDocumentAction } from "@/documents/actions";
 import { DeleteDocument } from "@/documents/components/delete-document";
 import { resolvePresentationStyle } from "@/documents/presentation";
-import { readOwnedDocumentComposition } from "@/documents/read-composition";
-import { getDocumentPreparation } from "@/documents/preparation";
+import { readOwnedCurrentDraftComposition, readOwnedDocumentComposition } from "@/documents/read-composition";
 import { documentTypeLabel, listOwnedDocumentVersions } from "@/documents/repository";
-import { getDossierSnapshot } from "@/profile/repository";
 import { Container } from "@/ui";
 import styles from "@/styles/pages/documents.module.css";
 
@@ -51,28 +49,10 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
   const { status, error, version: requestedVersionId } = await searchParams;
 
   let read;
-  let snapshot;
-  let selectedEvidence: { evidenceId: string; sourceType: string; sourceRecordId: string }[] = [];
   try {
-    read = await readOwnedDocumentComposition(
-      session.user.id,
-      documentId,
-      requestedVersionId,
-    );
-    /* Draft composition is bounded by the approved Specification's selected Evidence. */
-    if (read.kind === "legacy") {
-      snapshot = await getDossierSnapshot(session.user.id);
-      const preparation = await getDocumentPreparation(session.user.id, documentId);
-      if (preparation?.specification?.status === "approved") {
-        selectedEvidence = preparation.evidence
-          .filter((evidence) => preparation.specification?.evidenceIds.includes(evidence.id))
-          .map((evidence) => ({
-            evidenceId: evidence.id,
-            sourceType: evidence.sourceType,
-            sourceRecordId: evidence.sourceRecordId,
-          }));
-      }
-    }
+    read = requestedVersionId
+      ? await readOwnedDocumentComposition(session.user.id, documentId, requestedVersionId)
+      : await readOwnedCurrentDraftComposition(session.user.id, documentId);
   } catch (loadError) {
     console.error(`[documents] Failed to load document ${documentId}`, loadError);
     return (
@@ -110,18 +90,11 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
 
   const document = read.document;
   const versionRead = read.kind === "version" ? read : null;
+  const draftRead = read.kind === "draft" ? read : null;
+  const incompleteRead = read.kind === "incomplete" ? read : null;
   const versionBacked = versionRead !== null;
-  const presentationStyle = versionRead
-    ? versionRead.presentationStyle
-    : resolvePresentationStyle(document.template, document.type);
-  const composed = versionRead
-    ? versionRead.composed
-    : snapshot
-      ? composeEvidenceBoundDocument(document.type, snapshot, selectedEvidence, {
-          hiddenSections: document.hiddenSections,
-          sectionOrder: document.sectionOrder,
-        })
-      : null;
+  const presentationStyle = versionRead?.presentationStyle ?? draftRead?.presentationStyle ?? resolvePresentationStyle(document.template, document.type);
+  const composed = versionRead?.composed ?? draftRead?.composed ?? null;
   const isEmpty = !composed || isComposedDocumentEmpty(composed);
   const objective = normalizeApplicationObjective(document.objective);
   const versions = await listOwnedDocumentVersions(session.user.id, document.id);
@@ -184,7 +157,7 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
             </div>
             <div>
               <p className={styles.lifecycleLabel}>Document state</p>
-              <p>{versionRead ? `Immutable version ${versionRead.version}` : "Draft · bounded by approved Evidence"}</p>
+              <p>{versionRead ? `Immutable version ${versionRead.version}` : incompleteRead ? "Draft · awaiting application review" : "Draft · bounded by approved Evidence"}</p>
             </div>
             <div>
               <p className={styles.lifecycleLabel}>Export readiness</p>
@@ -194,12 +167,14 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
           <div className={styles.lifecycleAction}>
             <p className={styles.eyebrow}>Next action</p>
             <h2 id="document-state-heading">
-              {versionRead ? "Export this accepted version" : "Prepare this draft for generation"}
+              {versionRead ? "Export this accepted version" : incompleteRead ? "Finish reviewing this document" : "Customize this document"}
             </h2>
             <p>
               {versionRead
                 ? "This preview is composed only from the accepted immutable artifact. Export uses this same saved version."
-                : "Review the live preview, then open the guided preparation path to confirm Evidence and approve the Document Specification before generation."}
+                : incompleteRead
+                  ? "Complete the Application's Evidence and Document Specification review before this Workspace can show content."
+                  : "Your live document is ready. Adjust its presentation locally, then save your changes."}
             </p>
             {versionRead ? (
               <a
@@ -208,6 +183,10 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
               >
                 Export PDF
               </a>
+            ) : incompleteRead ? (
+              <Link className={styles.primaryButton} href={`/applications/${incompleteRead.applicationId}/evidence?planId=${encodeURIComponent(incompleteRead.planId)}&packageId=${encodeURIComponent(incompleteRead.packageId)}`}>
+                Review application evidence
+              </Link>
             ) : (
               <p className={styles.lifecycleNote}>
                 This is your working document. Customize it below and save when it looks right. Export becomes available after an accepted version is created.
@@ -236,18 +215,18 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
         {isEmpty ? (
           <div className={styles.narrow}>
             <div className={styles.emptyState}>
-              <h2>{versionBacked ? "This accepted version has no visible content." : "There is no approved Evidence to compose yet."}</h2>
+              <h2>{versionBacked ? "This accepted version has no visible content." : "This document is not ready to display yet."}</h2>
               <p>
                 {versionBacked
                   ? "The immutable content and configuration snapshot were composed without substituting current dossier data."
-                  : "Confirm Evidence and approve the Document Specification for this Application before the Workspace can show document content."}
+                  : "Complete the Application's Evidence and Document Specification review before the Workspace can show document content."}
               </p>
-              {!versionBacked ? <Link className={styles.primaryButton} href="/profile">Go to your dossier</Link> : null}
+              {incompleteRead ? <Link className={styles.primaryButton} href={`/applications/${incompleteRead.applicationId}/evidence?planId=${encodeURIComponent(incompleteRead.planId)}&packageId=${encodeURIComponent(incompleteRead.packageId)}`}>Review application evidence</Link> : null}
             </div>
           </div>
         ) : (
           <div className={styles.workspace}>
-            {!versionBacked && snapshot ? (
+            {draftRead ? (
               <DocumentWorkspace
                 documentId={document.id}
                 documentType={document.type}
@@ -255,8 +234,8 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
                 presentationStyle={presentationStyle.id}
                 saveAction={updateDocumentAction}
                 sectionOrder={document.sectionOrder}
-                selectedEvidence={selectedEvidence}
-                snapshot={snapshot}
+                selectedEvidence={draftRead.selectedEvidence}
+                snapshot={draftRead.snapshot}
                 title={document.title}
               />
             ) : (
