@@ -495,6 +495,37 @@
   overflow-x: auto;
 }
 
+.reviewPanel {
+  max-width: 64rem;
+  margin-top: var(--ds-space-xl);
+  padding: var(--ds-space-lg);
+  border: 1px solid var(--ds-color-border-default);
+  border-top: 3px solid var(--ds-color-brand-primary);
+  background: var(--ds-color-surface);
+}
+
+.reviewHeader,
+.reviewActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-md);
+}
+
+.reviewHeader h2 {
+  font-size: var(--ds-heading-size-md);
+}
+
+.reviewActions {
+  align-items: flex-start;
+  padding-top: var(--ds-space-md);
+  border-top: 1px solid var(--ds-color-border-default);
+}
+
+.reviewActions form {
+  flex: none;
+}
+
 /*
    The workspace: controls and the sheet.
 
@@ -597,7 +628,8 @@
 
 .previewFullscreen {
   position: fixed;
-  z-index: 30;
+  /* The preview is a modal surface and must sit above the sticky site header. */
+  z-index: 120;
   inset: 0;
   overflow: auto;
   padding: max(var(--ds-space-md), env(safe-area-inset-top)) max(var(--ds-space-md), env(safe-area-inset-right)) max(var(--ds-space-md), env(safe-area-inset-bottom)) max(var(--ds-space-md), env(safe-area-inset-left));
@@ -734,8 +766,15 @@
   }
 
   .lifecyclePanel,
-  .preparationCard {
+  .preparationCard,
+  .reviewPanel {
     padding: var(--ds-space-md);
+  }
+
+  .reviewHeader,
+  .reviewActions {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .lifecycleSummary,
