@@ -22,6 +22,7 @@ import {
   type PresentationStyle,
 } from "./presentation";
 import { listValidPackageEvidenceSelections } from "@/applications/evidence-selection-repository";
+import { listApplicationEvidence } from "@/applications/evidence-repository";
 import { getOwnedEvidence } from "@/applications/evidence-repository";
 import { getDossierSnapshot } from "@/profile/repository";
 import { getOwnedDocumentPackageMember, getOwnedDocumentReadSource } from "./repository";
@@ -118,15 +119,32 @@ export async function readOwnedCurrentDraftComposition(
 
   const selections = await listValidPackageEvidenceSelections(userId, context.application.id, context.package.id);
   if (!selections) return { kind: "incomplete", document: document.document, reason: "evidence-required", ...contextIds };
-  if (specification.evidenceIds.some((id) => !selections.some((selection) => selection.evidenceId === id))) {
-    return { kind: "incomplete", document: document.document, reason: "stale-evidence", ...contextIds };
+  const validSelections = selections;
+  const evidenceState = resolveCurrentEvidenceState(validSelections, specification.requirementIds, specification.evidenceIds);
+  if (evidenceState !== "valid") {
+    return { kind: "incomplete", document: document.document, reason: evidenceState, ...contextIds };
   }
 
   const selectedEvidence: SelectedEvidence[] = [];
-  for (const selection of selections.filter((candidate) => specification.evidenceIds.includes(candidate.evidenceId))) {
-    const evidence = await getOwnedEvidence(userId, selection.evidenceId);
-    if (!evidence || evidence.lifecycle !== "active") return { kind: "incomplete", document: document.document, reason: "stale-evidence", ...contextIds };
-    selectedEvidence.push({ evidenceId: evidence.id, sourceType: evidence.sourceType, sourceRecordId: evidence.sourceRecordId });
+  if (specification.requirementIds.length === 0 && specification.evidenceIds.length === 0) {
+    const baselineEvidence = await listApplicationEvidence(userId, context.application.id);
+    for (const candidate of baselineEvidence) {
+      if (candidate.lifecycle !== "active") continue;
+      selectedEvidence.push({
+        evidenceId: candidate.id,
+        sourceType: candidate.sourceType,
+        sourceRecordId: candidate.sourceRecordId,
+      });
+    }
+  } else {
+    const authorizedSelections = validSelections.filter((candidate) =>
+      specification.evidenceIds.includes(candidate.evidenceId),
+    );
+    for (const selection of authorizedSelections) {
+      const evidence = await getOwnedEvidence(userId, selection.evidenceId);
+      if (!evidence || evidence.lifecycle !== "active") return { kind: "incomplete", document: document.document, reason: "stale-evidence", ...contextIds };
+      selectedEvidence.push({ evidenceId: evidence.id, sourceType: evidence.sourceType, sourceRecordId: evidence.sourceRecordId });
+    }
   }
 
   const snapshot = await getDossierSnapshot(userId);
@@ -135,6 +153,8 @@ export async function readOwnedCurrentDraftComposition(
   return {
     kind: "draft",
     document: document.document,
+    // A zero-Requirement specification uses the active, owner-scoped Evidence
+    // projections already materialized for this Application as its baseline.
     composed: composeEvidenceBoundDocument(document.document.type, snapshot, selectedEvidence, {
       hiddenSections: document.document.hiddenSections,
       sectionOrder: document.document.sectionOrder,
@@ -287,4 +307,22 @@ function nonBlank(value: unknown): value is string {
 
 function stringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((entry) => typeof entry === "string");
+}
+
+/**
+ * Classifies the current Evidence boundary without treating an empty selection
+ * collection as a failure when the reviewed package has no Requirements.
+ */
+export function resolveCurrentEvidenceState(
+  selections: readonly { evidenceId: string }[] | null,
+  requirementIds: readonly string[],
+  evidenceIds: readonly string[],
+): "valid" | "evidence-required" | "stale-evidence" {
+  if (!selections) return "evidence-required";
+  if (requirementIds.length === 0 && evidenceIds.length === 0) return "valid";
+  if (evidenceIds.some((id) => !selections.some((selection) => selection.evidenceId === id))) {
+    return "stale-evidence";
+  }
+  if (requirementIds.length > 0 && evidenceIds.length === 0) return "evidence-required";
+  return "valid";
 }
