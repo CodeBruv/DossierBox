@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { index, integer, jsonb, pgEnum, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgEnum, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { users } from "@/auth/schema";
 
 export const applicationStatus = pgEnum("application_status", ["draft", "archived"]);
@@ -18,6 +18,8 @@ export const applications = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     status: applicationStatus("status").notNull().default("draft"),
+    /** Internal compatibility aggregate used by baseline Documents; never shown as a user Application. */
+    internal: boolean("internal").notNull().default(false),
     createdAt: timestamp("createdAt", { mode: "date", withTimezone: true })
       .$defaultFn(() => new Date())
       .notNull(),
