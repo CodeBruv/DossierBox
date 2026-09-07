@@ -164,10 +164,11 @@ export const shippingDocumentTypeKeySet: ReadonlySet<string> = new Set(shippingD
  * and published work. Moving anything here would change documents that already exist,
  * so nothing here moves.
  *
- * The three sectioned types list every dossier-backed section exactly once. That is not a
- * rule about documents — the letter types below list six keys and none of those eleven —
- * it is a property of *those three*, which are all full-history sectioned documents that
- * differ by emphasis rather than by content. The test asserts it for those three only.
+ * The two professional sectioned types list every dossier-backed section exactly once.
+ * Academic CVs use the dossier's academic/history sections but do not turn the basics
+ * career-direction field into a generic objective section. This distinction keeps the
+ * document catalogue authoritative instead of making composition add the same section to
+ * every type.
  *
  * The two-part annotation is what keeps `availability` honest: a key listed as shipping
  * cannot declare itself planned, or vice versa, because the compiler requires the literal
@@ -190,6 +191,7 @@ export const documentTypeRegistry: Readonly<
     family: "career",
     structure: "sectioned",
     label: "Professional CV",
+    headingOverrides: { summary: "Professional Summary" },
     description: "A clear, general-purpose record of your experience.",
     sections: [
       { key: "summary", status: "recommended" },
@@ -214,6 +216,7 @@ export const documentTypeRegistry: Readonly<
     family: "career",
     structure: "sectioned",
     label: "Professional résumé",
+    headingOverrides: { summary: "Professional Summary" },
     description: "A focused, achievement-oriented document for an application.",
     sections: [
       { key: "summary", status: "recommended" },
@@ -240,7 +243,6 @@ export const documentTypeRegistry: Readonly<
     label: "Academic or international CV",
     description: "A fuller document for academic, research, or cross-border contexts.",
     sections: [
-      { key: "summary", status: "recommended" },
       { key: "education", status: "required" },
       { key: "publications", status: "recommended" },
       { key: "experience", status: "required" },
