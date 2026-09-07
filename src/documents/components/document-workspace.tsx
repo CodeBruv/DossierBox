@@ -47,11 +47,12 @@ export function DocumentWorkspace({
   snapshot,
   saveAction,
 }: DocumentWorkspaceProps) {
-  const sections = composableSections(documentType, snapshot, initialOrder, selectedEvidence);
+  const normalizedInitialOrder = [...new Set(initialOrder)];
+  const sections = composableSections(documentType, snapshot, normalizedInitialOrder, selectedEvidence);
   const [workingTitle, setWorkingTitle] = useState(title);
   const [styleId, setStyleId] = useState<PresentationStyleId>(initialStyle);
-  const [sectionOrder, setSectionOrder] = useState<readonly string[]>(initialOrder.length ? initialOrder : sections.map((section) => section.key));
-  const [hiddenSections, setHiddenSections] = useState<readonly string[]>(initialHidden);
+  const [sectionOrder, setSectionOrder] = useState<readonly string[]>(normalizedInitialOrder.length ? normalizedInitialOrder : sections.map((section) => section.key));
+  const [hiddenSections, setHiddenSections] = useState<readonly string[]>([...new Set(initialHidden)]);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const style = resolvePresentationStyle(styleId, documentType);
@@ -81,16 +82,13 @@ export function DocumentWorkspace({
             <span>Live preview · {style.label}</span>
             {previewOpen ? <button className={styles.previewClose} onClick={() => setPreviewOpen(false)} type="button">Close preview</button> : null}
           </div>
-          {hasContent ? <DocumentPreview document={composed} presentationStyle={style} /> : <div className={styles.emptyNotice}><h2>This document has no visible content.</h2><p>Change the section choices or complete the application review before customizing this document.</p></div>}
+          {hasContent ? <DocumentPreview document={composed} presentationStyle={style} /> : <div className={styles.emptyNotice}><h2>This document has no visible content.</h2><p>Choose a different section set or add more information to your saved Dossier before customizing this document.</p></div>}
         </div>
 
         <aside aria-label="Document customization" className={`${styles.workspaceControls} ${customizeOpen ? styles.workspaceControlsOpen : ""}`} data-print-skip>
           <form action={saveAction} className={settings.settings}>
             <input name="documentId" type="hidden" value={documentId} />
             <input name="template" type="hidden" value={styleId} />
-            {sections.map((section) => <input key={`offered-${section.key}`} name="offered" type="hidden" value={section.key} />)}
-            {sectionOrder.map((key) => <input key={`order-${key}`} name="order" type="hidden" value={key} />)}
-            {hiddenSections.map((key) => <input key={`hidden-${key}`} name="hidden" type="hidden" value={key} />)}
 
             <div className={settings.field}>
               <label className={settings.label} htmlFor="workspace-title">Document name</label>
