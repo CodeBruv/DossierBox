@@ -38,15 +38,15 @@ export default async function RecommendationPage({ params, searchParams }: Props
     ? storedRecommendationIdentity(adjusted.plan)?.fingerprint === context.identity.fingerprint
     : false;
   const selected = new Set(adjustedIsCurrent ? adjusted!.documentTypes : context.proposal.recommendedDocuments);
-  const message = query.error ? errors[query.error] : query.status === "adjusted" ? "Your adjustment is saved as an unconfirmed proposal. Accept it to create confirmed planning history." : null;
+  const message = query.error ? errors[query.error] : query.status === "adjusted" ? "Your document choices are saved as an unconfirmed proposal. Continue when you are ready to open your Workspace." : null;
 
   return (
     <div className={shell.page}>
       <Container>
         <header className={styles.header}>
-          <p className={shell.eyebrow}>Create application</p>
-          <h1>Review the recommended package</h1>
-          <p className={shell.lead}>Application Intent sets the baseline. Only explicit, catalogue-backed requests from the reviewed opportunity can refine it. Nothing is confirmed until you accept.</p>
+          <p className={shell.eyebrow}>Choose documents</p>
+          <h1>Choose what to create</h1>
+          <p className={shell.lead}>We have suggested documents from your purpose and optional context. Adjust the selection if needed, then open your Workspace. Your Dossier remains the source of truth.</p>
         </header>
 
         <StepTrail applicationId={applicationId} />
@@ -54,8 +54,8 @@ export default async function RecommendationPage({ params, searchParams }: Props
 
         <section className={styles.summary} aria-labelledby="proposal-heading">
           <div>
-            <p className={shell.eyebrow}>Unconfirmed proposal</p>
-            <h2 id="proposal-heading">Recommended application package</h2>
+            <p className={shell.eyebrow}>Suggested starting point</p>
+            <h2 id="proposal-heading">Suggested documents</h2>
           </div>
           <p>{context.proposal.packageMembers.length} of {context.maxPackageSize} package places used</p>
         </section>
@@ -89,7 +89,7 @@ export default async function RecommendationPage({ params, searchParams }: Props
             })}
           </ul>
           <div className={styles.actions}>
-            <Button type="submit" variant="secondary">Save adjustment</Button>
+            <Button type="submit" variant="secondary">Save document choices</Button>
           </div>
         </form>
 
@@ -100,10 +100,10 @@ export default async function RecommendationPage({ params, searchParams }: Props
           <input name="recommendationIdentity" type="hidden" value={context.identity.fingerprint} />
           {adjustedIsCurrent && adjusted ? <input name="planId" type="hidden" value={adjusted.plan.id} /> : null}
           <div>
-            <h2>Confirm planning only</h2>
-            <p>Accepting records a confirmed Application Plan and Package. It does not create a document, specification, evidence selection, generation, preparation, or export.</p>
+            <h2>Open your Workspace</h2>
+            <p>Continue to create the selected documents. DossierBox prepares the internal context automatically; you can customize, save, and export from the Workspace.</p>
           </div>
-          <Button type="submit">Accept recommendation</Button>
+          <Button type="submit">Open Workspace</Button>
         </form>
       </Container>
     </div>
@@ -127,5 +127,5 @@ function Advisories({ context }: { context: NonNullable<Awaited<ReturnType<typeo
 }
 
 function StepTrail({ applicationId }: { applicationId: string }) {
-  return <nav aria-label="Application creation steps" className={styles.trail}><ol><li><Link href="/applications/new">Purpose</Link></li><li><Link href={`/applications/${encodeURIComponent(applicationId)}/opportunity`}>Instructions</Link></li><li aria-current="step"><span>Recommendation</span></li><li><span>Evidence</span></li><li><span>Documents</span></li></ol></nav>;
+  return <nav aria-label="Document creation steps" className={styles.trail}><ol><li><Link href="/applications/new">Purpose</Link></li><li><Link href={`/applications/${encodeURIComponent(applicationId)}/opportunity`}>Context</Link></li><li aria-current="step"><span>Choose documents</span></li><li><span>Workspace</span></li></ol></nav>;
 }
