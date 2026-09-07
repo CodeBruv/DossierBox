@@ -126,15 +126,32 @@ describe("document families", () => {
    * order would silently drop that section from every document of that type — the
    * user would have entered publications and simply never see them.
    */
-  it("can present every section in every family, exactly once", () => {
-    const expected = [...profileSectionKeys, "summary"].sort();
+  it("presents only the sections declared by each document type", () => {
+    const expectedProfileSections = [...profileSectionKeys].sort();
 
     for (const type of documentTypes) {
       const keys = keysOf(composeDocument(type, fullSnapshot()).sections);
+      const expected = type === "academic_cv"
+        ? expectedProfileSections
+        : [...expectedProfileSections, "summary"].sort();
 
-      expect([...keys].sort(), `${type} must present every section`).toEqual(expected);
+      expect([...keys].sort(), `${type} must present its declared sections`).toEqual(expected);
       expect(new Set(keys).size, `${type} must not repeat a section`).toBe(keys.length);
     }
+  });
+
+  it("uses the supported type-specific summary conventions", () => {
+    const rows = snapshot({ identity: { ...blankIdentity, careerDirection: "Work in public health" } });
+
+    expect(composeDocument("professional_cv", rows).sections[0]).toMatchObject({
+      key: "summary",
+      heading: "Professional Summary",
+    });
+    expect(composeDocument("professional_resume", rows).sections[0]).toMatchObject({
+      key: "summary",
+      heading: "Professional Summary",
+    });
+    expect(keysOf(composeDocument("academic_cv", rows).sections)).not.toContain("summary");
   });
 
   it("orders each family around what its reader looks for first", () => {
