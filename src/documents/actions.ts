@@ -1,11 +1,12 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { redirect, unstable_rethrow } from "next/navigation";
 import { requireProfileUser } from "@/profile/authorization";
 import { isAvailableDocumentType, isDocumentSectionKey } from "./catalogue";
 import { isPresentationStyleId } from "./presentation";
 import { createDocument, deleteOwnedDocument, updateDocumentConfiguration } from "./repository";
-import { prepareDocumentWorkspace } from "./preparation";
+import { getDocumentPreparation, prepareDocumentWorkspace, runApprovedDocumentGeneration } from "./preparation";
 import { acceptGeneratedContent } from "./acceptance";
 
 /**
@@ -215,6 +216,35 @@ export async function deleteDocumentAction(formData: FormData) {
   }
 
   redirect("/documents?status=deleted");
+}
+
+/** Starts generation from the document's current saved Workspace configuration. */
+export async function generateDocumentAction(formData: FormData) {
+  const documentId = formData.get("documentId");
+  if (typeof documentId !== "string" || documentId.length === 0) redirect("/documents?error=unknown-document");
+
+  const user = await requireProfileUser();
+  try {
+    const preparation = await getDocumentPreparation(user.id, documentId);
+    const specification = preparation?.specification;
+    if (!preparation || !specification || specification.status !== "approved") {
+      redirect(`/documents/${documentId}?error=preparation-required`);
+    }
+    const result = await runApprovedDocumentGeneration({
+      userId: user.id,
+      specificationId: specification.id,
+      revision: specification.revision,
+      idempotencyKey: randomUUID(),
+    });
+    if (!result.ok) {
+      redirect(`/documents/${documentId}?error=generation-failed`);
+    }
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error(`[documents] Failed to generate document ${documentId}`, error);
+    redirect(`/documents/${documentId}?error=generation-failed`);
+  }
+  redirect(`/documents/${documentId}/review?status=generated`);
 }
 
 export async function acceptGeneratedContentAction(formData: FormData) {
