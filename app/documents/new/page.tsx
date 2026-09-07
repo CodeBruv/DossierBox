@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { createDocumentAction } from "@/documents/actions";
 import {
   applicationObjectiveKindLabel,
   documentSetFor,
@@ -7,10 +8,7 @@ import {
   type ApplicationObjectiveKind,
   type DocumentCompatibility,
 } from "@/applications";
-import { packageHasConfirmedEvidenceBoundary } from "@/applications/evidence-selection-repository";
 import { getOwnedApplicationWithDocuments } from "@/applications/repository";
-import { getOwnedApplicationPlan } from "@/applications/plans-repository";
-import { getOwnedApplicationPackage } from "@/applications/packages-repository";
 import { authSessionConfiguration } from "@/auth/auth";
 import { getSession } from "@/auth/session";
 import {
@@ -41,36 +39,11 @@ export default async function NewDocumentPage({ searchParams }: NewDocumentPageP
 
   const query = await searchParams;
   if (!query.applicationId) redirect("/applications/new");
-  if (query.planId && query.packageId) redirect(`/applications/${encodeURIComponent(query.applicationId)}/specification?planId=${encodeURIComponent(query.planId)}&packageId=${encodeURIComponent(query.packageId)}`);
   const application = await getOwnedApplicationWithDocuments(session.user.id, query.applicationId);
   if (!application?.intent) redirect("/applications/new?error=application-required");
-  if (query.planId || query.packageId) {
-    if (!query.planId || !query.packageId) redirect(`/applications/${encodeURIComponent(application.id)}/recommendation?error=stale`);
-    const [plan, applicationPackage] = await Promise.all([
-      getOwnedApplicationPlan(session.user.id, query.planId),
-      getOwnedApplicationPackage(session.user.id, query.packageId),
-    ]);
-    if (
-      !plan
-      || !applicationPackage
-      || plan.applicationId !== application.id
-      || applicationPackage.planId !== plan.id
-      || plan.status !== "confirmed"
-      || plan.confirmation !== "confirmed"
-      || applicationPackage.status !== "confirmed"
-      || applicationPackage.confirmation !== "confirmed"
-    ) redirect(`/applications/${encodeURIComponent(application.id)}/recommendation?error=stale`);
-    if (!(await packageHasConfirmedEvidenceBoundary(session.user.id, application.id, applicationPackage.id))) {
-      redirect(`/applications/${encodeURIComponent(application.id)}/evidence?planId=${encodeURIComponent(plan.id)}&packageId=${encodeURIComponent(applicationPackage.id)}&error=confirmation-required`);
-    }
-  }
 
   const kind = application.intent.kind as ApplicationObjectiveKind;
   const type = isAvailableDocumentType(query.type) ? query.type : null;
-  if (type) {
-    const evidenceUrl = `/applications/${encodeURIComponent(application.id)}/evidence${query.planId && query.packageId ? `?planId=${encodeURIComponent(query.planId)}&packageId=${encodeURIComponent(query.packageId)}` : ""}`;
-    redirect(evidenceUrl);
-  }
   const step = 1;
   const error = query.error ? errorMessages[query.error] : null;
 
@@ -81,14 +54,13 @@ export default async function NewDocumentPage({ searchParams }: NewDocumentPageP
           <p className={shell.eyebrow}>Saved application</p>
           <h1>Choose your document</h1>
           <p className={shell.lead}>
-            Review the purpose-informed recommendation for this saved Application, or choose another valid document type. Document setup continues through Evidence and Document Specification review.
+            Start with the recommended document for this saved Application, or choose another valid document type. Your document opens ready to customize.
           </p>
         </header>
 
         <ApplicationContextSummary application={application} kind={kind} />
         <StepTrail applicationId={application.id} step={step} type={type} />
         {error ? <p className={shell.errorStatus} role="alert">{error}</p> : null}
-        {query.status === "evidence-confirmed" ? <p className={styles.reviewStatus} role="status">Evidence selection confirmed. Continue to the Document Specification review before any document is created.</p> : null}
 
         <DocumentStep applicationId={application.id} objective={kind} />
       </Container>
@@ -119,7 +91,7 @@ function StepTrail({ applicationId, step, type }: { applicationId: string; step:
         <li className={`${styles.trailStep} ${step === 1 ? styles.trailStepCurrent : styles.trailStepDone}`} aria-current={step === 1 ? "step" : undefined}>
           {step > 1 ? <Link className={styles.trailLink} href={`/documents/new?applicationId=${applicationId}`}><span className={styles.trailLabel}>Document</span><span className={styles.trailValue}>{type ? documentTypeLabel(type) : null}</span></Link> : <span className={styles.trailStatic}><span className={styles.trailLabel}>Document</span></span>}
         </li>
-        <li className={`${styles.trailStep} ${styles.trailStepCurrent}`} aria-current="step"><span className={styles.trailStatic}><span className={styles.trailLabel}>Review Evidence & Specification</span></span></li>
+        <li className={`${styles.trailStep} ${styles.trailStepCurrent}`} aria-current="step"><span className={styles.trailStatic}><span className={styles.trailLabel}>Your document</span></span></li>
       </ol>
     </nav>
   );
@@ -138,9 +110,9 @@ function DocumentStep({ applicationId, objective }: { applicationId: string; obj
     <>
       <section aria-labelledby="recommended-package-heading" className={styles.packageSummary}>
         <p className={styles.groupHeading}>Based on this purpose</p>
-        <h2 id="recommended-package-heading">Recommended application package</h2>
+        <h2 id="recommended-package-heading">Recommended documents</h2>
         <ol className={styles.packageMembers}>{recommendedPackage.members.map((member) => <li key={member.type}><span>{member.label}</span><small>{member.role === "primary" ? "Primary document" : "Supporting document"} · {member.available ? "Available now" : "Not available yet"}</small></li>)}</ol>
-        <p className={styles.packageNote}>This is the existing deterministic recommendation, not a package created or confirmed on your behalf.</p>
+        <p className={styles.packageNote}>Choose the document you want to open and customize first. You can create another suitable document from this Application later.</p>
       </section>
       {recommended.length ? <section className={styles.group}><h2 className={styles.groupHeading}>Recommended for this</h2><DocumentOptions applicationId={applicationId} entries={recommended} recommended /></section> : null}
       {alsoSuitable.length ? <section className={styles.group}><h2 className={styles.groupHeading}>Also suitable</h2><DocumentOptions applicationId={applicationId} entries={alsoSuitable} /></section> : null}
@@ -152,7 +124,7 @@ function DocumentStep({ applicationId, objective }: { applicationId: string; obj
 
 type DocumentOption = Pick<DocumentCompatibility, "type" | "level" | "available">;
 function DocumentOptions({ applicationId, entries, recommended = false }: { applicationId: string; entries: readonly DocumentOption[]; recommended?: boolean }) {
-  return <ul className={styles.optionGrid}>{entries.map((entry) => <li className={styles.option} key={entry.type}><Link className={styles.optionLink} href={`/documents/new?applicationId=${encodeURIComponent(applicationId)}&type=${entry.type}`}>{documentTypeLabel(entry.type)}</Link>{recommended ? <span className={styles.badge}>Usual choice</span> : null}<p className={styles.optionNote}>{documentTypeDescription(entry.type)}</p><p className={styles.optionMeta}>{describeLength(documentTypePageBudget(entry.type))}</p></li>)}</ul>;
+  return <ul className={styles.optionGrid}>{entries.map((entry) => <li className={styles.option} key={entry.type}><form action={createDocumentAction}><input name="applicationId" type="hidden" value={applicationId} /><input name="type" type="hidden" value={entry.type} /><button className={styles.optionLink} type="submit">{documentTypeLabel(entry.type)}</button></form>{recommended ? <span className={styles.badge}>Usual choice</span> : null}<p className={styles.optionNote}>{documentTypeDescription(entry.type)}</p><p className={styles.optionMeta}>{describeLength(documentTypePageBudget(entry.type))}</p></li>)}</ul>;
 }
 
 function describeLength(budget: DocumentPageBudget): string {
