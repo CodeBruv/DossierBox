@@ -26,6 +26,18 @@
   gap: var(--ds-space-lg);
 }
 
+.actionGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-xs);
+}
+
+.actionGroup .primaryButton,
+.actionGroup .secondaryButton {
+  margin-top: 0;
+}
+
 .pageHeader .primaryButton {
   flex: none;
   margin-top: 0;
@@ -585,11 +597,24 @@
 
 .previewFullscreen {
   position: fixed;
-  z-index: 20;
+  z-index: 30;
   inset: 0;
   overflow: auto;
-  padding: var(--ds-space-md);
+  padding: max(var(--ds-space-md), env(safe-area-inset-top)) max(var(--ds-space-md), env(safe-area-inset-right)) max(var(--ds-space-md), env(safe-area-inset-bottom)) max(var(--ds-space-md), env(safe-area-inset-left));
   background: var(--ds-color-background);
+}
+
+.previewFullscreen .previewToolbar {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  min-height: 2.75rem;
+  padding-block: var(--ds-space-2xs);
+  background: var(--ds-color-background);
+}
+
+.previewFullscreen .previewClose {
+  min-height: 2.75rem;
 }
 
 @media (min-width: 64rem) {
@@ -646,6 +671,20 @@
   outline-offset: 0.125rem;
 }
 
+@media (max-width: 63.99rem) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .workspaceControls {
+    order: 2;
+  }
+
+  .workspacePreview {
+    order: 1;
+  }
+}
+
 @media (max-width: 48rem) {
   .page {
     padding-top: var(--ds-space-md);
@@ -653,6 +692,10 @@
 
   .pageHeader {
     display: block;
+  }
+
+  .actionGroup {
+    margin-top: var(--ds-space-sm);
   }
 
   .documentGrid {
@@ -671,6 +714,7 @@
     gap: var(--ds-space-md);
   }
 
+  .previewToggle,
   .customizeToggle {
     display: inline-flex;
     align-items: center;
@@ -711,6 +755,16 @@
   .documentRow {
     align-items: flex-start;
     flex-direction: column;
+  }
+}
+
+@media (max-height: 36rem) and (max-width: 48rem) {
+  .previewFullscreen {
+    padding-block: var(--ds-space-xs);
+  }
+
+  .previewFullscreen .previewToolbar {
+    min-height: 2.5rem;
   }
 }
 
