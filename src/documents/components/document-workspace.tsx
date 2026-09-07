@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormHTMLAttributes } from "react";
 import {
   composeEvidenceBoundDocument,
@@ -55,6 +55,31 @@ export function DocumentWorkspace({
   const [hiddenSections, setHiddenSections] = useState<readonly string[]>([...new Set(initialHidden)]);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [customizeOpen, setCustomizeOpen] = useState(false);
+  const previewTriggerRef = useRef<HTMLButtonElement>(null);
+  const previewCloseRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!previewOpen) return;
+    previewCloseRef.current?.focus();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setPreviewOpen(false);
+      previewTriggerRef.current?.focus();
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("keydown", closeOnEscape);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [previewOpen]);
+
+  const closePreview = () => {
+    setPreviewOpen(false);
+    previewTriggerRef.current?.focus();
+  };
   const style = resolvePresentationStyle(styleId, documentType);
   const composed = composeEvidenceBoundDocument(documentType, snapshot, selectedEvidence, { hiddenSections, sectionOrder });
   const hasContent = !isComposedDocumentEmpty(composed);
@@ -67,7 +92,7 @@ export function DocumentWorkspace({
           <h2 className={styles.workspaceTitle}>{workingTitle || "Untitled document"}</h2>
         </div>
         <div className={styles.workspaceToolbarActions}>
-          <button className={styles.previewToggle} onClick={() => setPreviewOpen(true)} type="button">
+          <button aria-controls="document-preview" aria-expanded={previewOpen} className={styles.previewToggle} onClick={() => setPreviewOpen(true)} ref={previewTriggerRef} type="button">
             Preview
           </button>
           <button aria-expanded={customizeOpen} className={styles.customizeToggle} onClick={() => setCustomizeOpen((open) => !open)} type="button">
@@ -77,10 +102,10 @@ export function DocumentWorkspace({
       </div>
 
       <div className={styles.workspace}>
-        <div aria-label="Live document preview" className={`${styles.workspacePreview} ${previewOpen ? styles.previewFullscreen : ""}`}>
+        <div aria-labelledby="document-preview-heading" className={`${styles.workspacePreview} ${previewOpen ? styles.previewFullscreen : ""}`} id="document-preview" role={previewOpen ? "dialog" : undefined} aria-modal={previewOpen ? "true" : undefined}>
           <div className={styles.previewToolbar} data-print-skip>
-            <span>Live preview · {style.label}</span>
-            {previewOpen ? <button className={styles.previewClose} onClick={() => setPreviewOpen(false)} type="button">Close preview</button> : null}
+            <span id="document-preview-heading">Live preview · {style.label}</span>
+            {previewOpen ? <button aria-label="Close document preview" className={styles.previewClose} onClick={closePreview} ref={previewCloseRef} type="button">Close preview</button> : null}
           </div>
           {hasContent ? <DocumentPreview document={composed} presentationStyle={style} /> : <div className={styles.emptyNotice}><h2>This document has no visible content.</h2><p>Choose a different section set or add more information to your saved Dossier before customizing this document.</p></div>}
         </div>
