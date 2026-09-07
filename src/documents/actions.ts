@@ -5,6 +5,7 @@ import { requireProfileUser } from "@/profile/authorization";
 import { isAvailableDocumentType, isDocumentSectionKey } from "./catalogue";
 import { isPresentationStyleId } from "./presentation";
 import { createDocument, deleteOwnedDocument, updateDocumentConfiguration } from "./repository";
+import { prepareDocumentWorkspace } from "./preparation";
 import { acceptGeneratedContent } from "./acceptance";
 
 /**
@@ -72,6 +73,8 @@ export async function createDocumentAction(formData: FormData) {
     redirect(`/documents/new?applicationId=${applicationId}&error=create-failed`);
   }
 
+  const prepared = await prepareDocumentWorkspace(user.id, document.id);
+  if (!prepared) redirect(`/documents/new?applicationId=${encodeURIComponent(applicationId)}&error=create-failed`);
   redirect(`/documents/${document.id}`);
 }
 
