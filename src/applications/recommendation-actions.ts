@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { isDocumentTypeKey } from "@/documents/catalogue";
+import { getOrCreateOwnedMemberDocument } from "@/documents/repository";
 import { freeEntitlement } from "@/entitlements/entitlements";
 import { requireProfileUser } from "@/profile/authorization";
 import {
@@ -11,6 +12,8 @@ import {
   validateRecommendationSelection,
 } from "./recommendation-persistence";
 import { getOwnedRecommendationContext } from "./recommendation";
+import { listPackageMembers } from "./packages-repository";
+import { prepareDocumentWorkspace } from "@/documents/preparation";
 
 function text(formData: FormData, name: string): string {
   const value = formData.get(name);
@@ -75,5 +78,12 @@ export async function acceptRecommendationAction(formData: FormData) {
   }, true);
   if (!confirmed) redirect(`${destination}?error=save-failed`);
 
-  redirect(`/applications/${encodeURIComponent(applicationId)}/evidence?planId=${encodeURIComponent(confirmed.plan.id)}&packageId=${encodeURIComponent(confirmed.package.id)}&status=recommendation-confirmed`);
+  const members = await listPackageMembers(user.id, confirmed.package.id);
+  const primary = members.find((member) => member.role === "primary") ?? members[0];
+  if (!primary) redirect(`${destination}?error=preparation-failed`);
+  const document = await getOrCreateOwnedMemberDocument(user.id, primary.id);
+  if (!document) redirect(`${destination}?error=preparation-failed`);
+  const prepared = await prepareDocumentWorkspace(user.id, document.id);
+  if (!prepared) redirect(`${destination}?error=preparation-failed`);
+  redirect(`/documents/${encodeURIComponent(document.id)}`);
 }
