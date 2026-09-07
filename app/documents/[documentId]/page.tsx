@@ -100,9 +100,9 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
   const isEmpty = !composed || (isComposedDocumentEmpty(composed) && !draftRead);
   const objective = normalizeApplicationObjective(document.objective);
   const versions = await listOwnedDocumentVersions(session.user.id, document.id);
-  const applicationContext = objective
+  const applicationContext = objective && objective.kind !== "general_profile"
     ? applicationObjectiveKindLabel(objective.kind)
-    : "No specific application";
+    : "Based on your Dossier";
 
   return (
     <div className={styles.page}>
@@ -121,13 +121,15 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
             <p>
               {versionRead
                 ? `Composed from immutable accepted version ${versionRead.version}.`
-                : "Your live document is composed from the information saved for this Application."}
+                : objective && objective.kind !== "general_profile"
+                  ? "Your live document combines your Dossier with this application's context."
+                  : "Your live document is composed from the information saved in your Dossier."}
             </p>
           </header>
 
           <p className={styles.editorMeta}>
             <span className={styles.statusBadge}>
-              {versionRead ? "Accepted version" : "Live draft"}
+              {versionRead ? "Accepted version" : "Ready to customize"}
             </span>{" "}
             {presentationStyle.label} · {versionRead ? "Accepted" : "Updated"} {(
               versionRead?.createdAt ?? document.updatedAt
@@ -159,11 +161,11 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
             </div>
             <div>
               <p className={styles.lifecycleLabel}>Document state</p>
-              <p>{versionRead ? `Saved version ${versionRead.version}` : incompleteRead ? "Draft · still preparing" : "Live draft"}</p>
+              <p>{versionRead ? `Saved version ${versionRead.version}` : incompleteRead ? "Draft · still preparing" : "Ready to customize"}</p>
             </div>
             <div>
               <p className={styles.lifecycleLabel}>Export readiness</p>
-              <p>{versionRead ? "Ready for PDF export" : "Not ready · an accepted version is required"}</p>
+              <p>{versionRead ? "Ready for PDF export" : "Available in the workspace"}</p>
             </div>
           </div>
           <div className={styles.lifecycleAction}>
@@ -187,7 +189,7 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
               </a>
             ) : incompleteRead ? (
               <p className={styles.lifecycleNote}>
-                We are finishing this document from your saved Application information. Your Dossier has not been changed.
+                We are finishing this document from your saved Dossier and application context. Your Dossier has not been changed.
               </p>
             ) : (
               <p className={styles.lifecycleNote}>
