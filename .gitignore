@@ -27,3 +27,6 @@ next-env.d.ts
 
 # OS noise
 Thumbs.db
+
+# MCP Files 
+.playwright-mcp/
