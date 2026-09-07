@@ -22,6 +22,29 @@ describe("authoritative PDF renderer", () => {
     expect(pdf.toString("latin1")).toContain("/Subtype /Link");
   });
 
+  it("flows long content across multiple physical pages", async () => {
+    const longDocument: ComposedDocument = {
+      ...document,
+      sections: [
+        {
+          key: "summary",
+          heading: "Summary",
+          layout: "prose",
+          body: {
+            kind: "paragraphs",
+            lines: Array.from({ length: 90 }, (_, index) =>
+              `This is a deliberately long paragraph ${index + 1} used to verify natural PDF pagination without a fixed one-page canvas.`,
+            ),
+          },
+        },
+      ],
+    };
+    const model = compilePresentationModel({ document: longDocument, presentationContractVersion: "presentation-v1", presentationStyleId: "classic" });
+    const pdf = await renderPresentationPdf(model);
+    const pageCount = (pdf.toString("latin1").match(/\/Type \/Page(?!s)/g) ?? []).length;
+    expect(pageCount).toBeGreaterThan(1);
+  });
+
   it("rejects an unbounded model before allocating renderer work", async () => {
     const model = compilePresentationModel({ document, presentationContractVersion: "presentation-v1", presentationStyleId: "classic" });
     await expect(renderPresentationPdf({ ...model, blocks: Array.from({ length: 10_001 }, () => model.blocks[0]!) })).rejects.toMatchObject({ reason: "resource-limit" });
