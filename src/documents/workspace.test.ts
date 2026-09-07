@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { emptyDossierSnapshot, type DossierIdentity, type DossierSnapshot } from "@/profile/dossier";
 import { composeDocument, composeEvidenceBoundDocument, composableSections, type SelectedEvidence } from "./composition";
+import { resolveCurrentEvidenceState } from "./read-composition";
 import { isPresentationStyleId, resolvePresentationStyle } from "./presentation";
 
 const identity: DossierIdentity = {
@@ -77,5 +78,20 @@ describe("Document Workspace customization boundary", () => {
     expect(historical.sections.some((section) => section.key === "experience")).toBe(true);
     expect(historical.sections.map((section) => section.key)).toEqual(mutable.sections.map((section) => section.key));
     expect(resolvePresentationStyle("compact", "professional_resume").id).toBe("compact");
+  });
+  it("accepts an approved zero-Requirement Specification without Evidence selections", () => {
+    expect(resolveCurrentEvidenceState([], [], [])).toBe("valid");
+  });
+
+  it("still blocks when Requirements exist but no Evidence is confirmed", () => {
+    expect(resolveCurrentEvidenceState([], ["requirement-1"], [])).toBe("evidence-required");
+  });
+
+  it("preserves stale Evidence when an approved reference is no longer selected", () => {
+    expect(resolveCurrentEvidenceState([], [], ["evidence-1"])).toBe("stale-evidence");
+  });
+
+  it("treats confirmed Evidence as valid for a Requirement-backed Specification", () => {
+    expect(resolveCurrentEvidenceState([{ evidenceId: "evidence-1" }], ["requirement-1"], ["evidence-1"])).toBe("valid");
   });
 });
