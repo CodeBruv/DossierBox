@@ -115,6 +115,27 @@ describeDatabase("Application persistence boundary", () => {
     }
   });
 
+  it("keeps a baseline document's compatibility Application invisible", async () => {
+    const userId = await createUser("baseline-create-owner");
+    try {
+      const before = await listOwnedApplications(userId);
+      const document = await createDocument(userId, "professional_cv");
+      const after = await listOwnedApplications(userId);
+      const compatibilityId = document.applicationId;
+      expect(compatibilityId).toBeTruthy();
+      const [compatibility] = await db
+        .select()
+        .from(applications)
+        .where(eq(applications.id, compatibilityId!));
+
+      expect(after).toEqual(before);
+      expect(compatibility?.internal).toBe(true);
+      expect(compatibility?.userId).toBe(userId);
+    } finally {
+      await db.delete(users).where(eq(users.id, userId));
+    }
+  });
+
   it("keeps legacy standalone Documents valid", async () => {
     const userId = await createUser("legacy-owner");
     const documentId = `legacy-${crypto.randomUUID()}`;
