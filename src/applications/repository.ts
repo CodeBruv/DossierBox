@@ -54,7 +54,7 @@ export async function listOwnedApplications(userId: string) {
   return db
     .select()
     .from(applications)
-    .where(eq(applications.userId, userId))
+    .where(and(eq(applications.userId, userId), eq(applications.internal, false)))
     .orderBy(asc(applications.createdAt));
 }
 
