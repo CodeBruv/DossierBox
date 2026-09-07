@@ -12,6 +12,7 @@ import { getOwnedApplicationWithDocuments } from "@/applications/repository";
 import { authSessionConfiguration } from "@/auth/auth";
 import { getSession } from "@/auth/session";
 import {
+  availableDocumentTypeList,
   documentTypeDescription,
   documentTypeLabel,
   documentTypePageBudget,
@@ -38,7 +39,27 @@ export default async function NewDocumentPage({ searchParams }: NewDocumentPageP
   if (!session?.user?.id) redirect("/auth/sign-in?callbackUrl=%2Fapplications%2Fnew&error=SessionRequired");
 
   const query = await searchParams;
-  if (!query.applicationId) redirect("/applications/new");
+  if (!query.applicationId) {
+    const error = query.error ? errorMessages[query.error] : null;
+    return (
+      <div className={shell.page}>
+        <Container>
+          <header className={styles.header}>
+            <p className={shell.eyebrow}>Create a document</p>
+            <h1>Start with your current Dossier</h1>
+            <p className={shell.lead}>
+              Choose a document type and open a useful baseline document now. You can add purpose, opportunity context, or instructions later when they matter.
+            </p>
+          </header>
+          {error ? <p className={shell.errorStatus} role="alert">{error}</p> : null}
+          <BaselineDocumentOptions />
+          <p className={styles.createNote}>
+            Looking for a document tailored to an application? <Link href="/applications/new">Add application context</Link>.
+          </p>
+        </Container>
+      </div>
+    );
+  }
   const application = await getOwnedApplicationWithDocuments(session.user.id, query.applicationId);
   if (!application?.intent) redirect("/applications/new?error=application-required");
 
@@ -131,4 +152,24 @@ function describeLength(budget: DocumentPageBudget): string {
   if (budget === null) return "Length follows your history";
   return budget.target === budget.max ? `Typically ${budget.target} page${budget.target === 1 ? "" : "s"}` : `Typically ${budget.target}–${budget.max} pages`;
 }
+function BaselineDocumentOptions() {
+  return (
+    <section aria-labelledby="baseline-documents-heading" className={styles.group}>
+      <h2 className={styles.groupHeading} id="baseline-documents-heading">Keep Current CV</h2>
+      <ul className={styles.optionGrid}>
+        {availableDocumentTypeList.map((entry) => (
+          <li className={styles.option} key={entry.key}>
+            <form action={createDocumentAction}>
+              <input name="type" type="hidden" value={entry.key} />
+              <button className={styles.optionLink} type="submit">{entry.label}</button>
+            </form>
+            <p className={styles.optionNote}>{entry.description}</p>
+            <p className={styles.optionMeta}>{describeLength(entry.pageBudget)}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function listOf(items: readonly string[]): string { return items.length <= 1 ? items[0] ?? "" : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`; }
