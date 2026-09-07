@@ -81,7 +81,10 @@ export default async function DocumentsPage({ searchParams }: DocumentsPageProps
             <h1>Your documents</h1>
             <p className={styles.lead}>Documents are created from your dossier for a specific purpose. Your reusable information stays in the dossier.</p>
           </div>
-          <Link className={styles.primaryButton} href="/applications/new">Create application</Link>
+          <div className={styles.actionGroup}>
+            <Link className={styles.primaryButton} href="/documents/new">Create document</Link>
+            <Link className={styles.secondaryButton} href="/applications/new">Add application context</Link>
+          </div>
         </div>
 
         {error ? (
@@ -105,9 +108,9 @@ export default async function DocumentsPage({ searchParams }: DocumentsPageProps
                 : { type: document.type, header: { name: document.title, headline: documentTypeLabel(document.type), contacts: [] }, sections: [] };
               return (
                 <article className={styles.documentCard} key={document.id}>
-                  <Link className={styles.documentCardPreview} href={`/documents/${document.id}`} aria-label={`Open ${document.title}`}>
+                  <div className={styles.documentCardPreview}>
                     <DocumentMiniature document={preview} presentationStyle={style} />
-                  </Link>
+                  </div>
                   <div className={styles.documentCardBody}>
                     <p className={styles.documentType}>{documentTypeLabel(document.type)}</p>
                     <h2><Link href={`/documents/${document.id}`}>{document.title}</Link></h2>
@@ -121,8 +124,11 @@ export default async function DocumentsPage({ searchParams }: DocumentsPageProps
         ) : (
           <div className={styles.emptyState}>
             <h2>Your document workspace is ready when you are.</h2>
-            <p>Start by saving what you are applying for, then choose a document for that Application.</p>
-            <Link className={styles.primaryButton} href="/applications/new">Create application</Link>
+            <p>Start with your saved Dossier, or add purpose and context when you need a tailored document.</p>
+            <div className={styles.actionGroup}>
+              <Link className={styles.primaryButton} href="/documents/new">Create document</Link>
+              <Link className={styles.secondaryButton} href="/applications/new">Add application context</Link>
+            </div>
           </div>
         )}
       </Container>
