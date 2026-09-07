@@ -16,10 +16,14 @@ import { acceptGeneratedContent } from "./acceptance";
 const TITLE_MAX_LENGTH = 120;
 
 export async function createDocumentAction(formData: FormData) {
-  const applicationId = formData.get("applicationId");
-  if (typeof applicationId !== "string" || applicationId.length === 0) {
-    redirect("/applications/new?error=application-required");
-  }
+  // Application context is optional. When absent, the repository creates an
+  // internal general-profile Application so the existing owner-scoped
+  // preparation and Evidence boundaries remain authoritative without becoming
+  // user-operated stages.
+  const rawApplicationId = formData.get("applicationId");
+  const applicationId = typeof rawApplicationId === "string" && rawApplicationId.length > 0
+    ? rawApplicationId
+    : undefined;
 
   const type = formData.get("type");
   /**
@@ -30,7 +34,7 @@ export async function createDocumentAction(formData: FormData) {
    * about what was posted.
    */
   if (!isAvailableDocumentType(type)) {
-    redirect(`/documents/new?applicationId=${applicationId}&error=unsupported-type`);
+    redirect(`/documents/new${applicationId ? `?applicationId=${encodeURIComponent(applicationId)}&error=unsupported-type` : "?error=unsupported-type"}`);
   }
 
   /*
@@ -70,11 +74,11 @@ export async function createDocumentAction(formData: FormData) {
      */
     unstable_rethrow(error);
     console.error("[documents] Failed to create document draft", error);
-    redirect(`/documents/new?applicationId=${applicationId}&error=create-failed`);
+    redirect(`/documents/new${applicationId ? `?applicationId=${encodeURIComponent(applicationId)}&error=create-failed` : "?error=create-failed"}`);
   }
 
   const prepared = await prepareDocumentWorkspace(user.id, document.id);
-  if (!prepared) redirect(`/documents/new?applicationId=${encodeURIComponent(applicationId)}&error=create-failed`);
+  if (!prepared) redirect(`/documents/new${applicationId ? `?applicationId=${encodeURIComponent(applicationId)}&error=create-failed` : "?error=create-failed"}`);
   redirect(`/documents/${document.id}`);
 }
 
