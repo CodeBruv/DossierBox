@@ -95,7 +95,9 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
   const versionBacked = versionRead !== null;
   const presentationStyle = versionRead?.presentationStyle ?? draftRead?.presentationStyle ?? resolvePresentationStyle(document.template, document.type);
   const composed = versionRead?.composed ?? draftRead?.composed ?? null;
-  const isEmpty = !composed || isComposedDocumentEmpty(composed);
+  // A valid zero-Requirement draft remains in the Workspace and uses its
+  // application-scoped Evidence projections as the bounded baseline.
+  const isEmpty = !composed || (isComposedDocumentEmpty(composed) && !draftRead);
   const objective = normalizeApplicationObjective(document.objective);
   const versions = await listOwnedDocumentVersions(session.user.id, document.id);
   const applicationContext = objective
@@ -119,7 +121,7 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
             <p>
               {versionRead
                 ? `Composed from immutable accepted version ${versionRead.version}.`
-                : "Composed from the approved Document Specification and confirmed Evidence for this Application."}
+                : "Your live document is composed from the information saved for this Application."}
             </p>
           </header>
 
@@ -144,7 +146,7 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
           ) : null}
           {status === "specification-approved" && !error ? (
             <p className={styles.successStatus} role="status">
-              Your reviewed document contract is ready. Customize the document below.
+              Your document is ready. Customize it below.
             </p>
           ) : null}
         </div>
@@ -157,7 +159,7 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
             </div>
             <div>
               <p className={styles.lifecycleLabel}>Document state</p>
-              <p>{versionRead ? `Immutable version ${versionRead.version}` : incompleteRead ? "Draft · awaiting application review" : "Draft · bounded by approved Evidence"}</p>
+              <p>{versionRead ? `Saved version ${versionRead.version}` : incompleteRead ? "Draft · still preparing" : "Live draft"}</p>
             </div>
             <div>
               <p className={styles.lifecycleLabel}>Export readiness</p>
@@ -173,7 +175,7 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
               {versionRead
                 ? "This preview is composed only from the accepted immutable artifact. Export uses this same saved version."
                 : incompleteRead
-                  ? "Complete the Application's Evidence and Document Specification review before this Workspace can show content."
+                  ? "This document is still being prepared. Please return shortly."
                   : "Your live document is ready. Adjust its presentation locally, then save your changes."}
             </p>
             {versionRead ? (
@@ -184,9 +186,9 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
                 Export PDF
               </a>
             ) : incompleteRead ? (
-              <Link className={styles.primaryButton} href={`/applications/${incompleteRead.applicationId}/evidence?planId=${encodeURIComponent(incompleteRead.planId)}&packageId=${encodeURIComponent(incompleteRead.packageId)}`}>
-                Review application evidence
-              </Link>
+              <p className={styles.lifecycleNote}>
+                We are finishing this document from your saved Application information. Your Dossier has not been changed.
+              </p>
             ) : (
               <p className={styles.lifecycleNote}>
                 This is your working document. Customize it below and save when it looks right. Export becomes available after an accepted version is created.
@@ -219,9 +221,9 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
               <p>
                 {versionBacked
                   ? "The immutable content and configuration snapshot were composed without substituting current dossier data."
-                  : "Complete the Application's Evidence and Document Specification review before the Workspace can show document content."}
+                  : "This document is still being prepared. Return shortly to continue customizing it."}
               </p>
-              {incompleteRead ? <Link className={styles.primaryButton} href={`/applications/${incompleteRead.applicationId}/evidence?planId=${encodeURIComponent(incompleteRead.planId)}&packageId=${encodeURIComponent(incompleteRead.packageId)}`}>Review application evidence</Link> : null}
+              {incompleteRead ? <Link className={styles.primaryButton} href="/documents">Back to documents</Link> : null}
             </div>
           </div>
         ) : (
