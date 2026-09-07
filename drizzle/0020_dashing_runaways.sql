@@ -1,0 +1,1 @@
+ALTER TABLE "applications" ADD COLUMN "internal" boolean DEFAULT false NOT NULL;
