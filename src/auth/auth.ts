@@ -1,6 +1,9 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
+import { allowanceLimit } from "@/entitlements/quotas";
+import { planQuota } from "@/entitlements/plans";
+import { iuAccounts } from "@/documents/generation-schema";
 import { db } from "./database";
 import { accounts, sessions, users, verificationTokens } from "./schema";
 
@@ -29,13 +32,34 @@ const authSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || und
  */
 export const sessionMaxAgeDays = 30;
 
+const drizzleAdapter = DrizzleAdapter(db, {
+  usersTable: users,
+  accountsTable: accounts,
+  sessionsTable: sessions,
+  verificationTokensTable: verificationTokens,
+});
+
+const adapter = {
+  ...drizzleAdapter,
+  async createUser(user: Parameters<NonNullable<typeof drizzleAdapter.createUser>>[0]) {
+    const createUser = drizzleAdapter.createUser;
+    if (!createUser) {
+      throw new Error("Auth adapter does not support user creation.");
+    }
+    const created = await createUser(user);
+    const freeWritingUnits = allowanceLimit(planQuota("basic", "writing_units"));
+    if (created?.id && freeWritingUnits !== null) {
+      await db
+        .insert(iuAccounts)
+        .values({ userId: created.id, availableUnits: freeWritingUnits })
+        .onConflictDoNothing();
+    }
+    return created;
+  },
+};
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: DrizzleAdapter(db, {
-    usersTable: users,
-    accountsTable: accounts,
-    sessionsTable: sessions,
-    verificationTokensTable: verificationTokens,
-  }),
+  adapter,
   trustHost: true,
   secret: authSecret,
   session: {
