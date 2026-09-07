@@ -99,11 +99,14 @@ export async function createDocument(
       applicationId = ownedApplication.applicationId;
       objective = objectiveFromIntent(ownedApplication.intent);
     } else {
-      // Compatibility for legacy/internal callers. The user-facing flow creates the Application first.
+      // Baseline documents retain an internal general-profile Application so the
+      // existing Plan, Package, Specification, and owner-scoped Evidence
+      // boundaries can prepare them automatically. This compatibility aggregate
+      // is implementation detail and is never presented as a user Application.
       objective = input.objective ?? defaultDocumentObjective();
       const [application] = await transaction
         .insert(applications)
-        .values({ userId, status: "draft" })
+        .values({ userId, status: "draft", internal: true })
         .returning({ id: applications.id });
 
       if (!application) throw new Error("Application could not be created.");
@@ -173,7 +176,7 @@ export async function getOrCreateOwnedMemberDocument(userId: string, memberId: s
         userId,
         applicationId: member.applicationId,
         type: member.member.documentType,
-        title: `${catalogueDocumentTypeLabel(member.member.documentType)} draft`,
+        title: catalogueDocumentTypeLabel(member.member.documentType),
         status: "draft",
         template: defaultPresentationStyleFor(member.member.documentType),
       })
@@ -369,7 +372,7 @@ export function documentTypeLabel(type: DocumentType) {
 }
 
 function documentTitle(type: DocumentType) {
-  return `${documentTypeLabel(type)} draft`;
+  return documentTypeLabel(type);
 }
 
 function defaultDocumentObjective(): ApplicationObjective {
