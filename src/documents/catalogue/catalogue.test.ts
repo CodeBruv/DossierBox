@@ -132,20 +132,18 @@ describe("document types", () => {
   });
 
   /**
-   * True of *these three* types, not of documents in general: all three are
-   * full-history sectioned documents that differ by emphasis, so any dossier section a
-   * user has filled in must appear in all of them. The letter types legitimately list six
-   * correspondence sections and none of these eleven, which is why this is scoped to the
-   * three by name rather than written as a rule about every type.
+   * The two professional documents expose the complete dossier-backed vocabulary. The
+   * academic CV deliberately omits the basics career-direction field, because a generic
+   * objective is not an academic-CV section.
    */
-  it("lets the three sectioned career types present every dossier section", () => {
+  it("declares the appropriate dossier sections for each shipping type", () => {
     const expected = [...dossierBackedSectionKeys].sort();
+    const academicExpected = expected.filter((key) => key !== "summary");
 
-    for (const key of ["professional_cv", "professional_resume", "academic_cv"] as const) {
-      expect([...documentSectionOrder(key)].sort(), `${key} must present every section`).toEqual(
-        expected,
-      );
+    for (const key of ["professional_cv", "professional_resume"] as const) {
+      expect([...documentSectionOrder(key)].sort(), `${key} must present every supported section`).toEqual(expected);
     }
+    expect([...documentSectionOrder("academic_cv")].sort()).toEqual(academicExpected);
   });
 
   /**
@@ -331,12 +329,12 @@ describe("sections", () => {
     expect(new Set(used).size).toBe(used.length);
   });
 
-  it("uses the catalogue heading when a type has no convention of its own", () => {
+  it("uses document-type conventions for supported summary headings", () => {
+    expect(documentHeadingOverrides("professional_cv")).toEqual({ summary: "Professional Summary" });
+    expect(documentHeadingOverrides("professional_resume")).toEqual({ summary: "Professional Summary" });
+    expect(documentHeadingOverrides("academic_cv")).toBeUndefined();
+    expect(documentSectionHeading("professional_cv", "summary")).toBe("Professional Summary");
     for (const key of documentTypeKeys) {
-      expect(
-        documentHeadingOverrides(key),
-        `${key} must not silently rename a section yet`,
-      ).toBeUndefined();
       expect(documentSectionHeading(key, "links")).toBe("Links");
     }
   });
