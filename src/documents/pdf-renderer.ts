@@ -28,7 +28,15 @@ export async function renderPresentationPdf(model: PresentationModel): Promise<B
     pdf.registerFont("regular", regular);
     pdf.registerFont("bold", bold);
     pdf.fillColor(model.colors.ink);
-    for (const block of model.blocks) {
+    for (const [index, block] of model.blocks.entries()) {
+      const isHeading = block.kind === "text" && block.role === "heading";
+      const next = model.blocks[index + 1];
+      // Keep a section heading with at least its first content block. PDFKit will
+      // still flow long content naturally, but a heading at the bottom of a page
+      // is moved before it is drawn.
+      if (isHeading && next && pdf.y > pdf.page.height - pdf.page.margins.bottom - model.typography.headingSize * 3) {
+        pdf.addPage();
+      }
       if (block.kind === "link") {
         pdf.font("regular").fontSize(model.typography.bodySize).fillColor(model.colors.accent).text(block.text, { link: block.url, underline: true, paragraphGap: model.spacing.paragraphAfter });
         pdf.fillColor(model.colors.ink);
@@ -38,7 +46,6 @@ export async function renderPresentationPdf(model: PresentationModel): Promise<B
         pdf.font("regular").fontSize(model.typography.bodySize).fillColor(model.colors.ink).text(`• ${block.text}`, { paragraphGap: model.spacing.paragraphAfter, lineGap: model.typography.bodySize * (model.typography.lineHeight - 1) });
         continue;
       }
-      const isHeading = block.role === "heading";
       const isName = block.role === "name";
       pdf.font(block.bold || isHeading || isName ? "bold" : "regular").fontSize(isName ? model.typography.nameSize : isHeading ? model.typography.headingSize : model.typography.bodySize).fillColor(isName ? model.colors.accent : block.role === "meta" ? model.colors.muted : model.colors.ink);
       pdf.text(block.text, { paragraphGap: isHeading ? model.spacing.sectionAfter : block.role === "body" ? model.spacing.paragraphAfter : 2, lineGap: model.typography.bodySize * (model.typography.lineHeight - 1) });
