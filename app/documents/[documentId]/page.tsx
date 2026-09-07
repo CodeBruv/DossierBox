@@ -9,7 +9,7 @@ import { getSession } from "@/auth/session";
 import { isComposedDocumentEmpty } from "@/documents/composition";
 import { DocumentPreview } from "@/documents/components/document-preview";
 import { DocumentWorkspace } from "@/documents/components/document-workspace";
-import { updateDocumentAction } from "@/documents/actions";
+import { generateDocumentAction, updateDocumentAction } from "@/documents/actions";
 import { DeleteDocument } from "@/documents/components/delete-document";
 import { resolvePresentationStyle } from "@/documents/presentation";
 import { readOwnedCurrentDraftComposition, readOwnedDocumentComposition } from "@/documents/read-composition";
@@ -37,7 +37,10 @@ const errorMessages: Record<string, string> = {
   "title-required": "A document needs a name. Your other changes were not saved.",
   "unknown-template": "That style isn't available. Your changes were not saved.",
   "delete-failed":
-    "We couldn't delete this document right now. It is still here, and nothing else was changed.",
+     "We couldn't delete this document right now. It is still here, and nothing else was changed.",
+  "preparation-required": "This document needs a little more setup before it can be prepared. Your working document is safe.",
+  "generation-failed": "We couldn't prepare this version yet. Your working document is still safe. Try again.",
+  "accept-failed": "We couldn't accept this version yet. Your working document is still safe.",
 };
 
 export default async function DocumentPage({ params, searchParams }: DocumentPageProps) {
@@ -192,9 +195,15 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
                 We are finishing this document from your saved Dossier and application context. Your Dossier has not been changed.
               </p>
             ) : (
-              <p className={styles.lifecycleNote}>
-                This is your working document. Customize it below and save when it looks right. Export becomes available after an accepted version is created.
-              </p>
+              <>
+                <form action={generateDocumentAction}>
+                  <input name="documentId" type="hidden" value={document.id} />
+                  <button className={styles.primaryButton} type="submit">Prepare final version</button>
+                </form>
+                <p className={styles.lifecycleNote}>
+                  Save your customization, then prepare a final version to review. Export becomes available after you accept it.
+                </p>
+              </>
             )}
           </div>
           {versions.length > 1 ? (
