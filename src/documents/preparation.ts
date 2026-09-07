@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, eq } from "drizzle-orm";
 import { db } from "@/auth/database";
-import { listValidPackageEvidenceSelections } from "@/applications/evidence-selection-repository";
+import { listValidPackageEvidenceSelections, materializeDeterministicEvidenceReview } from "@/applications/evidence-selection-repository";
 import { applications } from "@/applications/schema";
 import { createApplicationPlan, listApplicationPlans } from "@/applications/plans-repository";
 import {
@@ -32,8 +32,10 @@ import { orchestrateGeneration } from "./generation-orchestrator";
 import { getOwnedDocument } from "./repository";
 import { documents } from "./schema";
 import {
+  createDocumentSpecification,
   getOwnedDocumentSpecification,
   listDocumentSpecifications,
+  transitionDocumentSpecification,
 } from "./specification-repository";
 
 export async function getDocumentPreparation(userId: string, documentId: string) {
@@ -82,6 +84,36 @@ export async function initializeDocumentPreparation(userId: string, documentId: 
     documentId: current.document.id,
   });
   return member ? { plan, applicationPackage, member } : null;
+}
+
+/** Ensures a newly chosen Application document is ready to open in the Workspace. */
+export async function prepareDocumentWorkspace(userId: string, documentId: string) {
+  const initialized = await initializeDocumentPreparation(userId, documentId);
+  if (!initialized) return null;
+  const applicationId = initialized.plan.applicationId;
+  const packageId = initialized.applicationPackage.id;
+  if (!(await materializeDeterministicEvidenceReview(userId, applicationId, packageId))) return null;
+  const selections = await listValidPackageEvidenceSelections(userId, applicationId, packageId);
+  if (!selections) return null;
+
+  const documentType = initialized.member.documentType;
+  if (!isDocumentTypeKey(documentType)) return null;
+  const existing = (await listDocumentSpecifications(userId, initialized.member.id))
+    .find((candidate) => candidate.status === "approved" && candidate.documentType === documentType);
+  if (existing) return initialized;
+
+  const created = await createDocumentSpecification(userId, initialized.member.id, {
+    documentType,
+    purpose: "A clear, truthful document for this application.",
+    requirementIds: [...new Set(selections.map((selection) => selection.requirementId))],
+    evidenceIds: [...new Set(selections.map((selection) => selection.evidenceId))],
+    context: "Prepared automatically from this Application and its authorized Evidence boundary.",
+  });
+  if (!created) return null;
+  const ready = await transitionDocumentSpecification(userId, created.id, "ready_for_review");
+  if (!ready) return null;
+  const approved = await transitionDocumentSpecification(userId, ready.id, "approved");
+  return approved ? initialized : null;
 }
 
 export async function runApprovedDocumentGeneration(input: {
