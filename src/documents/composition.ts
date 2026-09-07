@@ -52,6 +52,7 @@ import { skillTypes, type ProfileSectionKey } from "@/profile/types";
 import { experienceTypeOptions } from "@/profile/vocabularies";
 import {
   documentHeadingOverrides,
+  documentTypeAllowsSection,
   orderSections,
   sectionHeading,
   type DocumentSectionKey,
@@ -272,7 +273,7 @@ export function composeDocument(
     selectedEvidence: [],
     content: {
       header: composeHeader(snapshot),
-      sections: buildSections(snapshot, documentHeadingOverrides(type)),
+      sections: buildSections(type, snapshot, documentHeadingOverrides(type)),
     },
     configuration,
   });
@@ -377,6 +378,7 @@ function composeHeader({ identity }: DossierSnapshot): ComposedHeader {
  * shipping type sets any, so every heading is the catalogue default today.
  */
 function buildSections(
+  type: DocumentTypeKey,
   snapshot: DossierSnapshot,
   overrides?: Readonly<Partial<Record<ComposedSectionKey, string>>>,
 ): Partial<Record<ComposedSectionKey, ComposedSection>> {
@@ -384,7 +386,7 @@ function buildSections(
   const heading = (key: ComposedSectionKey) => sectionHeading(key, overrides);
   const summary = detailFrom(snapshot.identity.careerDirection);
 
-  if (summary) {
+  if (summary && documentTypeAllowsSection(type, "summary")) {
     built.summary = {
       key: "summary",
       heading: heading("summary"),
