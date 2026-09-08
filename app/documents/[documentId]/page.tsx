@@ -36,6 +36,8 @@ const errorMessages: Record<string, string> = {
     "We couldn't save your changes right now. Nothing was altered — please try again.",
   "title-required": "A document needs a name. Your other changes were not saved.",
   "unknown-template": "That style isn't available. Your changes were not saved.",
+  "delete-confirmation-required":
+    "Confirm the deletion before continuing. The document is still here and nothing was changed.",
   "delete-failed":
      "We couldn't delete this document right now. It is still here, and nothing else was changed.",
   "preparation-required": "This document needs a little more setup before it can be prepared. Your working document is safe.",
