@@ -5,9 +5,9 @@ import { redirect, unstable_rethrow } from "next/navigation";
 import { z } from "zod";
 import { requireProfileUser } from "@/profile/authorization";
 import {
-  createSectionEntries,
   getOrCreateProfile,
-  updateProfileBasics,
+  reconcileSectionEntriesIn,
+  updateProfileBasicsIn,
   type SectionEntryInput,
 } from "@/profile/repository";
 import { parseEntryValues, profileBasicsSchema } from "@/profile/validation";
@@ -17,6 +17,7 @@ import { extractDocxLines } from "./extract/docx";
 import { extractPdfLines } from "./extract/pdf";
 import { DocumentFormatError, type ExtractedLine } from "./extract/line";
 import {
+  commitOwnedDocumentImport,
   createDocumentImport,
   deleteOwnedDocumentImport,
   getOwnedDocumentImport,
@@ -160,6 +161,11 @@ export async function confirmDocumentImportAction(
   const fieldErrors: Record<string, string[]> = {};
   const rowsWithErrors = new Set<string>();
   const entries: SectionEntryInput[] = [];
+  let reconciliation: Awaited<ReturnType<typeof reconcileSectionEntriesIn>> = {
+    inserted: 0,
+    updated: 0,
+    skipped: 0,
+  };
 
   for (const entry of selection.entries) {
     const parsed = parseEntryValues(entry.section, { ...entry.values });
@@ -201,12 +207,13 @@ export async function confirmDocumentImportAction(
       };
     }
 
-    if (basics) {
-      await updateProfileBasics(user.id, basics);
-    }
+    reconciliation = await commitOwnedDocumentImport(user.id, importId, async (transaction) => {
+      if (basics) {
+        await updateProfileBasicsIn(transaction, user.id, basics);
+      }
 
-    await createSectionEntries(profile.id, entries);
-    await deleteOwnedDocumentImport(user.id, importId);
+      return reconcileSectionEntriesIn(transaction, profile.id, entries);
+    });
   } catch (caught) {
     unstable_rethrow(caught);
     console.error(`[import] Failed to commit import ${importId}`, caught);
@@ -214,7 +221,9 @@ export async function confirmDocumentImportAction(
   }
 
   revalidateDossierPaths();
-  redirect(`/profile?status=imported&added=${entries.length}`);
+  redirect(
+    `/profile?status=imported&added=${reconciliation.inserted}&updated=${reconciliation.updated}&skipped=${reconciliation.skipped}`,
+  );
 }
 
 /**
