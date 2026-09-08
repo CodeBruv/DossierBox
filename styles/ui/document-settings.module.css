@@ -210,6 +210,60 @@
   color: var(--ds-color-text-primary);
 }
 
+.deleteConfirmCheck {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr);
+  gap: var(--ds-space-xs);
+  align-items: start;
+  max-width: 42rem;
+  color: var(--ds-color-text-secondary);
+  cursor: pointer;
+  font-size: var(--ds-text-sm);
+  line-height: 1.4;
+}
+
+.deleteConfirmCheck input {
+  width: 1.125rem;
+  height: 1.125rem;
+  margin: 0.125rem 0 0;
+  accent-color: var(--ds-color-destructive);
+}
+
+.deleteConfirmCheck:has(input:focus-visible) {
+  outline: var(--ds-focus-ring);
+  outline-offset: 0.125rem;
+  border-radius: var(--ds-border-radius-sm);
+}
+
+.deleteActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-xs);
+  align-items: center;
+}
+
+.deleteCancel {
+  min-height: 2.75rem;
+  padding: 0.65rem 1rem;
+  border: 1px solid var(--ds-color-border-control);
+  border-radius: var(--ds-border-radius-sm);
+  background: var(--ds-color-surface);
+  color: var(--ds-color-text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.deleteCancel:hover {
+  background: var(--ds-color-surface-subtle);
+}
+
+.deleteCancel:focus-visible {
+  outline: var(--ds-focus-ring);
+  outline-offset: 0.125rem;
+}
+
 /*
    The only red in the workspace, on the only control that destroys something. It is
    outlined rather than filled: this is the action being confirmed, not the action
@@ -235,4 +289,16 @@
 .deleteConfirm:focus-visible {
   outline: var(--ds-focus-ring);
   outline-offset: 0.125rem;
+}
+
+@media (max-width: 30rem) {
+  .deleteActions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .deleteCancel,
+  .deleteConfirm {
+    width: 100%;
+  }
 }
