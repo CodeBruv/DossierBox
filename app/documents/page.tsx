@@ -5,7 +5,6 @@ import { getSession } from "@/auth/session";
 import { resolvePresentationStyle } from "@/documents/presentation";
 import { DocumentMiniature } from "@/documents/components/document-miniature";
 import { listDocuments, documentTypeLabel } from "@/documents/repository";
-import { readOwnedCurrentDraftComposition } from "@/documents/read-composition";
 import { Container } from "@/ui";
 import styles from "@/styles/pages/documents.module.css";
 
@@ -38,20 +37,15 @@ export default async function DocumentsPage({ searchParams }: DocumentsPageProps
   const { status, error } = await searchParams;
 
   let documents;
-  let documentReads;
   try {
+    /*
+     * Keep the index bounded to its owner-scoped list query. Resolving every draft's
+     * full composition here caused an N-document query fan-out and made large accounts
+     * wait minutes before they could open Workspace. The individual document route
+     * remains the authoritative composition boundary; this index uses the lightweight
+     * fallback miniature until the user opens a document.
+     */
     documents = await listDocuments(userId);
-    // A document's current composition is an optional discovery enhancement. The
-    // listing remains usable for legacy/incomplete entries, while unexpected
-    // per-document failures remain observable and do not erase the collection.
-    documentReads = await Promise.all(documents.map(async (document) => {
-      try {
-        return await readOwnedCurrentDraftComposition(userId, document.id);
-      } catch (error) {
-        console.error(`[documents] Failed to resolve document ${document.id}`, error);
-        return { kind: "listing-unavailable" as const };
-      }
-    }));
   } catch (error) {
     console.error("[documents] Failed to load documents", error);
     return (
@@ -98,14 +92,9 @@ export default async function DocumentsPage({ searchParams }: DocumentsPageProps
 
         {documents.length ? (
           <div className={styles.documentGrid}>
-            {documents.map((document, index) => {
-              const read = documentReads[index];
-              const style = read && (read.kind === "draft" || read.kind === "version")
-                ? read.presentationStyle
-                : resolvePresentationStyle(document.template, document.type);
-              const preview = read && (read.kind === "draft" || read.kind === "version")
-                ? read.composed
-                : { type: document.type, header: { name: document.title, headline: documentTypeLabel(document.type), contacts: [] }, sections: [] };
+            {documents.map((document) => {
+              const style = resolvePresentationStyle(document.template, document.type);
+              const preview = { type: document.type, header: { name: document.title, headline: documentTypeLabel(document.type), contacts: [] }, sections: [] };
               return (
                 <article className={styles.documentCard} key={document.id}>
                   <div className={styles.documentCardPreview}>
@@ -114,7 +103,7 @@ export default async function DocumentsPage({ searchParams }: DocumentsPageProps
                   <div className={styles.documentCardBody}>
                     <p className={styles.documentType}>{documentTypeLabel(document.type)}</p>
                     <h2><Link href={`/documents/${document.id}`}>{document.title}</Link></h2>
-                    <p className={styles.documentMeta}>{read?.kind === "incomplete" || read?.kind === "listing-unavailable" ? "Review required" : document.status === "draft" ? "Draft" : document.status} · {style.label} · Updated {document.updatedAt.toLocaleDateString()}</p>
+                    <p className={styles.documentMeta}>{document.status === "draft" ? "Draft" : document.status} · {style.label} · Updated {document.updatedAt.toLocaleDateString()}</p>
                     <Link className={styles.secondaryButton} href={`/documents/${document.id}`}>Open document</Link>
                   </div>
                 </article>
