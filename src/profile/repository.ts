@@ -134,7 +134,15 @@ export async function updateProfileBasics(
   userId: string,
   values: Omit<typeof profiles.$inferInsert, "id" | "userId" | "createdAt" | "updatedAt">,
 ) {
-  await db
+  await updateProfileBasicsIn(db, userId, values);
+}
+
+export async function updateProfileBasicsIn(
+  executor: Executor,
+  userId: string,
+  values: Omit<typeof profiles.$inferInsert, "id" | "userId" | "createdAt" | "updatedAt">,
+): Promise<void> {
+  await executor
     .update(profiles)
     .set({ ...values, updatedAt: new Date() })
     .where(eq(profiles.userId, userId));
@@ -602,14 +610,9 @@ export type SectionEntryInput = {
 /**
  * Several entries, across several sections, or none of them.
  *
- * This exists for importing, where one confirmation can add twenty entries at once, and
- * where landing half of them is the worst possible outcome: the user cannot tell which half,
- * and trying again would duplicate whatever did land. One transaction makes the whole
- * confirmation a single event — it either becomes their dossier or it does not.
- *
- * Positions are read once per section and then counted forward in memory, so a section
- * receiving eight entries costs one aggregate rather than eight. Entries keep the order they
- * arrive in, which is the order the user was looking at when they confirmed them.
+ * This lower-level append operation remains useful when every row is known to be new. Career
+ * document imports use `reconcileSectionEntries` instead: an imported CV commonly describes
+ * facts already present in the Dossier and must not blindly append them again.
  */
 export async function createSectionEntries(
   profileId: string,
@@ -631,6 +634,93 @@ export async function createSectionEntries(
       await insertSectionEntry(transaction, entry.section, profileId, position, entry.values);
     }
   });
+}
+
+export type SectionReconciliationResult = {
+  readonly inserted: number;
+  readonly updated: number;
+  readonly skipped: number;
+};
+
+/**
+ * Reconciles reviewed import rows with the canonical Dossier in one transaction.
+ *
+ * A lock on the owning profile serializes two confirmations for the same person. Matching is
+ * deliberately section-specific and conservative: only stable identity fields participate,
+ * while descriptive fields can enrich a match without changing its identity. Empty imported
+ * values never erase information already stored. Unrelated rows are never removed.
+ */
+export async function reconcileSectionEntries(
+  profileId: string,
+  entries: readonly SectionEntryInput[],
+): Promise<SectionReconciliationResult> {
+  if (entries.length === 0) return { inserted: 0, updated: 0, skipped: 0 };
+  return db.transaction((transaction) =>
+    reconcileSectionEntriesIn(transaction, profileId, entries),
+  );
+}
+
+/**
+ * Runs reconciliation on a caller-owned transaction. Import confirmation uses this so its
+ * profile update, repeated-entry reconciliation, and pending-import cleanup commit together.
+ */
+export async function reconcileSectionEntriesIn(
+  executor: DatabaseExecutor,
+  profileId: string,
+  entries: readonly SectionEntryInput[],
+): Promise<SectionReconciliationResult> {
+  if (entries.length === 0) return { inserted: 0, updated: 0, skipped: 0 };
+
+  await executor.execute(sql`select ${profiles.id} from ${profiles} where ${profiles.id} = ${profileId} for update`);
+
+  const bySection = new Map<ProfileSectionKey, Record<string, unknown>[]>();
+  const nextBySection = new Map<ProfileSectionKey, number>();
+  const seenIncoming = new Set<string>();
+  let inserted = 0;
+  let updated = 0;
+  let skipped = 0;
+
+  for (const entry of entries) {
+    let existing = bySection.get(entry.section);
+    if (!existing) {
+      existing = await listSectionEntriesIn(executor, entry.section, profileId);
+      bySection.set(entry.section, existing);
+    }
+
+    const fingerprint = sectionEntryFingerprint(entry.section, entry.values);
+    const incomingKey = `${entry.section}:${fingerprint}`;
+    if (seenIncoming.has(incomingKey)) {
+      skipped += 1;
+      continue;
+    }
+    seenIncoming.add(incomingKey);
+
+    const match = existing.find(
+      (row) => sectionEntryFingerprint(entry.section, row) === fingerprint,
+    );
+
+    if (match && typeof match.id === "string") {
+      await updateSectionEntryIn(
+        executor,
+        entry.section,
+        profileId,
+        match.id,
+        mergeImportedValues(match, entry.values),
+      );
+      updated += 1;
+      continue;
+    }
+
+    let position = nextBySection.get(entry.section);
+    if (position === undefined) {
+      position = await nextPosition(executor, entry.section, profileId);
+    }
+    nextBySection.set(entry.section, position + 1);
+    await insertSectionEntry(executor, entry.section, profileId, position, entry.values);
+    inserted += 1;
+  }
+
+  return { inserted, updated, skipped };
 }
 
 export async function updateOwnedSectionEntry(
@@ -695,6 +785,8 @@ export async function deleteOwnedSectionEntry(
   }
 }
 
+export type DatabaseExecutor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 type SectionTable = (typeof sectionTables)[ProfileSectionKey];
 
 /**
@@ -704,7 +796,38 @@ type SectionTable = (typeof sectionTables)[ProfileSectionKey];
  * entries share the same insert: a single write runs on the connection, a batch runs inside
  * a transaction, and neither needs a second copy of the section switch.
  */
-type Executor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+type Executor = DatabaseExecutor;
+
+async function listSectionEntriesIn(
+  executor: Executor,
+  section: ProfileSectionKey,
+  profileId: string,
+): Promise<Record<string, unknown>[]> {
+  const table = sectionTables[section];
+  return executor
+    .select()
+    .from(table)
+    .where(eq(table.profileId, profileId)) as Promise<Record<string, unknown>[]>;
+}
+
+async function updateSectionEntryIn(
+  executor: Executor,
+  section: ProfileSectionKey,
+  profileId: string,
+  itemId: string,
+  values: Record<string, unknown>,
+): Promise<void> {
+  const safeValues = withoutProtectedFields(values);
+  const table = sectionTables[section];
+  const valuesWithTimestamp = "updatedAt" in table
+    ? { ...safeValues, updatedAt: new Date() }
+    : safeValues;
+
+  await executor
+    .update(table)
+    .set(valuesWithTimestamp)
+    .where(and(eq(table.id, itemId), eq(table.profileId, profileId)));
+}
 
 async function insertSectionEntry(
   executor: Executor,
@@ -825,4 +948,55 @@ function withoutProtectedFields(values: Record<string, unknown>) {
   } = values;
 
   return safeValues;
+}
+
+const identityFields: Readonly<Record<ProfileSectionKey, readonly string[]>> = {
+  experience: ["organization", "role", "startMonth", "startYear"],
+  education: ["institution", "qualification", "field", "startYear"],
+  projects: ["name", "context", "startYear"],
+  skills: ["name", "type"],
+  credentials: ["identifier", "name", "issuer"],
+  achievements: ["title", "issuer", "year"],
+  languages: ["language"],
+  publications: ["url", "title", "publisher", "year"],
+  memberships: ["organization", "role", "startYear"],
+  links: ["url"],
+};
+
+export function sectionEntryFingerprint(
+  section: ProfileSectionKey,
+  values: Readonly<Record<string, unknown>>,
+): string {
+  return identityFields[section]
+    .map((field) => normalizeIdentityValue(values[field]))
+    .join("\u001f");
+}
+
+function normalizeIdentityValue(value: unknown): string {
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (typeof value !== "string") return "";
+
+  return value
+    .normalize("NFKC")
+    .trim()
+    .toLocaleLowerCase("en")
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .replace(/\/$/, "")
+    .replace(/\s+/g, " ");
+}
+
+function mergeImportedValues(
+  existing: Readonly<Record<string, unknown>>,
+  incoming: Readonly<Record<string, unknown>>,
+): Record<string, unknown> {
+  const merged = { ...withoutProtectedFields({ ...existing }) };
+
+  for (const [field, value] of Object.entries(withoutProtectedFields({ ...incoming }))) {
+    if (value !== null && value !== undefined && (typeof value !== "string" || value.trim())) {
+      merged[field] = value;
+    }
+  }
+
+  return merged;
 }
