@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Deleting a document.
  *
@@ -27,16 +29,27 @@ export function DeleteDocument({ documentId, title }: DeleteDocumentProps) {
     <details className={styles.deletePanel}>
       <summary className={styles.deleteSummary}>Delete this document</summary>
       <div className={styles.deleteBody}>
-        <p>
+        <p id={`delete-warning-${documentId}`}>
           <strong>{title}</strong> will be removed permanently. Your dossier is not
           affected — your experience, education and everything else stay exactly as they
           are, and you can compose a new document from them at any time.
         </p>
         <form action={deleteDocumentAction}>
           <input type="hidden" name="documentId" value={documentId} />
-          <button className={styles.deleteConfirm} type="submit">
-            Delete permanently
-          </button>
+          <label className={styles.deleteConfirmCheck}>
+            <input name="confirmDelete" required type="checkbox" value="yes" />
+            <span>I understand that this document will be permanently deleted.</span>
+          </label>
+          <div className={styles.deleteActions}>
+            <button className={styles.deleteCancel} type="button" onClick={(event) => {
+              event.currentTarget.closest("details")?.removeAttribute("open");
+            }}>
+              Cancel
+            </button>
+            <button aria-describedby={`delete-warning-${documentId}`} className={styles.deleteConfirm} type="submit">
+              Delete permanently
+            </button>
+          </div>
         </form>
       </div>
     </details>
