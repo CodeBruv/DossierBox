@@ -7,7 +7,12 @@ import { Container } from "@/ui";
 import styles from "@/styles/pages/profile.module.css";
 
 type ProfilePageProps = {
-  searchParams: Promise<{ status?: string; added?: string }>;
+  searchParams: Promise<{
+    status?: string;
+    added?: string;
+    updated?: string;
+    skipped?: string;
+  }>;
 };
 
 const statusMessages: Record<string, string> = {
@@ -15,12 +20,33 @@ const statusMessages: Record<string, string> = {
   "sections-saved": "Profile sections updated.",
 };
 
-function importedMessage(added: string | undefined): string {
-  const count = Number(added);
-  if (!Number.isFinite(count) || count <= 0) {
-    return "Your imported information was added to your dossier.";
+function importedMessage(
+  added: string | undefined,
+  updated: string | undefined,
+  skipped: string | undefined,
+): string {
+  const counts = [added, updated, skipped].map((value) => {
+    const count = Number(value);
+    return Number.isFinite(count) && count > 0 ? count : 0;
+  });
+  const [insertedCount, updatedCount, skippedCount] = counts;
+  const parts: string[] = [];
+
+  if (insertedCount > 0) {
+    parts.push(`added ${insertedCount} new ${insertedCount === 1 ? "item" : "items"}`);
   }
-  return `Added ${count} ${count === 1 ? "item" : "items"} from your document to your dossier.`;
+  if (updatedCount > 0) {
+    parts.push(`updated ${updatedCount} existing ${updatedCount === 1 ? "item" : "items"}`);
+  }
+  if (skippedCount > 0) {
+    parts.push(`skipped ${skippedCount} duplicate ${skippedCount === 1 ? "selection" : "selections"}`);
+  }
+
+  if (parts.length === 0) {
+    return "Your imported information was reviewed; nothing new needed to be added.";
+  }
+
+  return `Your dossier was updated: ${parts.join(", ")}.`;
 }
 
 export default async function ProfilePage({ searchParams }: ProfilePageProps) {
@@ -46,7 +72,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
   const sections = dossierSections(flow);
   const status =
     query.status === "imported"
-      ? importedMessage(query.added)
+      ? importedMessage(query.added, query.updated, query.skipped)
       : query.status
         ? statusMessages[query.status]
         : undefined;
