@@ -2,12 +2,19 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { db } from "@/auth/database";
 import { users } from "@/auth/schema";
-import { experiences, profiles } from "./schema";
+import {
+  education,
+  experiences,
+  projects,
+  profiles,
+  skills,
+} from "./schema";
 import {
   deriveCanonicalDossierState,
   getCanonicalDossierState,
   getDossierSnapshot,
   listSectionEntries,
+  reconcileSectionEntries,
 } from "./repository";
 import type { DossierFoundationReadiness } from "./readiness";
 import type { ProfileSectionKey } from "./types";
@@ -103,6 +110,172 @@ describeDatabase("canonical dossier repository read model", () => {
         "First Organisation",
         "Second Organisation",
       ]);
+    } finally {
+      await db.delete(users).where(eq(users.id, userId));
+    }
+  }, 120_000);
+});
+
+describeDatabase("Dossier import reconciliation", () => {
+  it("updates matching repeated entries, preserves unrelated rows, and is retry-safe", async () => {
+    const userId = `profile-reconcile-${crypto.randomUUID()}`;
+    const profileId = `profile-${crypto.randomUUID()}`;
+    const existingExperienceId = `experience-${crypto.randomUUID()}`;
+    const unrelatedExperienceId = `experience-${crypto.randomUUID()}`;
+    const existingEducationId = `education-${crypto.randomUUID()}`;
+    const existingProjectId = `project-${crypto.randomUUID()}`;
+    const existingSkillId = `skill-${crypto.randomUUID()}`;
+
+    await db.insert(users).values({ id: userId, email: `${userId}@example.invalid` });
+
+    try {
+      await db.insert(profiles).values({ id: profileId, userId, displayName: "Import Fixture" });
+      await db.insert(experiences).values([
+        {
+          id: existingExperienceId,
+          profileId,
+          type: "full-time",
+          organization: "Acme Labs",
+          role: "Platform Engineer",
+          startYear: 2021,
+          description: "Keep this detail until the import enriches it.",
+          position: 0,
+        },
+        {
+          id: unrelatedExperienceId,
+          profileId,
+          type: "contract",
+          organization: "Unrelated Co",
+          role: "Advisor",
+          startYear: 2018,
+          description: "This row must not be removed.",
+          position: 1,
+        },
+      ]);
+      await db.insert(education).values({
+        id: existingEducationId,
+        profileId,
+        institution: "Northbridge University",
+        qualification: "BSc",
+        field: "Computer Science",
+        startYear: 2016,
+        endYear: 2020,
+        position: 0,
+      });
+      await db.insert(projects).values({
+        id: existingProjectId,
+        profileId,
+        name: "Hiring Platform",
+        context: "Internal tools",
+        startYear: 2022,
+        description: "Existing project description.",
+        position: 0,
+      });
+      await db.insert(skills).values({
+        id: existingSkillId,
+        profileId,
+        name: "TypeScript",
+        type: "technical",
+        notes: "Used in production.",
+        position: 0,
+      });
+
+      const imported = [
+        {
+          section: "experience" as const,
+          values: {
+            type: "full-time",
+            organization: " acme   labs ",
+            role: "PLATFORM ENGINEER",
+            startYear: 2021,
+            description: "Led the platform migration.",
+          },
+        },
+        {
+          section: "experience" as const,
+          values: {
+            type: "full-time",
+            organization: "Acme Labs",
+            role: "Platform Engineer",
+            startYear: 2021,
+            description: "Duplicate row in the same import.",
+          },
+        },
+        {
+          section: "experience" as const,
+          values: {
+            type: "full-time",
+            organization: "New Ventures",
+            role: "Staff Engineer",
+            startYear: 2024,
+          },
+        },
+        {
+          section: "education" as const,
+          values: {
+            institution: "northbridge university",
+            qualification: "BSc",
+            field: "computer science",
+            startYear: 2016,
+            description: "Imported academic detail.",
+          },
+        },
+        {
+          section: "projects" as const,
+          values: {
+            name: "Hiring Platform",
+            context: " internal   tools ",
+            startYear: 2022,
+            description: "Expanded project scope.",
+          },
+        },
+        {
+          section: "skills" as const,
+          values: {
+            name: " typescript ",
+            type: "technical",
+            notes: "Also used for shared tooling.",
+          },
+        },
+      ];
+
+      const first = await reconcileSectionEntries(profileId, imported);
+
+      expect(first).toEqual({ inserted: 1, updated: 4, skipped: 1 });
+
+      const experiencesAfterFirst = await listSectionEntries("experience", profileId);
+      const educationAfterFirst = await listSectionEntries("education", profileId);
+      const projectsAfterFirst = await listSectionEntries("projects", profileId);
+      const skillsAfterFirst = await listSectionEntries("skills", profileId);
+
+      expect(experiencesAfterFirst).toHaveLength(3);
+      expect(experiencesAfterFirst.map((entry) => entry.id)).toContain(existingExperienceId);
+      expect(experiencesAfterFirst.map((entry) => entry.id)).toContain(unrelatedExperienceId);
+      expect(experiencesAfterFirst.find((entry) => entry.id === existingExperienceId)).toMatchObject({
+        description: "Led the platform migration.",
+      });
+      expect(educationAfterFirst).toHaveLength(1);
+      expect(educationAfterFirst[0]).toMatchObject({
+        id: existingEducationId,
+        description: "Imported academic detail.",
+      });
+      expect(projectsAfterFirst).toHaveLength(1);
+      expect(projectsAfterFirst[0]).toMatchObject({
+        id: existingProjectId,
+        description: "Expanded project scope.",
+      });
+      expect(skillsAfterFirst).toHaveLength(1);
+      expect(skillsAfterFirst[0]).toMatchObject({
+        id: existingSkillId,
+        notes: "Also used for shared tooling.",
+      });
+
+      const second = await reconcileSectionEntries(profileId, imported);
+      expect(second).toEqual({ inserted: 0, updated: 5, skipped: 1 });
+      expect(await listSectionEntries("experience", profileId)).toHaveLength(3);
+      expect(await listSectionEntries("education", profileId)).toHaveLength(1);
+      expect(await listSectionEntries("projects", profileId)).toHaveLength(1);
+      expect(await listSectionEntries("skills", profileId)).toHaveLength(1);
     } finally {
       await db.delete(users).where(eq(users.id, userId));
     }
