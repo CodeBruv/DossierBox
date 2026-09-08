@@ -197,6 +197,10 @@ export async function deleteDocumentAction(formData: FormData) {
     redirect("/documents?error=unknown-document");
   }
 
+  if (formData.get("confirmDelete") !== "yes") {
+    redirect(`/documents/${documentId}?error=delete-confirmation-required`);
+  }
+
   const user = await requireProfileUser();
 
   try {
@@ -225,6 +229,13 @@ export async function generateDocumentAction(formData: FormData) {
 
   const user = await requireProfileUser();
   try {
+    // Baseline documents use the same internal Application/Evidence boundary as
+    // application documents, but users should not have to visit the preparation
+    // route first. Materialize and approve that compatibility specification here.
+    if (!(await prepareDocumentWorkspace(user.id, documentId))) {
+      redirect(`/documents/${documentId}?error=preparation-required`);
+    }
+
     const preparation = await getDocumentPreparation(user.id, documentId);
     const specification = preparation?.specification;
     if (!preparation || !specification || specification.status !== "approved") {
