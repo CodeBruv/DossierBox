@@ -95,18 +95,22 @@ export async function prepareDocumentWorkspace(userId: string, documentId: strin
   if (!(await materializeDeterministicEvidenceReview(userId, applicationId, packageId))) return null;
   const selections = await listValidPackageEvidenceSelections(userId, applicationId, packageId);
   if (!selections) return null;
+  const evidence = await listApplicationEvidence(userId, applicationId);
+  const selectedEvidenceIds = selections.length > 0
+    ? [...new Set(selections.map((selection) => selection.evidenceId))]
+    : evidence.filter((candidate) => candidate.lifecycle === "active").map((candidate) => candidate.id);
 
   const documentType = initialized.member.documentType;
   if (!isDocumentTypeKey(documentType)) return null;
   const existing = (await listDocumentSpecifications(userId, initialized.member.id))
     .find((candidate) => candidate.status === "approved" && candidate.documentType === documentType);
-  if (existing) return initialized;
-
+  if (existing?.evidenceIds.length || (existing && selectedEvidenceIds.length === 0)) return initialized;
+  if (existing && !(await transitionDocumentSpecification(userId, existing.id, "superseded"))) return null;
   const created = await createDocumentSpecification(userId, initialized.member.id, {
     documentType,
     purpose: "A clear, truthful document for this application.",
     requirementIds: [...new Set(selections.map((selection) => selection.requirementId))],
-    evidenceIds: [...new Set(selections.map((selection) => selection.evidenceId))],
+    evidenceIds: selectedEvidenceIds,
     context: "Prepared automatically from this Application and its authorized Evidence boundary.",
   });
   if (!created) return null;
@@ -135,7 +139,12 @@ export async function runApprovedDocumentGeneration(input: {
       const context = await specificationContext(userId, specification.packageMemberId);
       if (!context) return null;
       const selections = await listValidPackageEvidenceSelections(userId, context.applicationId, context.packageId);
-      if (!selections || specification.evidenceIds.some((evidenceId) => !selections.some((selection) => selection.evidenceId === evidenceId))) return null;
+      if (!selections) return null;
+      if (specification.requirementIds.length > 0 && specification.evidenceIds.some((evidenceId) => !selections.some((selection) => selection.evidenceId === evidenceId))) return null;
+      if (specification.requirementIds.length === 0) {
+        const activeEvidence = await listApplicationEvidence(userId, context.applicationId);
+        if (specification.evidenceIds.some((evidenceId) => !activeEvidence.some((candidate) => candidate.id === evidenceId && candidate.lifecycle === "active"))) return null;
+      }
       return { ...specification, documentType: specification.documentType, applicationId: context.applicationId };
     },
     getEvidence: async (userId, evidenceId) => {
