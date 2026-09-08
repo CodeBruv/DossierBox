@@ -2,6 +2,7 @@ import "server-only";
 
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/auth/database";
+import type { DatabaseExecutor } from "@/profile/repository";
 import type { ImportResult } from "./candidates";
 import { documentImports } from "./schema";
 
@@ -115,10 +116,40 @@ export async function deleteOwnedDocumentImport(
   userId: string,
   importId: string,
 ): Promise<boolean> {
-  const deleted = await db
+  return deleteOwnedDocumentImportIn(db, userId, importId);
+}
+
+async function deleteOwnedDocumentImportIn(
+  executor: DatabaseExecutor,
+  userId: string,
+  importId: string,
+): Promise<boolean> {
+  const deleted = await executor
     .delete(documentImports)
     .where(and(eq(documentImports.id, importId), eq(documentImports.userId, userId)))
     .returning({ id: documentImports.id });
 
   return deleted.length > 0;
+}
+
+/**
+ * Commits all dossier writes for one confirmed import and consumes the pending reading in the
+ * same database transaction. A missing or concurrently consumed owned import is an error: the
+ * callback's writes must then roll back rather than commit without consuming their source.
+ */
+export async function commitOwnedDocumentImport<T>(
+  userId: string,
+  importId: string,
+  commitDossier: (transaction: DatabaseExecutor) => Promise<T>,
+): Promise<T> {
+  return db.transaction(async (transaction) => {
+    const result = await commitDossier(transaction);
+    const consumed = await deleteOwnedDocumentImportIn(transaction, userId, importId);
+
+    if (!consumed) {
+      throw new Error("The confirmed document import is no longer available.");
+    }
+
+    return result;
+  });
 }
