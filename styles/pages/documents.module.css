@@ -582,6 +582,10 @@
   font-size: var(--ds-heading-size-md);
 }
 
+.previewToggle {
+  display: none;
+}
+
 .previewToggle,
 .previewClose {
   min-height: 2.75rem;
@@ -703,6 +707,12 @@
   outline-offset: 0.125rem;
 }
 
+@media (min-width: 48.0625rem) and (max-width: 63.99rem) {
+  .previewToggle {
+    display: none;
+  }
+}
+
 @media (max-width: 63.99rem) {
   .workspace {
     grid-template-columns: 1fr;
@@ -750,6 +760,14 @@
   .customizeToggle {
     display: inline-flex;
     align-items: center;
+  }
+
+  .workspacePreview {
+    display: none;
+  }
+
+  .workspacePreview.previewFullscreen {
+    display: block;
   }
 
   .workspaceControls {
