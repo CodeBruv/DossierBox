@@ -162,7 +162,8 @@ async function validateReferences(
       .where(and(eq(evidence.applicationId, applicationId), eq(evidence.lifecycle, "active"), inArray(evidence.id, evidenceIds)));
     if (rows.length !== evidenceIds.length) return null;
     const selections = await listValidPackageEvidenceSelections(userId, applicationId, packageId);
-    if (!selections || evidenceIds.some((evidenceId) => !selections.some((selection) => selection.evidenceId === evidenceId))) return null;
+    if (!selections) return null;
+    if (requirementIds.length > 0 && evidenceIds.some((evidenceId) => !selections.some((selection) => selection.evidenceId === evidenceId))) return null;
     if (requirementIds.length > 0 && evidenceIds.some((evidenceId) => !selections.some((selection) => selection.evidenceId === evidenceId && requirementIds.includes(selection.requirementId)))) return null;
   }
 
