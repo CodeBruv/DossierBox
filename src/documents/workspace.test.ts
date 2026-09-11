@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { applyDocumentContentOverrides } from "./composition";
 import { emptyDossierSnapshot, type DossierIdentity, type DossierSnapshot } from "@/profile/dossier";
 import { composeDocument, composeEvidenceBoundDocument, composableSections, type SelectedEvidence } from "./composition";
 import { resolveCurrentEvidenceState } from "./read-composition";
@@ -67,6 +68,13 @@ describe("Document Workspace customization boundary", () => {
       sectionOrder: ["experience", "summary"],
     });
     expect(JSON.stringify(source)).toBe(before);
+  });
+
+  it("applies document-owned heading edits without mutating the composed source", () => {
+    const source = { type: "professional_resume" as const, header: { name: "A", headline: null, contacts: [] }, sections: [{ key: "skills" as const, heading: "Skills", layout: "inline" as const, items: ["TypeScript"] }] };
+    const edited = applyDocumentContentOverrides(source, { sections: { skills: { heading: "Core skills" } } });
+    expect(edited.sections[0].heading).toBe("Core skills");
+    expect(source.sections[0].heading).toBe("Skills");
   });
 
   it("keeps immutable-version presentation separate from mutable workspace choices", () => {
