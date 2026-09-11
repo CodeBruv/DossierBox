@@ -255,6 +255,66 @@
   padding: var(--ds-space-md);
 }
 
+.historyGroups {
+  display: grid;
+  gap: var(--ds-space-2xl);
+  margin-top: var(--ds-space-xl);
+}
+
+.historyGroup {
+  min-width: 0;
+}
+
+.historyGroupHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--ds-space-md);
+  padding-bottom: var(--ds-space-sm);
+  border-bottom: 1px solid var(--ds-color-border-default);
+}
+
+.historyGroupHeader h2 {
+  font-size: var(--ds-heading-size-md);
+}
+
+.historyGroupHeader .documentMeta {
+  margin-top: 0;
+  text-align: right;
+}
+
+.historyThumbnail {
+  display: grid;
+  min-height: 10rem;
+  align-content: center;
+  gap: var(--ds-space-xs);
+  padding: var(--ds-space-lg);
+  border: 1px solid var(--ds-color-border-default);
+  border-top: 3px solid var(--ds-color-brand-primary);
+  background: var(--ds-color-surface);
+}
+
+.historyThumbnail span,
+.historyThumbnail small {
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-text-xs);
+}
+
+.historyThumbnail span {
+  color: var(--ds-color-brand-primary);
+  font-weight: var(--ds-font-weight-semibold);
+  text-transform: uppercase;
+}
+
+.historyThumbnail strong {
+  max-width: 16rem;
+  font-size: var(--ds-heading-size-sm);
+}
+
+.documentCardBody h3 {
+  font-size: var(--ds-heading-size-sm);
+}
+
 .documentCardBody h2 a {
   color: inherit;
   text-decoration: none;
