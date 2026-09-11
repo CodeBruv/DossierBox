@@ -14,7 +14,8 @@ type PresentationTextBlock = { readonly kind: "text"; readonly text: string; rea
 export type PresentationBlock =
   | PresentationTextBlock
   | { readonly kind: "bullet"; readonly text: string }
-  | { readonly kind: "link"; readonly text: string; readonly url: string };
+  | { readonly kind: "link"; readonly text: string; readonly url: string }
+  | { readonly kind: "page-break" };
 
 export type PresentationModel = {
   readonly contractVersion: PresentationContractVersion;
@@ -39,6 +40,7 @@ export function compilePresentationModel(input: {
   document: ComposedDocument;
   presentationContractVersion: unknown;
   presentationStyleId: unknown;
+  pageBreaks?: readonly string[];
 }): PresentationModel {
   if (input.presentationContractVersion !== PRESENTATION_CONTRACT_VERSION) {
     throw new PresentationCompilationError("unsupported-contract");
@@ -61,7 +63,9 @@ export function compilePresentationModel(input: {
   addText(input.document.header.headline, "headline");
   input.document.header.contacts.forEach((contact) => addText(contact, "contact"));
 
+  const pageBreaks = new Set(input.pageBreaks ?? []);
   input.document.sections.forEach((section, index) => {
+    if (index > 0 && pageBreaks.has(section.key)) blocks.push({ kind: "page-break" });
     addText(`${style.numberedSections ? `${index + 1}. ` : ""}${section.heading}`, "heading", { bold: true });
     appendSection(blocks, section, style.entryLayout);
   });
