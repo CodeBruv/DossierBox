@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { redirect, unstable_rethrow } from "next/navigation";
 import { requireProfileUser } from "@/profile/authorization";
 import { isAvailableDocumentType, isDocumentSectionKey } from "./catalogue";
+import { parseDocumentContentOverrides, type DocumentContentOverrides } from "./composition";
 import { isPresentationStyleId } from "./presentation";
 import { createDocument, deleteOwnedDocument, updateDocumentConfiguration } from "./repository";
 import { getDocumentPreparation, prepareDocumentWorkspace, runApprovedDocumentGeneration } from "./preparation";
@@ -150,13 +151,10 @@ export async function updateDocumentAction(formData: FormData) {
    */
   const sectionOrder = formData.getAll("order").filter(isKnownSection);
   const pageBreaks = formData.getAll("pageBreak").filter(isKnownSection);
-  const contentOverrides: Record<string, unknown> = {};
-  for (const key of offered) {
-    const heading = formData.get(`heading-${key}`);
-    if (typeof heading === "string" && heading.trim()) {
-      contentOverrides[key] = { heading: heading.trim().slice(0, 200) };
-    }
-  }
+  const rawOverrides = formData.get("contentOverrides");
+  const parsedOverrides = rawOverrides === null ? {} : parseDocumentContentOverrides(rawOverrides);
+  if (parsedOverrides === null) redirect(`/documents/${documentId}?error=invalid-content-overrides`);
+  const contentOverrides = parsedOverrides as DocumentContentOverrides;
 
   const user = await requireProfileUser();
 
