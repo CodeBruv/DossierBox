@@ -20,6 +20,7 @@ const productLinks = [
   { id: "home", label: "Home", href: "/home" },
   { id: "dossier", label: "Dossier", href: "/profile" },
   { id: "documents", label: "Documents", href: "/documents" },
+  { id: "history", label: "History", href: "/history" },
   { id: "account", label: "Account", href: "/account" },
 ] as const;
 
