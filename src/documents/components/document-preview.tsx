@@ -48,6 +48,15 @@ export type DocumentPreviewProps = {
   pageBreaks?: readonly string[];
 };
 
+function pageGroups(document: ComposedDocument, pageBreaks: readonly string[]) {
+  const groups: ComposedSection[][] = [[]];
+  for (const section of document.sections) {
+    if (groups[0].length > 0 && pageBreaks.includes(section.key)) groups.unshift([]);
+    groups[0].push(section);
+  }
+  return groups.reverse();
+}
+
 export function DocumentPreview({
   document: composed,
   presentationStyle,
@@ -71,8 +80,10 @@ export function DocumentPreview({
   } as CSSProperties;
 
   return (
-    <article
-      aria-label="Document preview"
+    <div className={styles.pages}>
+      {pageGroups(composed, pageBreaks).map((sections, pageIndex) => (
+        <div aria-label={`Document preview, page ${pageIndex + 1}`} className={styles.page} key={pageIndex}>
+          <article
       /*
        * `document-frame` and `document-font`/`document-body` are the global
        * classes typography.css already defines for this component. Reusing them
@@ -88,7 +99,7 @@ export function DocumentPreview({
         .join(" ")}
       style={sheetStyle}
     >
-      {header.name || header.headline || header.contacts.length > 0 ? (
+      {pageIndex === 0 && (header.name || header.headline || header.contacts.length > 0) ? (
         <header className={styles.masthead}>
           {header.name ? <h2 className={styles.name}>{header.name}</h2> : null}
           {header.headline ? <p className={styles.headline}>{header.headline}</p> : null}
@@ -98,13 +109,16 @@ export function DocumentPreview({
         </header>
       ) : null}
 
-      {sections.map((section, index) => (
-        <section key={section.key} className={styles.section} style={index > 0 && pageBreaks.includes(section.key) ? { breakBefore: "page" } : undefined}>
+      {sections.map((section) => (
+        <section key={section.key} className={styles.section}>
           <h3 className={`${styles.sectionTitle} document-section-title`}>{section.heading}</h3>
           <SectionBody section={section} entryLayout={presentationStyle.entryLayout} />
         </section>
       ))}
-    </article>
+          </article>
+        </div>
+      ))}
+    </div>
   );
 }
 
