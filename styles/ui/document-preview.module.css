@@ -30,6 +30,15 @@
    the fallback is the untemplated document, and the template only redirects. No
    rule here is ever written twice for a different style.
 */
+.pages {
+  display: grid;
+  gap: var(--ds-space-xl);
+}
+
+.page {
+  min-width: 0;
+}
+
 .sheet {
   --sheet-margin: var(--doc-margin, var(--ds-document-margins));
 
