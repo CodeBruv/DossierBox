@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { ApplicationObjective } from "@/applications";
 import {
   applicationPackageMembers,
@@ -9,17 +9,86 @@ import {
 } from "@/applications/planning-schema";
 import { applicationIntents, applications } from "@/applications/schema";
 import { db } from "@/auth/database";
+import { composeDocument, type ComposedDocument } from "./composition";
 import { documentTypeLabel as catalogueDocumentTypeLabel } from "./catalogue";
 import { defaultPresentationStyleFor } from "./presentation";
+import { getDossierSnapshot } from "@/profile/repository";
 import { documents, type DocumentType } from "./schema";
 import { documentVersions } from "./version-schema";
 
+export type DocumentListingVersion = Pick<
+  typeof documentVersions.$inferSelect,
+  "id" | "version" | "createdAt" | "specification" | "selectedEvidence" | "content" | "provenance" | "configuration"
+>;
+
+export type DocumentListingRow = Awaited<ReturnType<typeof listDocuments>>[number];
+
+/**
+ * Returns the listing projection and at most one immutable version per document.
+ * The second query is owner-scoped and bounded by the first query's ids; composition stays
+ * in memory and never invokes the generation or provider paths.
+ */
 export async function listDocuments(userId: string) {
-  return db
-    .select()
+  const rows = await db
+    .select({
+      id: documents.id,
+      applicationId: documents.applicationId,
+      type: documents.type,
+      title: documents.title,
+      status: documents.status,
+      template: documents.template,
+      hiddenSections: documents.hiddenSections,
+      sectionOrder: documents.sectionOrder,
+      createdAt: documents.createdAt,
+      updatedAt: documents.updatedAt,
+      internalApplication: applications.internal,
+    })
     .from(documents)
+    .leftJoin(applications, eq(applications.id, documents.applicationId))
     .where(eq(documents.userId, userId))
-    .orderBy(desc(documents.updatedAt));
+    .orderBy(desc(documents.updatedAt))
+    .limit(100);
+
+  if (rows.length === 0) return rows.map((row) => ({ ...row, latestVersion: null, draftComposition: null }));
+
+  const versions = await db
+    .select({
+      id: documentVersions.id,
+      documentId: documentVersions.documentId,
+      version: documentVersions.version,
+      createdAt: documentVersions.createdAt,
+      specification: documentVersions.specification,
+      selectedEvidence: documentVersions.selectedEvidence,
+      content: documentVersions.content,
+      provenance: documentVersions.provenance,
+      configuration: documentVersions.configuration,
+    })
+    .from(documentVersions)
+    .where(and(eq(documentVersions.userId, userId), inArray(documentVersions.documentId, rows.map((row) => row.id))))
+    .orderBy(desc(documentVersions.version));
+
+  const latestByDocument = new Map<string, DocumentListingVersion>();
+  for (const version of versions) {
+    if (!latestByDocument.has(version.documentId)) latestByDocument.set(version.documentId, version);
+  }
+
+  const internalDrafts = rows.filter((row) => row.internalApplication && !latestByDocument.has(row.id));
+  const draftSnapshot = internalDrafts.length ? await getDossierSnapshot(userId) : null;
+  const draftCompositions = new Map<string, ComposedDocument>();
+  if (draftSnapshot) {
+    for (const document of internalDrafts) {
+      draftCompositions.set(document.id, composeDocument(document.type, draftSnapshot, {
+        hiddenSections: document.hiddenSections,
+        sectionOrder: document.sectionOrder,
+      }));
+    }
+  }
+
+  return rows.map((row) => ({
+    ...row,
+    latestVersion: latestByDocument.get(row.id) ?? null,
+    draftComposition: draftCompositions.get(row.id) ?? null,
+  }));
 }
 
 export async function getOwnedDocument(userId: string, documentId: string) {
