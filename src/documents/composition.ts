@@ -178,6 +178,93 @@ export type DocumentContentOverrides = {
   sections?: Partial<Record<ComposedSectionKey, DocumentSectionOverride>>;
 };
 
+const MAX_OVERRIDE_TEXT = 20_000;
+const MAX_OVERRIDE_ENTRIES = 200;
+
+/**
+ * Parses the small, typed customization language stored in the document row.
+ * This is intentionally stricter than the JSONB column: unknown properties and
+ * renderer-specific shapes are rejected before they can reach composition.
+ */
+export function parseDocumentContentOverrides(value: unknown): DocumentContentOverrides | null {
+  if (!isPlainRecord(value)) return null;
+  const result: DocumentContentOverrides = {};
+  if (value.header !== undefined) {
+    if (!isPlainRecord(value.header) || !onlyKeys(value.header, ["name", "headline"]) ||
+      !optionalText(value.header.name) || !optionalText(value.header.headline)) return null;
+    result.header = {};
+    if (value.header.name !== undefined) result.header.name = value.header.name as string;
+    if (value.header.headline !== undefined) result.header.headline = value.header.headline as string;
+  }
+  if (value.sections !== undefined) {
+    if (!isPlainRecord(value.sections)) return null;
+    const sections: Partial<Record<ComposedSectionKey, DocumentSectionOverride>> = {};
+    for (const [key, candidate] of Object.entries(value.sections)) {
+      if (!isPlainRecord(candidate) || !isDocumentContentKey(key) || !optionalText(candidate.heading)) return null;
+      if (!onlyKeys(candidate, ["heading", "body", "entries", "items", "groups"])) return null;
+      const override: Record<string, unknown> = {};
+      if (candidate.heading !== undefined) override.heading = candidate.heading;
+      if (candidate.body !== undefined) {
+        const body = parseDetail(candidate.body);
+        if (!body) return null;
+        override.body = body;
+      }
+      if (candidate.entries !== undefined) {
+        if (!Array.isArray(candidate.entries) || candidate.entries.length > MAX_OVERRIDE_ENTRIES) return null;
+        const entries = candidate.entries.map(parseEntry);
+        if (entries.some((entry) => entry === null)) return null;
+        override.entries = entries as ComposedEntry[];
+      }
+      if (candidate.items !== undefined) {
+        if (!stringArray(candidate.items, MAX_OVERRIDE_ENTRIES)) return null;
+        override.items = candidate.items as string[];
+      }
+      if (candidate.groups !== undefined) {
+        if (!Array.isArray(candidate.groups) || candidate.groups.length > MAX_OVERRIDE_ENTRIES) return null;
+        const groups = candidate.groups.map((group) => isPlainRecord(group) && onlyKeys(group, ["label", "items"]) &&
+          boundedText(group.label) && stringArray(group.items, MAX_OVERRIDE_ENTRIES)
+          ? { label: group.label as string, items: group.items as string[] } : null);
+        if (groups.some((group) => group === null)) return null;
+        override.groups = groups as { label: string; items: string[] }[];
+      }
+      const expected = key === "summary" ? "body" : key === "skills" ? "groups" : key === "languages" ? "items" : "entries";
+      if (Object.keys(override).some((property) => property !== "heading" && property !== expected)) return null;
+      sections[key] = override as DocumentSectionOverride;
+    }
+    result.sections = sections;
+  }
+  return result;
+}
+
+function parseDetail(value: unknown): ComposedDetail | null {
+  if (!isPlainRecord(value) || !onlyKeys(value, ["kind", "lines"]) ||
+    (value.kind !== "paragraphs" && value.kind !== "bullets") || !stringArray(value.lines, MAX_OVERRIDE_ENTRIES)) return null;
+  return { kind: value.kind, lines: value.lines as string[] };
+}
+
+function parseEntry(value: unknown): ComposedEntry | null {
+  if (!isPlainRecord(value) || !onlyKeys(value, ["title", "subtitle", "meta", "detail", "url"]) ||
+    !boundedText(value.title) || !nullableText(value.subtitle) || !nullableText(value.meta) ||
+    !nullableText(value.url) || (value.detail !== null && value.detail !== undefined && !parseDetail(value.detail))) return null;
+  return {
+    title: value.title as string,
+    subtitle: (value.subtitle ?? null) as string | null,
+    meta: (value.meta ?? null) as string | null,
+    detail: value.detail ? parseDetail(value.detail) : null,
+    url: (value.url ?? null) as string | null,
+  };
+}
+
+function isDocumentContentKey(value: string): value is ComposedSectionKey {
+  return ["summary", "experience", "education", "projects", "credentials", "achievements", "publications", "memberships", "links", "skills", "languages"].includes(value);
+}
+function isPlainRecord(value: unknown): value is Record<string, unknown> { return typeof value === "object" && value !== null && !Array.isArray(value); }
+function onlyKeys(value: Record<string, unknown>, keys: readonly string[]) { return Object.keys(value).every((key) => keys.includes(key)); }
+function boundedText(value: unknown): value is string { return typeof value === "string" && value.length <= MAX_OVERRIDE_TEXT; }
+function optionalText(value: unknown) { return value === undefined || boundedText(value); }
+function nullableText(value: unknown) { return value === null || value === undefined || boundedText(value); }
+function stringArray(value: unknown, max: number): value is string[] { return Array.isArray(value) && value.length <= max && value.every(boundedText); }
+
 export type DocumentCompositionInput = {
   documentType: DocumentTypeKey;
   specification: DocumentSpecificationSemantics;
@@ -252,13 +339,13 @@ export function applyDocumentContentOverrides(
     if (!override) return section;
     switch (section.layout) {
       case "prose":
-        return { ...section, ...override, layout: "prose", key: section.key } as typeof section;
+        return { ...section, heading: override.heading ?? section.heading, body: "body" in override && override.body !== undefined ? { ...override.body, lines: [...override.body.lines] } : section.body };
       case "entries":
-        return { ...section, ...override, layout: "entries", key: section.key } as typeof section;
+        return { ...section, heading: override.heading ?? section.heading, entries: "entries" in override && override.entries !== undefined ? override.entries.map((entry) => ({ ...entry, detail: entry.detail ? { ...entry.detail, lines: [...entry.detail.lines] } : null })) : section.entries };
       case "inline":
-        return { ...section, ...override, layout: "inline", key: section.key } as typeof section;
+        return { ...section, heading: override.heading ?? section.heading, items: "items" in override && override.items !== undefined ? [...override.items] : section.items };
       case "grouped":
-        return { ...section, ...override, layout: "grouped", key: section.key } as typeof section;
+        return { ...section, heading: override.heading ?? section.heading, groups: "groups" in override && override.groups !== undefined ? override.groups.map((group) => ({ ...group, items: [...group.items] })) : section.groups };
     }
   });
   return {
