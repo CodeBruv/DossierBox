@@ -1,10 +1,11 @@
 import "server-only";
 
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import type { ApplicationObjective } from "@/applications";
 import { db } from "@/auth/database";
 import { applicationIntents, applications, type ApplicationStatus } from "./schema";
 import { documents } from "@/documents/schema";
+import { documentVersions } from "@/documents/version-schema";
 
 export type CreateApplicationInput = {
   objective: ApplicationObjective;
@@ -47,6 +48,94 @@ export async function createApplication(userId: string, input: CreateApplication
 
     return { ...application, intent };
   });
+}
+
+export type HistoryVersion = Pick<typeof documentVersions.$inferSelect, "id" | "version" | "createdAt" | "specification" | "selectedEvidence" | "content" | "provenance" | "configuration">;
+
+export type HistoryDocument = {
+  document: Pick<typeof documents.$inferSelect, "id" | "type" | "title" | "status" | "template" | "createdAt" | "updatedAt">;
+  application: Pick<typeof applications.$inferSelect, "id" | "status" | "createdAt" | "updatedAt"> | null;
+  intent: Pick<typeof applicationIntents.$inferSelect, "kind" | "targetRole" | "organisation" | "institution" | "programme"> | null;
+  versions: HistoryVersion[];
+};
+
+/**
+ * Returns the signed-in user's visible document history in bounded projections.
+ * Internal compatibility Applications are excluded while standalone Documents remain visible.
+ */
+export async function listOwnedHistory(userId: string): Promise<HistoryDocument[]> {
+  const rows = await db
+    .select({
+      document: {
+        id: documents.id,
+        type: documents.type,
+        title: documents.title,
+        status: documents.status,
+        template: documents.template,
+        createdAt: documents.createdAt,
+        updatedAt: documents.updatedAt,
+      },
+      application: {
+        id: applications.id,
+        status: applications.status,
+        createdAt: applications.createdAt,
+        updatedAt: applications.updatedAt,
+      },
+      intent: {
+        kind: applicationIntents.kind,
+        targetRole: applicationIntents.targetRole,
+        organisation: applicationIntents.organisation,
+        institution: applicationIntents.institution,
+        programme: applicationIntents.programme,
+      },
+    })
+    .from(documents)
+    .leftJoin(applications, eq(applications.id, documents.applicationId))
+    .leftJoin(applicationIntents, eq(applicationIntents.applicationId, applications.id))
+    .where(and(eq(documents.userId, userId), or(isNull(documents.applicationId), eq(applications.internal, false))))
+    .orderBy(desc(documents.updatedAt))
+    .limit(100);
+
+  const documentIds = rows.map((row) => row.document.id);
+  const versions = documentIds.length
+    ? await db
+        .select({
+          id: documentVersions.id,
+          documentId: documentVersions.documentId,
+          version: documentVersions.version,
+          createdAt: documentVersions.createdAt,
+          specification: documentVersions.specification,
+          selectedEvidence: documentVersions.selectedEvidence,
+          content: documentVersions.content,
+          provenance: documentVersions.provenance,
+          configuration: documentVersions.configuration,
+        })
+        .from(documentVersions)
+        .where(and(eq(documentVersions.userId, userId), inArray(documentVersions.documentId, documentIds)))
+        .orderBy(desc(documentVersions.createdAt))
+    : [];
+  const versionsByDocument = new Map<string, HistoryDocument["versions"]>();
+  for (const version of versions) {
+    const existing = versionsByDocument.get(version.documentId) ?? [];
+    existing.push({
+      id: version.id,
+      version: version.version,
+      createdAt: version.createdAt,
+      specification: version.specification,
+      selectedEvidence: version.selectedEvidence,
+      content: version.content,
+      provenance: version.provenance,
+      configuration: version.configuration,
+    });
+    versionsByDocument.set(version.documentId, existing);
+  }
+
+  return rows.map((row) => ({
+    document: row.document,
+    application: row.application?.id ? row.application : null,
+    intent: row.intent?.kind ? row.intent : null,
+    versions: versionsByDocument.get(row.document.id) ?? [],
+  }));
 }
 
 /** Returns only Applications owned by the authenticated user. */
