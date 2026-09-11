@@ -45,11 +45,13 @@ const LIST_SEPARATOR = ", ";
 export type DocumentPreviewProps = {
   document: ComposedDocument;
   presentationStyle: PresentationStyle;
+  pageBreaks?: readonly string[];
 };
 
 export function DocumentPreview({
   document: composed,
   presentationStyle,
+  pageBreaks = [],
 }: DocumentPreviewProps) {
   const { header, sections } = composed;
 
@@ -96,8 +98,8 @@ export function DocumentPreview({
         </header>
       ) : null}
 
-      {sections.map((section) => (
-        <section key={section.key} className={styles.section}>
+      {sections.map((section, index) => (
+        <section key={section.key} className={styles.section} style={index > 0 && pageBreaks.includes(section.key) ? { breakBefore: "page" } : undefined}>
           <h3 className={`${styles.sectionTitle} document-section-title`}>{section.heading}</h3>
           <SectionBody section={section} entryLayout={presentationStyle.entryLayout} />
         </section>
