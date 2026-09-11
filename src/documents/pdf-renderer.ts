@@ -29,6 +29,10 @@ export async function renderPresentationPdf(model: PresentationModel): Promise<B
     pdf.registerFont("bold", bold);
     pdf.fillColor(model.colors.ink);
     for (const [index, block] of model.blocks.entries()) {
+      if (block.kind === "page-break") {
+        pdf.addPage();
+        continue;
+      }
       const isHeading = block.kind === "text" && block.role === "heading";
       const next = model.blocks[index + 1];
       // Keep a section heading with at least its first content block. PDFKit will
