@@ -87,10 +87,6 @@ export function DocumentWorkspace({
   return (
     <div className={styles.workspaceShell}>
       <div className={styles.workspaceToolbar} data-print-skip>
-        <div>
-          <p className={styles.eyebrow}>Your document workspace</p>
-          <h2 className={styles.workspaceTitle}>{workingTitle || "Untitled document"}</h2>
-        </div>
         <div className={styles.workspaceToolbarActions}>
           <button aria-controls="document-preview" aria-expanded={previewOpen} className={styles.previewToggle} onClick={() => setPreviewOpen(true)} ref={previewTriggerRef} type="button">
             Preview
