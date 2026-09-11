@@ -160,6 +160,24 @@ export type StructuredDocumentContent = {
   sections: Partial<Record<ComposedSectionKey, ComposedSection>>;
 };
 
+/**
+ * Document-scoped text edits. These are deliberately separate from the Dossier snapshot.
+ *
+ * The layout is not editable here: it is owned by the document catalogue. An override can
+ * replace only the text-bearing values for the section's existing shape, which prevents a
+ * workspace form from turning an entry section into arbitrary, renderer-specific data.
+ */
+export type DocumentSectionOverride =
+  | { heading?: string; body?: ComposedDetail }
+  | { heading?: string; entries?: ComposedEntry[] }
+  | { heading?: string; items?: string[] }
+  | { heading?: string; groups?: { label: string; items: string[] }[] };
+
+export type DocumentContentOverrides = {
+  header?: Partial<Pick<ComposedHeader, "name" | "headline">>;
+  sections?: Partial<Record<ComposedSectionKey, DocumentSectionOverride>>;
+};
+
 export type DocumentCompositionInput = {
   documentType: DocumentTypeKey;
   specification: DocumentSpecificationSemantics;
@@ -218,7 +236,41 @@ export type DocumentConfiguration = {
    * `orderSections`.
    */
   sectionOrder?: readonly string[];
+  /** Section keys that begin on a fresh page in the user's arrangement. */
+  pageBreaks?: readonly string[];
+  /** Validated, document-owned edits applied after Dossier composition. */
+  contentOverrides?: DocumentContentOverrides;
 };
+
+/** Apply document-owned edits without mutating the source Dossier or changing section layouts. */
+export function applyDocumentContentOverrides(
+  document: ComposedDocument,
+  overrides: DocumentContentOverrides = {},
+): ComposedDocument {
+  const sections = document.sections.map((section) => {
+    const override = overrides.sections?.[section.key];
+    if (!override) return section;
+    switch (section.layout) {
+      case "prose":
+        return { ...section, ...override, layout: "prose", key: section.key } as typeof section;
+      case "entries":
+        return { ...section, ...override, layout: "entries", key: section.key } as typeof section;
+      case "inline":
+        return { ...section, ...override, layout: "inline", key: section.key } as typeof section;
+      case "grouped":
+        return { ...section, ...override, layout: "grouped", key: section.key } as typeof section;
+    }
+  });
+  return {
+    ...document,
+    header: {
+      ...document.header,
+      ...overrides.header,
+      contacts: [...document.header.contacts],
+    },
+    sections,
+  };
+}
 
 /**
  * Compose a document from validated semantic inputs.
@@ -248,14 +300,15 @@ export function composeStructuredDocument({
   }
 
   const hidden = new Set(configuration.hiddenSections ?? []);
-
-  return {
+  const composed = {
     type: documentType,
     header: { ...content.header, contacts: [...content.header.contacts] },
     sections: orderSections(documentType, configuration.sectionOrder ?? []).flatMap((key) =>
       hidden.has(key) ? [] : content.sections[key] ? [content.sections[key]] : [],
     ),
-  };
+  } satisfies ComposedDocument;
+
+  return applyDocumentContentOverrides(composed, configuration.contentOverrides);
 }
 
 /** Legacy adapter for Documents created before specifications and selected Evidence were wired. */
