@@ -8,12 +8,14 @@ import { profileSectionKeys } from "@/profile/types";
 import { experienceTypeOptions } from "@/profile/vocabularies";
 import type { DocumentType } from "./schema";
 import {
+  applyDocumentContentOverrides,
   composableSections,
   composeDocument,
   composeStructuredDocument,
   formatMonthYear,
   formatPeriod,
   isComposedDocumentEmpty,
+  parseDocumentContentOverrides,
   type ComposedDocument,
   type ComposedSection,
 } from "./composition";
@@ -206,6 +208,53 @@ describe("document families", () => {
  * dossier, and it is reversible. If any of that stopped holding, a user would
  * clear a checkbox and lose career information they had entered.
  */
+describe("document content overrides", () => {
+  it("validates supported typed overrides and rejects unsupported shapes", () => {
+    expect(parseDocumentContentOverrides({
+      header: { name: "Edited name" },
+      sections: {
+        summary: { body: { kind: "paragraphs", lines: ["Edited summary"] } },
+        experience: { entries: [{ title: "Edited role", subtitle: "Edited company", meta: "2025", detail: null, url: null }] },
+      },
+    })).not.toBeNull();
+    expect(parseDocumentContentOverrides({ sections: { summary: { entries: [] } } })).toBeNull();
+    expect(parseDocumentContentOverrides({ sections: { skills: { items: [] } } })).toBeNull();
+    expect(parseDocumentContentOverrides({ sections: { unknown: { heading: "No" } } })).toBeNull();
+  });
+
+  it("applies body, entry, inline, grouped, and header edits without mutating the source", async () => {
+    const { applyDocumentContentOverrides } = await import("./composition");
+    const source = {
+      type: "professional_resume" as const,
+      header: { name: "Original", headline: "Role", contacts: [] },
+      sections: [
+        { key: "summary" as const, heading: "Summary", layout: "prose" as const, body: { kind: "paragraphs" as const, lines: ["Original"] } },
+        { key: "experience" as const, heading: "Experience", layout: "entries" as const, entries: [{ title: "Original role", subtitle: "Org", meta: "2024", detail: null, url: null }] },
+        { key: "skills" as const, heading: "Skills", layout: "grouped" as const, groups: [{ label: "Technical", items: ["TypeScript"] }] },
+        { key: "languages" as const, heading: "Languages", layout: "inline" as const, items: ["English"] },
+      ],
+    };
+    const edited = applyDocumentContentOverrides(source, {
+      header: { name: "Edited" },
+      sections: {
+        summary: { body: { kind: "paragraphs", lines: ["Changed"] } },
+        experience: { entries: [{ title: "Edited role", subtitle: "Edited org", meta: "2025", detail: null, url: "https://example.com" }] },
+        skills: { groups: [{ label: "Tools", items: ["Vitest"] }] },
+        languages: { items: ["French"] },
+      },
+    });
+    expect(edited.header.name).toBe("Edited");
+    expect(edited.sections).toMatchObject([
+      { key: "summary", body: { lines: ["Changed"] } },
+      { key: "experience", entries: [{ title: "Edited role", url: "https://example.com" }] },
+      { key: "skills", groups: [{ label: "Tools", items: ["Vitest"] }] },
+      { key: "languages", items: ["French"] },
+    ]);
+    expect(source.header.name).toBe("Original");
+    expect(JSON.stringify(source)).toContain("Original role");
+  });
+});
+
 describe("document configuration", () => {
   const rows = () =>
     snapshot({
