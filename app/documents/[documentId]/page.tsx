@@ -32,6 +32,7 @@ const errorMessages: Record<string, string> = {
     "We couldn't save your changes right now. Nothing was altered — please try again.",
   "title-required": "A document needs a name. Your other changes were not saved.",
   "unknown-template": "That style isn't available. Your changes were not saved.",
+  "invalid-content-overrides": "Those document edits are not supported. Your changes were not saved.",
   "delete-confirmation-required":
     "Confirm the deletion before continuing. The document is still here and nothing was changed.",
   "delete-failed":
