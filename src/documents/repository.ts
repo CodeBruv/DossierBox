@@ -145,6 +145,8 @@ export type DocumentCreationInput = {
   objective?: ApplicationObjective | null;
   hiddenSections?: string[];
   sectionOrder?: string[];
+  pageBreaks?: string[];
+  contentOverrides?: Record<string, unknown>;
 };
 
 export async function createDocument(
@@ -197,6 +199,8 @@ export async function createDocument(
         template: input.presentationStyle ?? defaultPresentationStyleFor(type),
         hiddenSections: input.hiddenSections ?? [],
         sectionOrder: input.sectionOrder ?? [],
+        pageBreaks: input.pageBreaks ?? [],
+        contentOverrides: input.contentOverrides ?? {},
         // This is a derivative compatibility snapshot, never an independently edited authority.
         objective,
       })
@@ -271,6 +275,8 @@ export type DocumentConfigurationPatch = {
   presentationStyle: string;
   hiddenSections: string[];
   sectionOrder: string[];
+  pageBreaks: string[];
+  contentOverrides: Record<string, unknown>;
 };
 
 /**
@@ -303,6 +309,8 @@ export async function updateDocumentConfiguration(
       template: patch.presentationStyle,
       hiddenSections: patch.hiddenSections,
       sectionOrder: patch.sectionOrder,
+      pageBreaks: patch.pageBreaks,
+      contentOverrides: patch.contentOverrides,
       updatedAt: new Date(),
     })
     .where(and(eq(documents.userId, userId), eq(documents.id, documentId)))
