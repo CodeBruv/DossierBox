@@ -1,15 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import {
-  applicationObjectiveKindLabel,
-  normalizeApplicationObjective,
-} from "@/applications";
 import { authSessionConfiguration } from "@/auth/auth";
 import { getSession } from "@/auth/session";
 import { isComposedDocumentEmpty } from "@/documents/composition";
 import { DocumentPreview } from "@/documents/components/document-preview";
 import { DocumentWorkspace } from "@/documents/components/document-workspace";
-import { generateDocumentAction, updateDocumentAction } from "@/documents/actions";
+import { updateDocumentAction } from "@/documents/actions";
 import { DeleteDocument } from "@/documents/components/delete-document";
 import { resolvePresentationStyle } from "@/documents/presentation";
 import { readOwnedCurrentDraftComposition, readOwnedDocumentComposition } from "@/documents/read-composition";
@@ -103,43 +99,19 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
   // A valid zero-Requirement draft remains in the Workspace and uses its
   // application-scoped Evidence projections as the bounded baseline.
   const isEmpty = !composed || (isComposedDocumentEmpty(composed) && !draftRead);
-  const objective = normalizeApplicationObjective(document.objective);
   const versions = await listOwnedDocumentVersions(session.user.id, document.id);
-  const applicationContext = objective && objective.kind !== "general_profile"
-    ? applicationObjectiveKindLabel(objective.kind)
-    : "Based on your Dossier";
 
   return (
     <div className={styles.page}>
       <Container>
         {/*
-          `data-print-skip` is the hook print.css already uses to strip
-          application furniture. Printing this page should yield the document and
-          nothing else — the title, the status and the controls are ours, not part
-          of the user's document.
+          `data-print-skip` is the hook print.css already uses to strip application furniture.
         */}
         <div className={styles.narrow} data-print-skip>
-          <Link className={styles.backLink} href="/documents">Back to documents</Link>
           <header className={styles.editorHeader}>
             <p className={styles.eyebrow}>{documentTypeLabel(document.type)}</p>
             <h1>{document.title}</h1>
-            <p>
-              {versionRead
-                ? `Composed from immutable accepted version ${versionRead.version}.`
-                : objective && objective.kind !== "general_profile"
-                  ? "Your live document combines your Dossier with this application's context."
-                  : "Your live document is composed from the information saved in your Dossier."}
-            </p>
           </header>
-
-          <p className={styles.editorMeta}>
-            <span className={styles.statusBadge}>
-              {versionRead ? "Accepted version" : "Ready to customize"}
-            </span>{" "}
-            {presentationStyle.label} · {versionRead ? "Accepted" : "Updated"} {(
-              versionRead?.createdAt ?? document.updatedAt
-            ).toLocaleDateString()}
-          </p>
 
           {error ? (
             <p className={styles.errorStatus} role="alert">
@@ -158,74 +130,21 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
           ) : null}
         </div>
 
-        <section aria-labelledby="document-state-heading" className={styles.lifecyclePanel} data-print-skip>
-          <div className={styles.lifecycleSummary}>
-            <div>
-              <p className={styles.lifecycleLabel}>Application context</p>
-              <p>{applicationContext}</p>
-            </div>
-            <div>
-              <p className={styles.lifecycleLabel}>Document state</p>
-              <p>{versionRead ? `Saved version ${versionRead.version}` : incompleteRead ? "Draft · still preparing" : "Ready to customize"}</p>
-            </div>
-            <div>
-              <p className={styles.lifecycleLabel}>Export readiness</p>
-              <p>{versionRead ? "Ready for PDF export" : "Available in the workspace"}</p>
-            </div>
+        {versionRead ? (
+          <div className={styles.narrow} data-print-skip>
+            <a className={styles.primaryButton} href={`/api/documents/${document.id}/export?version=${versionRead.documentVersionId}`}>Export PDF</a>
+            {versions.length > 1 ? (
+              <nav aria-label="Accepted document versions" className={styles.versionHistory}>
+                <p className={styles.lifecycleLabel}>Accepted versions</p>
+                <ul>
+                  {versions.map((version) => (
+                    <li key={version.id}><Link aria-current={version.id === versionRead.documentVersionId ? "page" : undefined} href={`/documents/${document.id}?version=${version.id}`}>Version {version.version}</Link></li>
+                  ))}
+                </ul>
+              </nav>
+            ) : null}
           </div>
-          <div className={styles.lifecycleAction}>
-            <p className={styles.eyebrow}>Next action</p>
-            <h2 id="document-state-heading">
-              {versionRead ? "Export this accepted version" : incompleteRead ? "Finish reviewing this document" : "Customize this document"}
-            </h2>
-            <p>
-              {versionRead
-                ? "This preview is composed only from the accepted immutable artifact. Export uses this same saved version."
-                : incompleteRead
-                  ? "This document is still being prepared. Please return shortly."
-                  : "Your live document is ready. Adjust its presentation locally, then save your changes."}
-            </p>
-            {versionRead ? (
-              <a
-                className={styles.primaryButton}
-                href={`/api/documents/${document.id}/export?version=${versionRead.documentVersionId}`}
-              >
-                Export PDF
-              </a>
-            ) : incompleteRead ? (
-              <p className={styles.lifecycleNote}>
-                We are finishing this document from your saved Dossier and application context. Your Dossier has not been changed.
-              </p>
-            ) : (
-              <>
-                <form action={generateDocumentAction}>
-                  <input name="documentId" type="hidden" value={document.id} />
-                  <button className={styles.primaryButton} type="submit">Prepare final version</button>
-                </form>
-                <p className={styles.lifecycleNote}>
-                  Save your customization, then prepare a final version to review. Export becomes available after you accept it.
-                </p>
-              </>
-            )}
-          </div>
-          {versions.length > 1 ? (
-            <nav aria-label="Accepted document versions" className={styles.versionHistory}>
-              <p className={styles.lifecycleLabel}>Accepted versions</p>
-              <ul>
-                {versions.map((version) => (
-                  <li key={version.id}>
-                    <Link
-                      aria-current={version.id === versionRead?.documentVersionId ? "page" : undefined}
-                      href={`/documents/${document.id}?version=${version.id}`}
-                    >
-                      Version {version.version}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          ) : null}
-        </section>
+        ) : null}
 
         {isEmpty ? (
           <div className={styles.narrow}>
@@ -239,25 +158,21 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
               {incompleteRead ? <Link className={styles.primaryButton} href="/documents">Back to documents</Link> : null}
             </div>
           </div>
+        ) : draftRead ? (
+          <DocumentWorkspace
+            documentId={document.id}
+            documentType={document.type}
+            hiddenSections={document.hiddenSections}
+            presentationStyle={presentationStyle.id}
+            saveAction={updateDocumentAction}
+            sectionOrder={document.sectionOrder}
+            selectedEvidence={draftRead.selectedEvidence}
+            snapshot={draftRead.snapshot}
+            title={document.title}
+          />
         ) : (
-          <div className={styles.workspace}>
-            {draftRead ? (
-              <DocumentWorkspace
-                documentId={document.id}
-                documentType={document.type}
-                hiddenSections={document.hiddenSections}
-                presentationStyle={presentationStyle.id}
-                saveAction={updateDocumentAction}
-                sectionOrder={document.sectionOrder}
-                selectedEvidence={draftRead.selectedEvidence}
-                snapshot={draftRead.snapshot}
-                title={document.title}
-              />
-            ) : (
-              <div className={styles.workspacePreview}>
-                <DocumentPreview document={composed!} presentationStyle={presentationStyle} />
-              </div>
-            )}
+          <div className={styles.workspacePreview}>
+            <DocumentPreview document={composed!} presentationStyle={presentationStyle} />
           </div>
         )}
 
