@@ -162,6 +162,8 @@ export async function readOwnedCurrentDraftComposition(
     composed: composeEvidenceBoundDocument(document.document.type, snapshot, selectedEvidence, {
       hiddenSections: document.document.hiddenSections,
       sectionOrder: document.document.sectionOrder,
+      pageBreaks: document.document.pageBreaks,
+      contentOverrides: document.document.contentOverrides as import("./composition").DocumentContentOverrides,
     }),
     presentationStyle,
     selectedEvidence,
@@ -308,12 +310,15 @@ function readConfiguration(value: unknown, documentType: DocumentType): {
     !presentationStyleSuitsType(presentationStyle, documentType)
   ) return null;
   if (!stringArray(value.hiddenSections) || !stringArray(value.sectionOrder)) return null;
+  if (value.pageBreaks !== undefined && !stringArray(value.pageBreaks)) return null;
   return {
     presentationStyle,
     presentationContractVersion,
     composition: {
       hiddenSections: value.hiddenSections,
       sectionOrder: value.sectionOrder,
+      pageBreaks: value.pageBreaks ?? [],
+      contentOverrides: value.contentOverrides as import("./composition").DocumentContentOverrides | undefined,
     },
   };
 }
