@@ -811,6 +811,8 @@ export async function acceptGeneratedContentVersion(input: {
         type: source.artifact.documentType as "professional_cv" | "professional_resume" | "academic_cv",
         title: input.title?.trim() || `${source.artifact.documentType} draft`,
         status: "draft",
+        pageBreaks: [],
+        contentOverrides: {},
       }).returning();
       if (!created) throw new Error("Document could not be created.");
       document = created;
@@ -831,6 +833,8 @@ export async function acceptGeneratedContentVersion(input: {
       presentationStyle: input.configuration?.presentationStyle ?? document.template,
       hiddenSections: input.configuration?.hiddenSections ?? document.hiddenSections,
       sectionOrder: input.configuration?.sectionOrder ?? document.sectionOrder,
+      pageBreaks: input.configuration?.pageBreaks ?? document.pageBreaks,
+      contentOverrides: input.configuration?.contentOverrides ?? document.contentOverrides,
     };
     const [latest] = await transaction.select({ version: documentVersions.version }).from(documentVersions).where(eq(documentVersions.documentId, document.id)).orderBy(desc(documentVersions.version)).limit(1);
     const [version] = await transaction.insert(documentVersions).values({
