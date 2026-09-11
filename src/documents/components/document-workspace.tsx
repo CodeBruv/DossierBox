@@ -6,6 +6,9 @@ import {
   composeEvidenceBoundDocument,
   isComposedDocumentEmpty,
   composableSections,
+  type ComposedDetail,
+  type ComposedEntry,
+  type ComposedSection,
   type DocumentContentOverrides,
   type SelectedEvidence,
 } from "@/documents/composition";
@@ -121,6 +124,7 @@ export function DocumentWorkspace({
           <form action={saveAction} className={settings.settings}>
             <input name="documentId" type="hidden" value={documentId} />
             <input name="template" type="hidden" value={styleId} />
+            <input name="contentOverrides" type="hidden" value={JSON.stringify(contentOverrides)} />
             {pageBreaks.map((key) => <input key={key} name="pageBreak" type="hidden" value={key} />)}
 
             <div className={settings.field}>
@@ -147,27 +151,8 @@ export function DocumentWorkspace({
                 <p className={settings.hint}>Choose what appears and arrange the order. Your Dossier stays unchanged.</p>
                 <SectionArrangement hiddenSections={hiddenSections} onConfigurationChange={(order, hidden) => { setSectionOrder(order); setHiddenSections(hidden); }} sections={sections} />
                 <div className={settings.field}>
-                  <p className={settings.label}>Section headings</p>
-                  {composed.sections.map((section) => (
-                    <label className={settings.field} key={section.key} htmlFor={`heading-${section.key}`}>
-                      <span className={settings.hint}>{section.key}</span>
-                      <input
-                        className={settings.input}
-                        id={`heading-${section.key}`}
-                        maxLength={200}
-                        name={`heading-${section.key}`}
-                        onChange={(event) => setContentOverrides((current) => ({
-                          ...current,
-                          sections: {
-                            ...current.sections,
-                            [section.key]: { ...current.sections?.[section.key], heading: event.target.value },
-                          },
-                        }))}
-                        type="text"
-                        value={headingOverride(contentOverrides, section.key, section.heading)}
-                      />
-                    </label>
-                  ))}
+                  <p className={settings.label}>Document content</p>
+                  {composed.sections.map((section) => <SectionEditor key={section.key} section={section} overrides={contentOverrides} onChange={setContentOverrides} />)}
                 </div>
               </details>
             ) : null}
@@ -195,7 +180,85 @@ export function DocumentWorkspace({
   );
 }
 
-function headingOverride(overrides: DocumentContentOverrides, key: string, fallback: string) {
-  const value = overrides.sections?.[key as keyof NonNullable<DocumentContentOverrides["sections"]>];
-  return value && "heading" in value ? String(value.heading ?? fallback) : fallback;
+function SectionEditor({
+  section,
+  overrides,
+  onChange,
+}: {
+  section: ComposedSection;
+  overrides: DocumentContentOverrides;
+  onChange: React.Dispatch<React.SetStateAction<DocumentContentOverrides>>;
+}) {
+  const current = overrides.sections?.[section.key];
+  const update = (patch: Record<string, unknown>) =>
+    onChange((value) => ({
+      ...value,
+      sections: {
+        ...value.sections,
+        [section.key]: {
+          ...value.sections?.[section.key],
+          ...patch,
+        } as never,
+      },
+    }));
+  const detailText = (detail: ComposedDetail) => detail.lines.join("\n");
+  const entries = section.layout === "entries"
+    ? current && "entries" in current && current.entries
+      ? current.entries
+      : section.entries
+    : [];
+
+  const updateEntry = (index: number, patch: Partial<ComposedEntry>) =>
+    update({ entries: entries.map((entry, entryIndex) => entryIndex === index ? { ...entry, ...patch } : entry) });
+
+  return (
+    <fieldset className={settings.field}>
+      <legend className={settings.label}>{section.heading}</legend>
+      <label className={settings.field}>
+        <span className={settings.hint}>Heading</span>
+        <input
+          className={settings.input}
+          maxLength={200}
+          onChange={(event) => update({ heading: event.target.value })}
+          value={current && "heading" in current ? current.heading ?? section.heading : section.heading}
+        />
+      </label>
+
+      {section.layout === "prose" ? (
+        <label className={settings.field}>
+          <span className={settings.hint}>Text</span>
+          <textarea
+            className={settings.textarea}
+            rows={5}
+            onChange={(event) => update({ body: { kind: "paragraphs", lines: event.target.value.split(/\r?\n/).filter(Boolean) } })}
+            value={current && "body" in current && current.body ? detailText(current.body) : detailText(section.body)}
+          />
+        </label>
+      ) : null}
+
+      {section.layout === "entries" ? (
+        <div className={settings.field}>
+          <span className={settings.hint}>Entries</span>
+          {entries.map((entry, index) => (
+            <fieldset className={settings.field} key={`${section.key}-${index}`}>
+              <legend className={settings.hint}>Entry {index + 1}</legend>
+              <label className={settings.field}><span className={settings.hint}>Title</span><input className={settings.input} value={entry.title} onChange={(event) => updateEntry(index, { title: event.target.value })} /></label>
+              <label className={settings.field}><span className={settings.hint}>Subtitle</span><input className={settings.input} value={entry.subtitle ?? ""} onChange={(event) => updateEntry(index, { subtitle: event.target.value || null })} /></label>
+              <label className={settings.field}><span className={settings.hint}>Meta</span><input className={settings.input} value={entry.meta ?? ""} onChange={(event) => updateEntry(index, { meta: event.target.value || null })} /></label>
+              <label className={settings.field}><span className={settings.hint}>Details</span><textarea className={settings.textarea} rows={3} value={entry.detail?.lines.join("\n") ?? ""} onChange={(event) => updateEntry(index, { detail: event.target.value ? { kind: "paragraphs", lines: event.target.value.split(/\r?\n/).filter(Boolean) } : null })} /></label>
+              <label className={settings.field}><span className={settings.hint}>URL</span><input className={settings.input} inputMode="url" type="url" value={entry.url ?? ""} onChange={(event) => updateEntry(index, { url: event.target.value || null })} /></label>
+            </fieldset>
+          ))}
+        </div>
+      ) : null}
+
+      {section.layout === "inline" ? (
+        <label className={settings.field}><span className={settings.hint}>Items (one per line)</span><textarea className={settings.textarea} rows={4} onChange={(event) => update({ items: event.target.value.split(/\r?\n/).filter(Boolean) })} value={current && "items" in current && current.items ? current.items.join("\n") : section.items.join("\n")} /></label>
+      ) : null}
+
+      {section.layout === "grouped" ? (
+        <label className={settings.field}><span className={settings.hint}>Groups (Label: item, item)</span><textarea className={settings.textarea} rows={5} onChange={(event) => update({ groups: event.target.value.split(/\r?\n/).filter(Boolean).map((line) => { const [label, ...items] = line.split(":"); return { label: label.trim(), items: items.join(":").split(",").map((item) => item.trim()).filter(Boolean) }; }) })} value={current && "groups" in current && current.groups ? current.groups.map((group) => `${group.label}: ${group.items.join(", ")}`).join("\n") : section.groups.map((group) => `${group.label}: ${group.items.join(", ")}`).join("\n")} /></label>
+      ) : null}
+    </fieldset>
+  );
 }
