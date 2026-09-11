@@ -22,7 +22,7 @@ export async function exportOwnedDocumentVersion(input: ExportOwnedDocumentInput
   if (read.kind !== "version") return { kind: "accepted-version-required" };
 
   try {
-    const model = compilePresentationModel({ document: read.composed, presentationContractVersion: read.presentationContractVersion, presentationStyleId: read.presentationStyle.id });
+    const model = compilePresentationModel({ document: read.composed, presentationContractVersion: read.presentationContractVersion, presentationStyleId: read.presentationStyle.id, pageBreaks: read.configuration.pageBreaks });
     const bytes = await renderPresentationPdf(model);
     return { kind: "pdf", bytes, filename: safeFilename(read.document.title, read.version), contentType: "application/pdf", version: read.version };
   } catch (error) {
