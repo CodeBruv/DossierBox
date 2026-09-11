@@ -4,6 +4,7 @@ import type { DocumentTypeKey } from "./catalogue";
 import {
   composeEvidenceBoundDocument,
   composeStructuredDocument,
+  parseDocumentContentOverrides,
   evidenceBoundDossierSnapshot,
   type ComposedDocument,
   type DocumentConfiguration,
@@ -311,6 +312,8 @@ function readConfiguration(value: unknown, documentType: DocumentType): {
   ) return null;
   if (!stringArray(value.hiddenSections) || !stringArray(value.sectionOrder)) return null;
   if (value.pageBreaks !== undefined && !stringArray(value.pageBreaks)) return null;
+  const contentOverrides = value.contentOverrides === undefined ? {} : parseDocumentContentOverrides(value.contentOverrides);
+  if (contentOverrides === null) return null;
   return {
     presentationStyle,
     presentationContractVersion,
@@ -318,7 +321,7 @@ function readConfiguration(value: unknown, documentType: DocumentType): {
       hiddenSections: value.hiddenSections,
       sectionOrder: value.sectionOrder,
       pageBreaks: value.pageBreaks ?? [],
-      contentOverrides: value.contentOverrides as import("./composition").DocumentContentOverrides | undefined,
+      contentOverrides,
     },
   };
 }
