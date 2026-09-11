@@ -155,6 +155,13 @@
       "when": 1788754143899,
       "tag": "0021_document_workspace_customization",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1789144074370,
+      "tag": "0022_bizarre_marvel_zombies",
+      "breakpoints": true
     }
   ]
 }
