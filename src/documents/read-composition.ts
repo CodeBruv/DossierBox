@@ -22,12 +22,12 @@ import {
   type PresentationStyle,
 } from "./presentation";
 import { listValidPackageEvidenceSelections } from "@/applications/evidence-selection-repository";
-import { listApplicationEvidence } from "@/applications/evidence-repository";
-import { getOwnedEvidence } from "@/applications/evidence-repository";
+import { listApplicationEvidence, listOwnedEvidenceByIds } from "@/applications/evidence-repository";
 import { getDossierSnapshot } from "@/profile/repository";
 import { getOwnedDocumentPackageMember, getOwnedDocumentReadSource } from "./repository";
 import { listDocumentSpecifications } from "./specification-repository";
 import type { DocumentType } from "./schema";
+import type { DocumentVersionRow } from "./version-schema";
 
 export type VersionBackedDocumentRead = {
   readonly kind: "version";
@@ -140,8 +140,12 @@ export async function readOwnedCurrentDraftComposition(
     const authorizedSelections = validSelections.filter((candidate) =>
       specification.evidenceIds.includes(candidate.evidenceId),
     );
+    const evidenceById = new Map(
+      (await listOwnedEvidenceByIds(userId, authorizedSelections.map((selection) => selection.evidenceId)))
+        .map((evidence) => [evidence.id, evidence]),
+    );
     for (const selection of authorizedSelections) {
-      const evidence = await getOwnedEvidence(userId, selection.evidenceId);
+      const evidence = evidenceById.get(selection.evidenceId);
       if (!evidence || evidence.lifecycle !== "active") return { kind: "incomplete", document: document.document, reason: "stale-evidence", ...contextIds };
       selectedEvidence.push({ evidenceId: evidence.id, sourceType: evidence.sourceType, sourceRecordId: evidence.sourceRecordId });
     }
@@ -162,6 +166,35 @@ export async function readOwnedCurrentDraftComposition(
     presentationStyle,
     selectedEvidence,
     snapshot: evidenceBoundDossierSnapshot(snapshot, selectedEvidence),
+  };
+}
+
+/** Composes an accepted snapshot already loaded by a bounded history read. */
+export function composeAcceptedVersionThumbnail(
+  documentType: DocumentType,
+  version: Pick<DocumentVersionRow, "specification" | "selectedEvidence" | "content" | "provenance" | "configuration">,
+) {
+  const specification = readSpecification(version.specification, documentType);
+  const selectedEvidence = readSelectedEvidence(version.selectedEvidence);
+  const configuration = readConfiguration(version.configuration, documentType);
+  if (!specification || !selectedEvidence || !configuration) return null;
+  const compilation = compileStructuredDocumentContent({
+    documentType,
+    specification,
+    selectedEvidence,
+    content: version.content,
+    provenance: readProvenance(version.provenance),
+  });
+  if (!compilation.ok) return null;
+  return {
+    composed: composeStructuredDocument({
+      documentType,
+      specification,
+      selectedEvidence,
+      content: compilation.content,
+      configuration: configuration.composition,
+    }),
+    presentationStyle: resolvePresentationStyle(configuration.presentationStyle, documentType),
   };
 }
 
