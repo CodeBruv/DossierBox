@@ -163,6 +163,8 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
             documentId={document.id}
             documentType={document.type}
             hiddenSections={document.hiddenSections}
+            pageBreaks={document.pageBreaks}
+            contentOverrides={document.contentOverrides}
             presentationStyle={presentationStyle.id}
             saveAction={updateDocumentAction}
             sectionOrder={document.sectionOrder}
