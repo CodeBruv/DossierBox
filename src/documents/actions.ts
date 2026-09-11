@@ -149,6 +149,14 @@ export async function updateDocumentAction(formData: FormData) {
    * rather than at the bottom of the page.
    */
   const sectionOrder = formData.getAll("order").filter(isKnownSection);
+  const pageBreaks = formData.getAll("pageBreak").filter(isKnownSection);
+  const contentOverrides: Record<string, unknown> = {};
+  for (const key of offered) {
+    const heading = formData.get(`heading-${key}`);
+    if (typeof heading === "string" && heading.trim()) {
+      contentOverrides[key] = { heading: heading.trim().slice(0, 200) };
+    }
+  }
 
   const user = await requireProfileUser();
 
@@ -158,6 +166,8 @@ export async function updateDocumentAction(formData: FormData) {
       presentationStyle: rawPresentationStyle,
       hiddenSections,
       sectionOrder,
+      pageBreaks,
+      contentOverrides,
     });
 
     /*
