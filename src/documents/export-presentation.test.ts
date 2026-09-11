@@ -30,6 +30,16 @@ describe("authoritative presentation-v1 compiler", () => {
     expect(() => compilePresentationModel({ document: { ...document, type: "professional_resume" }, presentationContractVersion: "presentation-v1", presentationStyleId: "constructor" })).toThrowError(PresentationCompilationError);
   });
 
+  it("emits an explicit page boundary for configured sections", () => {
+    const model = compilePresentationModel({
+      document,
+      presentationContractVersion: PRESENTATION_CONTRACT_VERSION,
+      presentationStyleId: "compact",
+      pageBreaks: ["skills"],
+    });
+    expect(model.blocks.map((block) => block.kind)).toContain("page-break");
+  });
+
   it("normalizes text without changing semantic block ordering", () => {
     const model = compilePresentationModel({ document: { ...document, header: { ...document.header, name: "  A\tB  " } }, presentationContractVersion: "presentation-v1", presentationStyleId: "compact" });
     expect(model.blocks[0]).toMatchObject({ kind: "text", text: "A B", role: "name" });
