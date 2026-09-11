@@ -4,6 +4,7 @@ import { authSessionConfiguration } from "@/auth/auth";
 import { getSession } from "@/auth/session";
 import { resolvePresentationStyle } from "@/documents/presentation";
 import { DocumentMiniature } from "@/documents/components/document-miniature";
+import { composeAcceptedVersionThumbnail } from "@/documents/read-composition";
 import { listDocuments, documentTypeLabel } from "@/documents/repository";
 import { Container } from "@/ui";
 import styles from "@/styles/pages/documents.module.css";
@@ -39,11 +40,8 @@ export default async function DocumentsPage({ searchParams }: DocumentsPageProps
   let documents;
   try {
     /*
-     * Keep the index bounded to its owner-scoped list query. Resolving every draft's
-     * full composition here caused an N-document query fan-out and made large accounts
-     * wait minutes before they could open Workspace. The individual document route
-     * remains the authoritative composition boundary; this index uses the lightweight
-     * fallback miniature until the user opens a document.
+     * The listing query includes only the latest immutable version projection. Drafts do not
+     * have persisted renderable content, so they must not trigger composition fan-out here.
      */
     documents = await listDocuments(userId);
   } catch (error) {
@@ -93,17 +91,30 @@ export default async function DocumentsPage({ searchParams }: DocumentsPageProps
         {documents.length ? (
           <div className={styles.documentGrid}>
             {documents.map((document) => {
-              const style = resolvePresentationStyle(document.template, document.type);
-              const preview = { type: document.type, header: { name: document.title, headline: documentTypeLabel(document.type), contacts: [] }, sections: [] };
+              const acceptedThumbnail = document.latestVersion
+                ? composeAcceptedVersionThumbnail(document.type, document.latestVersion)
+                : null;
+              const draftThumbnail = !acceptedThumbnail && document.draftComposition
+                ? { composed: document.draftComposition, presentationStyle: resolvePresentationStyle(document.template, document.type) }
+                : null;
+              const style = acceptedThumbnail?.presentationStyle ?? draftThumbnail?.presentationStyle ?? resolvePresentationStyle(document.template, document.type);
               return (
                 <article className={styles.documentCard} key={document.id}>
                   <div className={styles.documentCardPreview}>
-                    <DocumentMiniature document={preview} presentationStyle={style} />
+                    {acceptedThumbnail || draftThumbnail ? (
+                      <DocumentMiniature document={(acceptedThumbnail ?? draftThumbnail)!.composed} presentationStyle={style} />
+                    ) : (
+                      <div className={styles.historyThumbnail}>
+                        <span>{documentTypeLabel(document.type)}</span>
+                        <strong>{document.title}</strong>
+                        <small>Working draft — open to preview</small>
+                      </div>
+                    )}
                   </div>
                   <div className={styles.documentCardBody}>
                     <p className={styles.documentType}>{documentTypeLabel(document.type)}</p>
                     <h2><Link href={`/documents/${document.id}`}>{document.title}</Link></h2>
-                    <p className={styles.documentMeta}>{document.status === "draft" ? "Draft" : document.status} · {style.label} · Updated {document.updatedAt.toLocaleDateString()}</p>
+                    <p className={styles.documentMeta}>{document.latestVersion ? `Accepted version ${document.latestVersion.version}` : "Working draft"} · {style.label} · Updated {document.updatedAt.toLocaleDateString()}</p>
                     <Link className={styles.secondaryButton} href={`/documents/${document.id}`}>Open document</Link>
                   </div>
                 </article>
