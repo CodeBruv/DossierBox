@@ -66,6 +66,9 @@ export const documents = pgTable(
      * own document, never joined or filtered on.
      */
     hiddenSections: jsonb("hiddenSections").$type<string[]>().notNull().default([]),
+    /** Explicit page starts and document-owned text edits; never copied to the Dossier. */
+    pageBreaks: jsonb("pageBreaks").$type<string[]>().notNull().default([]),
+    contentOverrides: jsonb("contentOverrides").$type<Record<string, unknown>>().notNull().default({}),
     /**
      * The order the user arranged this document's sections into.
      *
