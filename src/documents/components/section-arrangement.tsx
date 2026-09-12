@@ -221,55 +221,23 @@ export function SectionArrangement({
                 <GripIcon />
               </span>
 
-              <label className={styles.visibility}>
-                <input
-                  checked={!isHidden}
-                  name="visible"
-                  onChange={() => toggle(key)}
-                  type="checkbox"
-                  value={key}
-                />
-                <span className={styles.heading} title={heading}>
-                  {heading}
-                </span>
-              </label>
+              {!isHidden ? <input type="hidden" name="visible" value={key} /> : null}
+              <span className={styles.heading} title={heading}>{heading}</span>
 
-              <span className={styles.position}>{index + 1}</span>
               <details className={styles.actions}>
                 <summary aria-label={`Actions for ${heading}`}>⋯</summary>
                 <div className={styles.actionMenu}>
                   {typeFor(key) === "pageBreak" ? (
                     <>
-                      <button onClick={() => clone(key)} type="button">Clone</button>
-                      {!isPageBreakId(key) || key !== DEFAULT_PAGE_BREAK_ID ? <button onClick={() => onDelete?.(key)} type="button">Delete</button> : null}
+                      <button onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); clone(key); }} type="button">Clone</button>
+                      {!isPageBreakId(key) || key !== DEFAULT_PAGE_BREAK_ID ? <button onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); onDelete?.(key); }} type="button">Delete</button> : null}
                     </>
                   ) : (
-                    <button onClick={() => onEdit?.(key)} type="button">{editingKey === key ? "Collapse" : "Edit"}</button>
+                    <button onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); onEdit?.(key); }} type="button">Edit</button>
                   )}
-                  <button onClick={() => toggle(key)} type="button">{isHidden ? "Show" : "Hide"}</button>
+                  <button onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); toggle(key); }} type="button">{isHidden ? "Show" : "Hide"}</button>
                 </div>
               </details>
-
-              <span className={styles.moves}>
-                <button
-                  aria-label={`Move ${heading} earlier`}
-                  className={styles.move}
-                  disabled={index === 0}
-                  onClick={() => moveTo(key, index - 1)}
-                  type="button"
-                >
-                  <ChevronIcon direction="up" />
-                </button>
-                <button
-                  aria-label={`Move ${heading} later`}
-                  className={styles.move}
-                  disabled={index === order.length - 1}
-                  onClick={() => moveTo(key, index + 1)}
-                  type="button"
-                >
-                  <ChevronIcon direction="down" />
-                </button>
-              </span>
               {editingKey === key && typeFor(key) === "content" && renderEditor ? (
                 <div className={styles.inlineEditor}>{renderEditor(key)}</div>
               ) : null}
