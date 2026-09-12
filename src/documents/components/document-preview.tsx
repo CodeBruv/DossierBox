@@ -89,8 +89,9 @@ export function DocumentPreview({
 
   return (
     <div className={styles.pages}>
-      {pageGroups(composed).map((sections, pageIndex) => (
-        <div aria-label={`Document preview, page ${pageIndex + 1}`} className={styles.page} key={pageIndex}>
+      {pageGroups(composed).map((sections, pageIndex, pages) => (
+        <div aria-label={`Document preview, page ${pageIndex + 1} of ${pages.length}`} className={styles.page} key={pageIndex}>
+          <div className={styles.pageIndicator}>Page {pageIndex + 1} of {pages.length}</div>
           <article
       /*
        * `document-frame` and `document-font`/`document-body` are the global
