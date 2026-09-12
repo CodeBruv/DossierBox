@@ -390,12 +390,16 @@ export function composeStructuredDocument({
   }
 
   const knownContent = orderSections(documentType, []);
-  const arrangement = normalizeArrangement(
+  const normalizedArrangement = normalizeArrangement(
     configuration.sectionOrder ?? [],
     knownContent,
     configuration.pageBreaks ?? [],
   );
   const hidden = new Set(configuration.hiddenSections ?? []);
+  // Content remains in the saved order while hidden so it can be restored in place, but a
+  // hidden Page Break is not part of the effective rendering arrangement. This is the
+  // authoritative point at which visibility becomes composition semantics for every renderer.
+  const arrangement = normalizedArrangement.filter((key) => !hidden.has(key) || !key.startsWith("page-break:"));
   const composed = {
     type: documentType,
     header: { ...content.header, contacts: [...content.header.contacts] },
