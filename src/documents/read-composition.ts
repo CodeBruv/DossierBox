@@ -163,7 +163,6 @@ export async function readOwnedCurrentDraftComposition(
     composed: composeEvidenceBoundDocument(document.document.type, snapshot, selectedEvidence, {
       hiddenSections: document.document.hiddenSections,
       sectionOrder: document.document.sectionOrder,
-      pageBreaks: document.document.pageBreaks,
       contentOverrides: document.document.contentOverrides as import("./composition").DocumentContentOverrides,
     }),
     presentationStyle,
@@ -320,6 +319,8 @@ function readConfiguration(value: unknown, documentType: DocumentType): {
     composition: {
       hiddenSections: value.hiddenSections,
       sectionOrder: value.sectionOrder,
+      // Historical versions may carry boundary-style values; composition normalizes them
+      // deterministically while new snapshots use sectionOrder as the sole arrangement.
       pageBreaks: value.pageBreaks ?? [],
       contentOverrides,
     },
