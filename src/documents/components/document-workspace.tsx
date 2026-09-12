@@ -14,6 +14,7 @@ import {
 } from "@/documents/composition";
 import { DocumentPreview } from "@/documents/components/document-preview";
 import { SectionArrangement } from "@/documents/components/section-arrangement";
+import { isPageBreakId, normalizeArrangement } from "@/documents/arrangement";
 import {
   compatiblePresentationStyles,
   resolvePresentationStyle,
@@ -56,12 +57,18 @@ export function DocumentWorkspace({
   saveAction,
 }: DocumentWorkspaceProps) {
   const normalizedInitialOrder = [...new Set(initialOrder)];
-  const sections = composableSections(documentType, snapshot, normalizedInitialOrder, selectedEvidence);
+  const baseSections = composableSections(documentType, snapshot, normalizedInitialOrder, selectedEvidence);
+  const arrangement = normalizeArrangement(normalizedInitialOrder, baseSections.map((section) => section.key), initialPageBreaks);
+  const sections = baseSections.map((section) => ({ ...section, type: "content" as const }));
   const [workingTitle, setWorkingTitle] = useState(title);
   const [styleId, setStyleId] = useState<PresentationStyleId>(initialStyle);
-  const [sectionOrder, setSectionOrder] = useState<readonly string[]>(normalizedInitialOrder.length ? normalizedInitialOrder : sections.map((section) => section.key));
+  const [sectionOrder, setSectionOrder] = useState<readonly string[]>(arrangement);
   const [hiddenSections, setHiddenSections] = useState<readonly string[]>([...new Set(initialHidden)]);
-  const [pageBreaks, setPageBreaks] = useState<readonly string[]>([...new Set(initialPageBreaks)]);
+  const arrangementSections: Array<{ key: string; heading: string; type: "content" | "pageBreak" }> = sectionOrder.flatMap((key): Array<{ key: string; heading: string; type: "content" | "pageBreak" }> => {
+    if (isPageBreakId(key)) return [{ key, heading: "Page Break", type: "pageBreak" }];
+    const section = sections.find((candidate) => candidate.key === key);
+    return section ? [{ key: section.key, heading: section.heading, type: "content" }] : [];
+  });
   const [contentOverrides, setContentOverrides] = useState<DocumentContentOverrides>(initialOverrides as DocumentContentOverrides);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [customizeOpen, setCustomizeOpen] = useState(false);
@@ -91,7 +98,7 @@ export function DocumentWorkspace({
     previewTriggerRef.current?.focus();
   };
   const style = resolvePresentationStyle(styleId, documentType);
-  const composed = composeEvidenceBoundDocument(documentType, snapshot, selectedEvidence, { hiddenSections, sectionOrder, pageBreaks, contentOverrides });
+  const composed = composeEvidenceBoundDocument(documentType, snapshot, selectedEvidence, { hiddenSections, sectionOrder, contentOverrides });
   const hasContent = !isComposedDocumentEmpty(composed);
 
   return (
@@ -99,7 +106,7 @@ export function DocumentWorkspace({
       <div className={styles.workspaceToolbar} data-print-skip>
         <div>
           <strong>Draft workspace</strong>
-          <span className={settings.hint}> Save changes, then review and accept before exporting.</span>
+          <span className={settings.hint}> Save your customization, then export the current document.</span>
         </div>
         <div className={styles.workspaceToolbarActions}>
           <button aria-controls="document-preview" aria-expanded={previewOpen} className={styles.previewToggle} onClick={() => setPreviewOpen(true)} ref={previewTriggerRef} type="button">
@@ -117,7 +124,7 @@ export function DocumentWorkspace({
             <span id="document-preview-heading">Live preview · {style.label}</span>
             {previewOpen ? <button aria-label="Close document preview" className={styles.previewClose} onClick={closePreview} ref={previewCloseRef} type="button">Close preview</button> : null}
           </div>
-          {hasContent ? <DocumentPreview document={composed} presentationStyle={style} pageBreaks={pageBreaks} /> : <div className={styles.emptyNotice}><h2>This document has no visible content.</h2><p>Choose a different section set or add more information to your saved Dossier before customizing this document.</p></div>}
+          {hasContent ? <DocumentPreview document={composed} presentationStyle={style} /> : <div className={styles.emptyNotice}><h2>This document has no visible content.</h2><p>Choose a different section set or add more information to your saved Dossier before customizing this document.</p></div>}
         </div>
 
         <aside aria-label="Document customization" className={`${styles.workspaceControls} ${customizeOpen ? styles.workspaceControlsOpen : ""}`} data-print-skip>
@@ -125,7 +132,6 @@ export function DocumentWorkspace({
             <input name="documentId" type="hidden" value={documentId} />
             <input name="template" type="hidden" value={styleId} />
             <input name="contentOverrides" type="hidden" value={JSON.stringify(contentOverrides)} />
-            {pageBreaks.map((key) => <input key={key} name="pageBreak" type="hidden" value={key} />)}
 
             <div className={settings.field}>
               <label className={settings.label} htmlFor="workspace-title">Document name</label>
@@ -147,9 +153,13 @@ export function DocumentWorkspace({
 
             {sections.length > 0 ? (
               <details className={styles.workspaceGroup} open>
-                <summary>Sections <span>{sections.length - hiddenSections.length} shown</span></summary>
+                <summary>Sections <span>{sectionOrder.filter((key) => !hiddenSections.includes(key)).length} shown</span></summary>
                 <p className={settings.hint}>Choose what appears and arrange the order. Your Dossier stays unchanged.</p>
-                <SectionArrangement hiddenSections={hiddenSections} onConfigurationChange={(order, hidden) => { setSectionOrder(order); setHiddenSections(hidden); }} sections={sections} />
+                <SectionArrangement
+                  hiddenSections={hiddenSections}
+                  onConfigurationChange={(order, hidden) => { setSectionOrder(order); setHiddenSections(hidden); }}
+                  sections={arrangementSections}
+                />
                 <div className={settings.field}>
                   <p className={settings.label}>Document content</p>
                   {composed.sections.map((section) => <SectionEditor key={section.key} section={section} overrides={contentOverrides} onChange={setContentOverrides} />)}
@@ -157,21 +167,9 @@ export function DocumentWorkspace({
               </details>
             ) : null}
 
-            {sections.length > 1 ? (
-              <details className={styles.workspaceGroup} open>
-                <summary>Page breaks <span>{pageBreaks.length}</span></summary>
-                <p className={settings.hint}>Start a section on a new page in the saved document.</p>
-                {sectionOrder.filter((key) => !hiddenSections.includes(key)).map((key, index) => index > 0 ? (
-                  <label className={settings.visibility} key={key}>
-                    <input checked={pageBreaks.includes(key)} onChange={(event) => setPageBreaks((current) => event.target.checked ? [...new Set([...current, key])] : current.filter((entry) => entry !== key))} type="checkbox" />
-                    <span>New page before {key}</span>
-                  </label>
-                ) : null)}
-              </details>
-            ) : null}
 
             <button className={settings.save} type="submit">Save changes</button>
-            <p className={settings.hint}>PDF export becomes available from the accepted version.</p>
+            <p className={settings.hint}>Export uses the saved draft configuration and current owner-scoped content.</p>
           </form>
         </aside>
 
