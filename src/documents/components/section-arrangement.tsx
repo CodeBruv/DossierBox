@@ -33,8 +33,8 @@
  * numbers to be written, validated, or to drift out of step with what the user sees.
  */
 
-import { useRef, useState } from "react";
-import { createClonedPageBreakId, isPageBreakId } from "@/documents/arrangement";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createClonedPageBreakId, DEFAULT_PAGE_BREAK_ID, isPageBreakId } from "@/documents/arrangement";
 import styles from "@/styles/ui/section-arrangement.module.css";
 
 export type ArrangeableSection = {
@@ -50,18 +50,38 @@ export type SectionArrangementProps = {
   hiddenSections: readonly string[];
   /** Mirrors the unsaved arrangement so a parent composer can preview it immediately. */
   onConfigurationChange?: (order: readonly string[], hiddenSections: readonly string[]) => void;
+  editingKey?: string | null;
+  onEdit?: (key: string) => void;
+  onDelete?: (key: string) => void;
+  renderEditor?: (key: string) => ReactNode;
 };
 
 export function SectionArrangement({
   sections,
   hiddenSections,
   onConfigurationChange,
+  editingKey,
+  onEdit,
+  onDelete,
+  renderEditor,
 }: SectionArrangementProps) {
   const initialOrder = sections.map((s) => s.key);
+  const initialOrderKey = initialOrder.join("|");
   const [order, setOrder] = useState<readonly string[]>(initialOrder);
   const orderRef = useRef<readonly string[]>(initialOrder);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set(hiddenSections));
   const [dragged, setDragged] = useState<string | null>(null);
+
+  // Parent-owned deletions and server-normalized arrangements must also update the
+  // local drag state; otherwise a deleted Page Break can reappear on the next move.
+  useEffect(() => {
+    setOrder(initialOrder);
+    orderRef.current = initialOrder;
+  }, [initialOrderKey]);
+
+  useEffect(() => {
+    setHidden(new Set(hiddenSections));
+  }, [hiddenSections]);
   /**
    * What changed, for a screen reader.
    *
@@ -215,9 +235,20 @@ export function SectionArrangement({
               </label>
 
               <span className={styles.position}>{index + 1}</span>
-              {typeFor(key) === "pageBreak" ? (
-                <button onClick={() => clone(key)} type="button">Clone</button>
-              ) : null}
+              <details className={styles.actions}>
+                <summary aria-label={`Actions for ${heading}`}>⋯</summary>
+                <div className={styles.actionMenu}>
+                  {typeFor(key) === "pageBreak" ? (
+                    <>
+                      <button onClick={() => clone(key)} type="button">Clone</button>
+                      {!isPageBreakId(key) || key !== DEFAULT_PAGE_BREAK_ID ? <button onClick={() => onDelete?.(key)} type="button">Delete</button> : null}
+                    </>
+                  ) : (
+                    <button onClick={() => onEdit?.(key)} type="button">{editingKey === key ? "Collapse" : "Edit"}</button>
+                  )}
+                  <button onClick={() => toggle(key)} type="button">{isHidden ? "Show" : "Hide"}</button>
+                </div>
+              </details>
 
               <span className={styles.moves}>
                 <button
@@ -239,6 +270,9 @@ export function SectionArrangement({
                   <ChevronIcon direction="down" />
                 </button>
               </span>
+              {editingKey === key && typeFor(key) === "content" && renderEditor ? (
+                <div className={styles.inlineEditor}>{renderEditor(key)}</div>
+              ) : null}
             </li>
           );
         })}
