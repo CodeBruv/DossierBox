@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { redirect, unstable_rethrow } from "next/navigation";
 import { requireProfileUser } from "@/profile/authorization";
 import { isAvailableDocumentType, isDocumentSectionKey } from "./catalogue";
+import { isPageBreakId } from "./arrangement";
 import { parseDocumentContentOverrides, type DocumentContentOverrides } from "./composition";
 import { isPresentationStyleId } from "./presentation";
 import { createDocument, deleteOwnedDocument, updateDocumentConfiguration } from "./repository";
@@ -50,8 +51,8 @@ export async function createDocumentAction(formData: FormData) {
   const presentationStyle = isPresentationStyleId(rawPresentationStyle)
     ? rawPresentationStyle
     : undefined;
-  const hiddenSections = formData.getAll("hidden").filter(isKnownSection);
-  const sectionOrder = formData.getAll("order").filter(isKnownSection);
+  const hiddenSections = formData.getAll("hidden").filter(isArrangementItem).map(String);
+  const sectionOrder = formData.getAll("order").filter(isArrangementItem).map(String);
 
   const user = await requireProfileUser();
   let document: Awaited<ReturnType<typeof createDocument>>;
@@ -133,12 +134,13 @@ export async function updateDocumentAction(formData: FormData) {
    * and that can only be worked out against the full list. `visible` therefore
    * carries every section the form offered, and `hidden` is the difference.
    */
-  const offered = formData.getAll("offered").filter(isKnownSection);
-  const visible = new Set(formData.getAll("visible").filter(isKnownSection));
+  const offered = formData.getAll("offered").filter(isArrangementItem);
+  const visible = new Set(formData.getAll("visible").filter(isArrangementItem));
   const hiddenSections = offered.filter((key) => !visible.has(key));
 
   /*
-   * The running order, as the reordering control left it.
+   * The running order, as the reordering control left it. Page Break items are
+   * first-class arrangement ids and are intentionally retained here.
    *
    * `getAll` preserves the order the inputs appear in the submitted form, which is what
    * makes this work: the control moves the whole row in the DOM rather than writing an
@@ -149,8 +151,8 @@ export async function updateDocumentAction(formData: FormData) {
    * a section, save, and un-hide it later to find it back in the place they put it,
    * rather than at the bottom of the page.
    */
-  const sectionOrder = formData.getAll("order").filter(isKnownSection);
-  const pageBreaks = formData.getAll("pageBreak").filter(isKnownSection);
+  const sectionOrder = formData.getAll("order").filter(isArrangementItem);
+  const pageBreaks: string[] = [];
   const rawOverrides = formData.get("contentOverrides");
   const parsedOverrides = rawOverrides === null ? {} : parseDocumentContentOverrides(rawOverrides);
   if (parsedOverrides === null) redirect(`/documents/${documentId}?error=invalid-content-overrides`);
@@ -184,7 +186,11 @@ export async function updateDocumentAction(formData: FormData) {
 }
 
 function isKnownSection(value: FormDataEntryValue): value is string {
-  return isDocumentSectionKey(value);
+  return typeof value === "string" && isDocumentSectionKey(value);
+}
+
+function isArrangementItem(value: FormDataEntryValue): value is string {
+  return typeof value === "string" && (isDocumentSectionKey(value) || /^page-break:[a-zA-Z0-9_-]{1,80}$/.test(value));
 }
 
 /**
