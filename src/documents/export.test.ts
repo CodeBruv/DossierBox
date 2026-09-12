@@ -2,8 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ComposedDocument } from "./composition";
 
 const readOwnedDocumentComposition = vi.fn();
+const readOwnedCurrentDraftComposition = vi.fn();
 const renderPresentationPdf = vi.fn();
-vi.mock("./read-composition", () => ({ readOwnedDocumentComposition }));
+vi.mock("./read-composition", () => ({ readOwnedDocumentComposition, readOwnedCurrentDraftComposition }));
 vi.mock("./pdf-renderer", () => ({ renderPresentationPdf }));
 
 const { exportOwnedDocumentVersion } = await import("./export");
@@ -16,6 +17,7 @@ const composed: ComposedDocument = {
 
 beforeEach(() => {
   readOwnedDocumentComposition.mockReset();
+  readOwnedCurrentDraftComposition.mockReset();
   renderPresentationPdf.mockReset().mockResolvedValue(Buffer.from("%PDF-test"));
 });
 
