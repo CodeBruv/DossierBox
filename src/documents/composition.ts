@@ -190,6 +190,16 @@ const MAX_OVERRIDE_ENTRIES = 200;
  * renderer-specific shapes are rejected before they can reach composition.
  */
 export function parseDocumentContentOverrides(value: unknown): DocumentContentOverrides | null {
+  // FormData carries the JSONB customization as text. Accepting the serialized
+  // representation here keeps the server action and database readers on the same
+  // validation path instead of rejecting every form submission as an unsupported edit.
+  if (typeof value === "string") {
+    try {
+      value = JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
   if (!isPlainRecord(value)) return null;
   const result: DocumentContentOverrides = {};
   if (value.header !== undefined) {
