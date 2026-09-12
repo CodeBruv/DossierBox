@@ -60,7 +60,9 @@
   --ds-rule: var(--ds-document-rule);
 
   width: 100%;
+  aspect-ratio: var(--doc-paper-width, 210mm) / var(--doc-paper-height, 297mm);
   max-width: var(--doc-paper-width, var(--ds-page-a4-w));
+  min-height: var(--doc-paper-height, var(--ds-page-a4-h));
   margin-inline: auto;
   padding: var(--sheet-margin);
   background: var(--ds-document-paper);
