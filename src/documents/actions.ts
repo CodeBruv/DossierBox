@@ -152,6 +152,8 @@ export async function updateDocumentAction(formData: FormData) {
    * rather than at the bottom of the page.
    */
   const sectionOrder = formData.getAll("order").filter(isArrangementItem);
+  // Page breaks are now compiled from the heterogeneous arrangement itself. Retain the
+  // legacy column as empty so old persistence shapes remain valid without reactivating breaks.
   const pageBreaks: string[] = [];
   const rawOverrides = formData.get("contentOverrides");
   const parsedOverrides = rawOverrides === null ? {} : parseDocumentContentOverrides(rawOverrides);
