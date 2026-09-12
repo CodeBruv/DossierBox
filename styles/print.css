@@ -37,6 +37,10 @@
   .document-frame {
     box-shadow: none;
     border: none;
-    page-break-after: always;
+    break-after: page;
+  }
+
+  .document-frame:last-child {
+    break-after: auto;
   }
 }
