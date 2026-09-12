@@ -28,9 +28,13 @@ export async function renderPresentationPdf(model: PresentationModel): Promise<B
     pdf.registerFont("regular", regular);
     pdf.registerFont("bold", bold);
     pdf.fillColor(model.colors.ink);
+    let hasContentOnPage = false;
     for (const [index, block] of model.blocks.entries()) {
       if (block.kind === "page-break") {
-        pdf.addPage();
+        // A natural PDFKit wrap may already have placed the next content on a
+        // fresh page. Do not add another empty page in that case.
+        if (hasContentOnPage) pdf.addPage();
+        hasContentOnPage = false;
         continue;
       }
       const isHeading = block.kind === "text" && block.role === "heading";
@@ -38,8 +42,9 @@ export async function renderPresentationPdf(model: PresentationModel): Promise<B
       // Keep a section heading with at least its first content block. PDFKit will
       // still flow long content naturally, but a heading at the bottom of a page
       // is moved before it is drawn.
-      if (isHeading && next && pdf.y > pdf.page.height - pdf.page.margins.bottom - model.typography.headingSize * 3) {
+      if (isHeading && next && pdf.y > pdf.page.height - pdf.page.margins.bottom - model.typography.headingSize * 3 && hasContentOnPage) {
         pdf.addPage();
+        hasContentOnPage = false;
       }
       if (block.kind === "link") {
         pdf.font("regular").fontSize(model.typography.bodySize).fillColor(model.colors.accent).text(block.text, { link: block.url, underline: true, paragraphGap: model.spacing.paragraphAfter });
@@ -54,6 +59,7 @@ export async function renderPresentationPdf(model: PresentationModel): Promise<B
       pdf.font(block.bold || isHeading || isName ? "bold" : "regular").fontSize(isName ? model.typography.nameSize : isHeading ? model.typography.headingSize : model.typography.bodySize).fillColor(isName ? model.colors.accent : block.role === "meta" ? model.colors.muted : model.colors.ink);
       pdf.text(block.text, { paragraphGap: isHeading ? model.spacing.sectionAfter : block.role === "body" ? model.spacing.paragraphAfter : 2, lineGap: model.typography.bodySize * (model.typography.lineHeight - 1) });
       if (isHeading) pdf.moveDown(model.spacing.sectionBefore / model.typography.bodySize);
+      hasContentOnPage = true;
     }
     pdf.end();
   });
