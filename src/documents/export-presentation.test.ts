@@ -50,6 +50,16 @@ describe("authoritative presentation-v1 compiler", () => {
     expect(model.blocks.map((block) => block.kind)).not.toContain("page-break");
   });
 
+  it("collapses leading and consecutive page breaks", () => {
+    const model = compilePresentationModel({
+      document: { ...document, arrangement: ["page-break:leading", "experience", "page-break:a", "page-break:b", "skills"] },
+      presentationContractVersion: PRESENTATION_CONTRACT_VERSION,
+      presentationStyleId: "compact",
+    });
+
+    expect(model.blocks.filter((block) => block.kind === "page-break")).toHaveLength(1);
+  });
+
   it("does not let a hidden Page Break affect an already composed document", () => {
     const model = compilePresentationModel({
       document: { ...document, arrangement: ["experience", "skills"] },
