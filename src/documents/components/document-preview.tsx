@@ -21,6 +21,7 @@
 
 import type { CSSProperties } from "react";
 import { isHttpUrl } from "@/profile/validation";
+import { isPageBreakId } from "@/documents/arrangement";
 import type {
   ComposedDetail,
   ComposedDocument,
@@ -45,13 +46,21 @@ const LIST_SEPARATOR = ", ";
 export type DocumentPreviewProps = {
   document: ComposedDocument;
   presentationStyle: PresentationStyle;
-  pageBreaks?: readonly string[];
 };
 
-function pageGroups(document: ComposedDocument, pageBreaks: readonly string[]) {
+function pageGroups(document: ComposedDocument) {
+  const sections = new Map(document.sections.map((section) => [section.key, section]));
   const groups: ComposedSection[][] = [[]];
-  for (const section of document.sections) {
-    if (groups[0].length > 0 && pageBreaks.includes(section.key)) groups.unshift([]);
+  let pendingBreak = false;
+  for (const key of document.arrangement ?? document.sections.map((section) => section.key)) {
+    if (key.startsWith("page-break:") ) {
+      if (groups[0].length > 0) pendingBreak = true;
+      continue;
+    }
+    const section = sections.get(key as ComposedSection["key"]);
+    if (!section) continue;
+    if (pendingBreak && groups[0].length > 0) groups.unshift([]);
+    pendingBreak = false;
     groups[0].push(section);
   }
   return groups.reverse();
@@ -60,7 +69,6 @@ function pageGroups(document: ComposedDocument, pageBreaks: readonly string[]) {
 export function DocumentPreview({
   document: composed,
   presentationStyle,
-  pageBreaks = [],
 }: DocumentPreviewProps) {
   const { header, sections } = composed;
 
@@ -81,7 +89,7 @@ export function DocumentPreview({
 
   return (
     <div className={styles.pages}>
-      {pageGroups(composed, pageBreaks).map((sections, pageIndex) => (
+      {pageGroups(composed).map((sections, pageIndex) => (
         <div aria-label={`Document preview, page ${pageIndex + 1}`} className={styles.page} key={pageIndex}>
           <article
       /*
