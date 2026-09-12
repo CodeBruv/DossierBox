@@ -34,11 +34,13 @@
  */
 
 import { useRef, useState } from "react";
+import { createClonedPageBreakId, isPageBreakId } from "@/documents/arrangement";
 import styles from "@/styles/ui/section-arrangement.module.css";
 
 export type ArrangeableSection = {
   key: string;
   heading: string;
+  type?: "content" | "pageBreak";
 };
 
 export type SectionArrangementProps = {
@@ -55,7 +57,9 @@ export function SectionArrangement({
   hiddenSections,
   onConfigurationChange,
 }: SectionArrangementProps) {
-  const [order, setOrder] = useState<readonly string[]>(() => sections.map((s) => s.key));
+  const initialOrder = sections.map((s) => s.key);
+  const [order, setOrder] = useState<readonly string[]>(initialOrder);
+  const orderRef = useRef<readonly string[]>(initialOrder);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set(hiddenSections));
   const [dragged, setDragged] = useState<string | null>(null);
   /**
@@ -75,31 +79,51 @@ export function SectionArrangement({
   const draggedKey = useRef<string | null>(null);
 
   const headings = new Map(sections.map((section) => [section.key, section.heading]));
+  const types = new Map(sections.map((section) => [section.key, section.type ?? "content"]));
+
+  function headingFor(key: string) {
+    return headings.get(key) ?? (isPageBreakId(key) ? "Page Break" : undefined);
+  }
+
+  function typeFor(key: string) {
+    return types.get(key) ?? (isPageBreakId(key) ? "pageBreak" : "content");
+  }
 
   function moveTo(key: string, destination: number) {
-    if (destination < 0 || destination >= order.length) return;
+    const current = orderRef.current;
+    if (destination < 0 || destination >= current.length) return;
 
     /*
-     * A functional update, and the position is recomputed from whatever the current order
-     * is rather than from the index the row rendered with. `dragover` fires many times a
-     * second, so a handler can run against an order one move behind; recomputing here means
-     * the worst case is a redundant move rather than a row landing somewhere nobody asked.
+     * Compute the next order before updating React state. Calling the parent callback from
+     * inside a functional state updater is a render-phase update and produces a warning (and
+     * can become an error in stricter React scheduling). The ref keeps dragover moves based on
+     * the latest order without requiring a parent render between events.
      */
-    setOrder((current) => {
-      const from = current.indexOf(key);
-      if (from === -1 || from === destination) return current;
-
-      const next = [...current];
-      next.splice(from, 1);
-      next.splice(destination, 0, key);
-      onConfigurationChange?.(next, [...hidden]);
-
-      return next;
-    });
+    const from = current.indexOf(key);
+    if (from === -1 || from === destination) return;
+    const next = [...current];
+    next.splice(from, 1);
+    next.splice(destination, 0, key);
+    orderRef.current = next;
+    setOrder(next);
+    onConfigurationChange?.(next, [...hidden]);
 
     setAnnouncement(
-      `${headings.get(key) ?? "Section"} moved to position ${destination + 1} of ${order.length}.`,
+      `${headingFor(key) ?? "Section"} moved to position ${destination + 1} of ${current.length}.`,
     );
+  }
+
+  function clone(key: string) {
+    if (typeFor(key) !== "pageBreak") return;
+    const source = orderRef.current;
+    const copy = createClonedPageBreakId(source);
+    const index = source.indexOf(key);
+    if (index < 0) return;
+    const next = [...source.slice(0, index + 1), copy, ...source.slice(index + 1)];
+    orderRef.current = next;
+    setOrder(next);
+    onConfigurationChange?.(next, [...hidden]);
+    setAnnouncement("Page Break cloned.");
   }
 
   function toggle(key: string) {
@@ -109,11 +133,11 @@ export function SectionArrangement({
     else next.delete(key);
 
     setHidden(next);
-    onConfigurationChange?.([...order], [...next]);
+    onConfigurationChange?.([...orderRef.current], [...next]);
     setAnnouncement(
       willHide
-        ? `${headings.get(key) ?? "Section"} will be left out of this document.`
-        : `${headings.get(key) ?? "Section"} will be included.`,
+        ? `${headingFor(key) ?? "Section"} will be left out of this document.`
+        : `${headingFor(key) ?? "Section"} will be included.`,
     );
   }
 
@@ -121,7 +145,7 @@ export function SectionArrangement({
     <div className={styles.arrangement}>
       <ul className={styles.list}>
         {order.map((key, index) => {
-          const heading = headings.get(key);
+          const heading = headingFor(key);
           /* A key in the order that this document no longer offers: skip it rather than
            * render an empty row. It stays in the submitted order, so nothing is lost. */
           if (heading === undefined) {
@@ -191,6 +215,9 @@ export function SectionArrangement({
               </label>
 
               <span className={styles.position}>{index + 1}</span>
+              {typeFor(key) === "pageBreak" ? (
+                <button onClick={() => clone(key)} type="button">Clone</button>
+              ) : null}
 
               <span className={styles.moves}>
                 <button
