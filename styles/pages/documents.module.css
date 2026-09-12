@@ -587,19 +587,13 @@
 }
 
 /*
-   The workspace: controls and the sheet.
-
-   The sheet sits outside .narrow so it can reach its full A4 measure (210mm ≈
-   794px) while the surrounding text stays at a comfortable reading width. The
-   document is the visual hero; the page furniture around it stays narrow.
-
-   One column by default and two only when there is room for both, because the
-   sheet's measure is a physical width — putting controls alongside it any
-   earlier would shrink the document rather than the furniture.
+   The workspace is a document editor, not a widened mobile form. Desktop keeps
+   controls and the live paper visible together; only narrow screens use the
+   preview/customize modal affordances.
 */
 .workspace {
   display: grid;
-  gap: var(--ds-space-lg);
+  gap: var(--ds-space-xl);
   margin-top: var(--ds-space-lg);
   padding-bottom: var(--ds-space-lg);
 }
@@ -715,18 +709,29 @@
 
 @media (min-width: 64rem) {
   .workspace {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 20rem);
+    grid-template-columns: minmax(18rem, 22rem) minmax(38rem, 1fr);
     align-items: start;
   }
 
   /*
-     Sticky, because a three-page document scrolls a long way and the controls
-     that change it should not be left behind at the top. Only at this width: in
-     one column the controls already sit directly above the sheet.
+     The DOM keeps the preview first for narrow-screen flow, while desktop uses
+     explicit placement so controls remain in the narrow left track and the
+     live document occupies the wide right track.
   */
   .workspaceControls {
+    grid-column: 1;
+    grid-row: 1;
     position: sticky;
     top: var(--ds-space-lg);
+    max-height: calc(100vh - 2 * var(--ds-space-lg));
+    overflow: auto;
+    padding-right: var(--ds-space-xs);
+  }
+
+  .workspacePreview {
+    grid-column: 2;
+    grid-row: 1;
+    min-height: 40rem;
   }
 }
 
@@ -773,7 +778,22 @@
   }
 }
 
-@media (max-width: 63.99rem) {
+@media (min-width: 48.0625rem) and (max-width: 63.99rem) {
+  .workspace {
+    grid-template-columns: minmax(15rem, 18rem) minmax(0, 1fr);
+    gap: var(--ds-space-lg);
+  }
+
+  .workspaceControls {
+    order: 1;
+  }
+
+  .workspacePreview {
+    order: 2;
+  }
+}
+
+@media (max-width: 47.99rem) {
   .workspace {
     grid-template-columns: 1fr;
   }
@@ -787,7 +807,7 @@
   }
 }
 
-@media (max-width: 48rem) {
+@media (max-width: 47.99rem) {
   .page {
     padding-top: var(--ds-space-md);
   }
@@ -875,7 +895,7 @@
   }
 }
 
-@media (max-height: 36rem) and (max-width: 48rem) {
+@media (max-height: 36rem) and (max-width: 47.99rem) {
   .previewFullscreen {
     padding-block: var(--ds-space-xs);
   }
