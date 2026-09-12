@@ -1,261 +1,88 @@
 /**
- * The document, as a sheet of paper.
+ * Physical document preview.
  *
- * This is the **presentation** layer in the chain
- * `dossier → composition → presentation`. It receives a {@link ComposedDocument}
- * and nothing else: no profile, no session, no database handle. Every decision
- * about which sections appear and what their lines say was already made by the
- * composition layer, so this file contains no product judgement — only markup and
- * type.
- *
- * That boundary is what makes the preview trustworthy. Because this component
- * cannot reach the dossier, it cannot quietly add, reorder or infer anything the
- * composition layer did not put in front of it, and the same input always produces
- * the same sheet. It is also why the eventual PDF renderer can consume the same
- * `ComposedDocument` and be held to producing the same output.
- *
- * Deliberately a server component: it holds no state, has no interactivity, and
- * shipping a career document's contents to the client as a hydration payload would
- * be pure cost.
+ * The preview and PDF renderer both consume the canonical presentation model and
+ * its shared physical page plan. A preview sheet is therefore a real A4/Letter
+ * page, not an arrangement group, and every natural or explicit boundary is the
+ * same boundary the PDF renderer receives.
  */
 
 import type { CSSProperties } from "react";
-import { isHttpUrl } from "@/profile/validation";
-import { isPageBreakId } from "@/documents/arrangement";
-import type {
-  ComposedDetail,
-  ComposedDocument,
-  ComposedEntry,
-  ComposedSection,
-} from "../composition";
-import {
-  presentationStylePaperMetrics,
-  type DocumentEntryLayout,
-  type PresentationStyle,
-} from "../presentation";
+import type { ComposedDocument } from "../composition";
+import { compilePresentationModel, PRESENTATION_CONTRACT_VERSION } from "../export-presentation";
+import { paginatePresentation } from "../presentation-pagination";
+import type { PresentationStyle } from "../presentation";
 import styles from "@/styles/ui/document-preview.module.css";
-
-/**
- * Contacts and inline values arrive as arrays and are joined here rather than in
- * the composition layer, because a separator is a visual decision. `·` for facts
- * that are unrelated, `,` for members of one list.
- */
-const FACT_SEPARATOR = " · ";
-const LIST_SEPARATOR = ", ";
 
 export type DocumentPreviewProps = {
   document: ComposedDocument;
   presentationStyle: PresentationStyle;
 };
 
-function pageGroups(document: ComposedDocument) {
-  const sections = new Map(document.sections.map((section) => [section.key, section]));
-  const groups: ComposedSection[][] = [[]];
-  let pendingBreak = false;
-  for (const key of document.arrangement ?? document.sections.map((section) => section.key)) {
-    if (isPageBreakId(key)) {
-      if (groups[0].length > 0) pendingBreak = true;
-      continue;
-    }
-    const section = sections.get(key as ComposedSection["key"]);
-    if (!section) continue;
-    if (pendingBreak && groups[0].length > 0) groups.unshift([]);
-    pendingBreak = false;
-    groups[0].push(section);
-  }
-  return groups.reverse();
-}
-
-export function DocumentPreview({
-  document: composed,
-  presentationStyle,
-}: DocumentPreviewProps) {
-  const { header, sections } = composed;
-
-  /*
-   * The Presentation Style becomes custom properties on the sheet, and inheritance
-   * carries them to every rule that reads a `--doc-*` value. Applying it as one inline
-   * style rather than a class per style is what keeps the stylesheet from growing a
-   * copy of every rule for each style — and it is why adding a Presentation Style
-   * is a data change in presentation.ts rather than a CSS change here.
-   *
-   * Paper width is derived rather than stored, so `paper` stays the single place
-   * that decides page size for both this view and, later, the PDF page box.
-   */
-  const paper = presentationStylePaperMetrics(presentationStyle);
+export function DocumentPreview({ document, presentationStyle }: DocumentPreviewProps) {
+  const model = compilePresentationModel({
+    document,
+    presentationContractVersion: PRESENTATION_CONTRACT_VERSION,
+    presentationStyleId: presentationStyle.id,
+  });
+  const pages = paginatePresentation(model);
   const sheetStyle = {
-    ...presentationStyle.variables,
-    "--doc-paper-width": paper.width,
-    "--doc-paper-height": paper.height,
+    "--doc-paper-width-points": model.paper.widthPoints,
+    "--doc-paper-height-points": model.paper.heightPoints,
   } as CSSProperties;
 
   return (
     <div className={styles.pages}>
-      {pageGroups(composed).map((sections, pageIndex, pages) => (
-        <div aria-label={`Document preview, page ${pageIndex + 1} of ${pages.length}`} className={styles.page} key={pageIndex}>
+      {pages.map((page, pageIndex) => (
+        <div
+          aria-label={`Document preview, page ${pageIndex + 1} of ${pages.length}`}
+          className={styles.page}
+          key={pageIndex}
+        >
           <div className={styles.pageIndicator}>Page {pageIndex + 1} of {pages.length}</div>
-          <article
-      /*
-       * `document-frame` and `document-font`/`document-body` are the global
-       * classes typography.css already defines for this component. Reusing them
-       * rather than restating the type here is what keeps the preview and the
-       * print/PDF output describable as the same document.
-       */
-      className={[
-        styles.sheet,
-        presentationStyle.numberedSections ? styles.numbered : "",
-        "document-frame document-font document-body",
-      ]
-        .filter(Boolean)
-        .join(" ")}
-      style={sheetStyle}
-    >
-      {pageIndex === 0 && (header.name || header.headline || header.contacts.length > 0) ? (
-        <header className={styles.masthead}>
-          {header.name ? <h2 className={styles.name}>{header.name}</h2> : null}
-          {header.headline ? <p className={styles.headline}>{header.headline}</p> : null}
-          {header.contacts.length > 0 ? (
-            <p className={styles.contacts}>{header.contacts.join(FACT_SEPARATOR)}</p>
-          ) : null}
-        </header>
-      ) : null}
+          <article className={`${styles.sheet} document-frame`} style={sheetStyle}>
+            {page.blocks.map((block, blockIndex) => {
+              const blockStyle = {
+                top: `${block.top}pt`,
+                left: `${model.margins.left}pt`,
+                right: `${model.margins.right}pt`,
+                height: `${block.height}pt`,
+                color: block.color,
+                fontSize: `${block.fontSize}pt`,
+                fontWeight: block.bold ? 700 : 400,
+                lineHeight: `${block.lineHeight}pt`,
+              } as CSSProperties;
+              const content = block.lines.map((line, lineIndex) => (
+                <span className={line.bullet ? styles.bulletLine : styles.line} key={lineIndex}>
+                  {line.bullet ? <span aria-hidden="true" className={styles.bullet}>•</span> : null}
+                  {line.text}
+                </span>
+              ));
 
-      {sections.map((section) => (
-        <section key={section.key} className={styles.section}>
-          <h3 className={`${styles.sectionTitle} document-section-title`}>{section.heading}</h3>
-          <SectionBody section={section} entryLayout={presentationStyle.entryLayout} />
-        </section>
-      ))}
+              return block.source.kind === "link" ? (
+                <a
+                  className={`${styles.block} ${styles.link}`}
+                  href={block.source.url}
+                  key={`${blockIndex}-${block.top}`}
+                  rel="noopener noreferrer nofollow"
+                  style={blockStyle}
+                  target="_blank"
+                >
+                  {content}
+                </a>
+              ) : (
+                <div
+                  className={`${styles.block} ${block.source.kind === "text" && block.source.role === "heading" ? styles.heading : ""}`}
+                  key={`${blockIndex}-${block.top}`}
+                  style={blockStyle}
+                >
+                  {content}
+                </div>
+              );
+            })}
           </article>
         </div>
       ))}
     </div>
-  );
-}
-
-function SectionBody({
-  section,
-  entryLayout,
-}: {
-  section: ComposedSection;
-  entryLayout: DocumentEntryLayout;
-}) {
-  switch (section.layout) {
-    case "prose":
-      return <Detail detail={section.body} className={styles.prose} />;
-
-    case "entries":
-      return (
-        <ul className={styles.entries}>
-          {section.entries.map((entry, index) => (
-            <li key={`${entry.title}-${index}`} className={styles.entry}>
-              <Entry entry={entry} layout={entryLayout} />
-            </li>
-          ))}
-        </ul>
-      );
-
-    case "inline":
-      return <p className={styles.inlineItems}>{section.items.join(FACT_SEPARATOR)}</p>;
-
-    case "grouped":
-      return (
-        <>
-          {section.groups.map((group) => (
-            <p key={group.label} className={styles.group}>
-              <span className={styles.groupLabel}>{group.label}: </span>
-              {group.items.join(LIST_SEPARATOR)}
-            </p>
-          ))}
-        </>
-      );
-  }
-}
-
-/**
- * One entry, in whichever of the two reference arrangements the Presentation Style asks for.
- *
- * Both branches render the same four values from the same composed entry — only
- * the order and grouping of the elements differ. That is the boundary holding: a
- * Presentation Style can rearrange what a document shows, and cannot change it. Nothing
- * is dropped in either arrangement, so switching Presentation Style never loses information.
- */
-function Entry({ entry, layout }: { entry: ComposedEntry; layout: DocumentEntryLayout }) {
-  const title = <h4 className={styles.entryTitle}>{entry.title}</h4>;
-  const meta = entry.meta ? <p className={styles.entryMeta}>{entry.meta}</p> : null;
-  const subtitle = entry.subtitle ? <p className={styles.entrySubtitle}>{entry.subtitle}</p> : null;
-
-  return (
-    <>
-      {layout === "split" ? (
-        <>
-          {/* Dates flush right beside the title; the organisation drops below. */}
-          <div className={styles.entryHead}>
-            {title}
-            {meta}
-          </div>
-          {subtitle}
-        </>
-      ) : (
-        <>
-          {title}
-          {subtitle}
-          {meta}
-        </>
-      )}
-      {entry.detail ? <Detail detail={entry.detail} className={styles.entryDetail} /> : null}
-      {entry.url ? <Url url={entry.url} /> : null}
-    </>
-  );
-}
-
-/**
- * The user's own text. Bullet lists and paragraphs both come from the global
- * document classes so that a bullet in the preview is the same bullet the print
- * stylesheet draws.
- */
-function Detail({ detail, className }: { detail: ComposedDetail; className?: string }) {
-  if (detail.kind === "bullets") {
-    return (
-      <ul className={`${className ?? ""} document-list`}>
-        {detail.lines.map((line, index) => (
-          <li key={`${index}-${line}`} className="document-bullet">
-            {line}
-          </li>
-        ))}
-      </ul>
-    );
-  }
-
-  return (
-    <div className={className}>
-      {detail.lines.map((line, index) => (
-        <p key={`${index}-${line}`} className="document-paragraph">
-          {line}
-        </p>
-      ))}
-    </div>
-  );
-}
-
-/**
- * A link the user supplied.
- *
- * The protocol is re-checked here even though the profile forms already validate
- * it. Rendering an arbitrary stored string into `href` is the one place this
- * component could turn a database value into executable navigation, so it is
- * checked at the point of use rather than trusted from three layers away. Anything
- * that is not http(s) is still shown — the user typed it, and hiding it would look
- * like data loss — just not as something clickable.
- */
-function Url({ url }: { url: string }) {
-  if (!isHttpUrl(url)) {
-    return <p className={styles.entryMeta}>{url}</p>;
-  }
-
-  return (
-    <a className={styles.entryLink} href={url} rel="noopener noreferrer nofollow" target="_blank">
-      {url}
-    </a>
   );
 }
