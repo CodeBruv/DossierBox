@@ -211,13 +211,15 @@ describe("document families", () => {
  */
 describe("document content overrides", () => {
   it("validates supported typed overrides and rejects unsupported shapes", () => {
-    expect(parseDocumentContentOverrides({
+    const overrides = {
       header: { name: "Edited name" },
       sections: {
         summary: { body: { kind: "paragraphs", lines: ["Edited summary"] } },
         experience: { entries: [{ title: "Edited role", subtitle: "Edited company", meta: "2025", detail: null, url: null }] },
       },
-    })).not.toBeNull();
+    };
+    expect(parseDocumentContentOverrides(overrides)).not.toBeNull();
+    expect(parseDocumentContentOverrides(JSON.stringify(overrides))).toEqual(overrides);
     expect(parseDocumentContentOverrides({ sections: { summary: { entries: [] } } })).toBeNull();
     expect(parseDocumentContentOverrides({ sections: { skills: { items: [] } } })).toBeNull();
     expect(parseDocumentContentOverrides({ sections: { unknown: { heading: "No" } } })).toBeNull();
