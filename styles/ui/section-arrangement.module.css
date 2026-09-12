@@ -27,7 +27,7 @@
 
 .row {
   display: grid;
-  grid-template-columns: auto 1fr auto auto;
+  grid-template-columns: auto 1fr auto auto auto;
   min-height: 3rem;
   align-items: center;
   gap: var(--ds-space-2xs);
@@ -108,6 +108,58 @@
   font-size: var(--ds-text-sm);
   font-variant-numeric: tabular-nums;
   text-align: right;
+}
+
+.actions {
+  position: relative;
+}
+
+.actions summary {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: var(--ds-border-radius-sm);
+  color: var(--ds-color-text-secondary);
+  cursor: pointer;
+  list-style: none;
+  font-size: 1.25rem;
+}
+
+.actions summary::-webkit-details-marker {
+  display: none;
+}
+
+.actionMenu {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  display: grid;
+  min-width: 7rem;
+  gap: 0.125rem;
+  padding: var(--ds-space-3xs);
+  border: 1px solid var(--ds-color-border-default);
+  background: var(--ds-color-surface);
+  box-shadow: var(--ds-shadow-card);
+}
+
+.actionMenu button {
+  border: 0;
+  padding: var(--ds-space-2xs) var(--ds-space-xs);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.actionMenu button:hover {
+  background: var(--ds-color-surface-subtle);
+}
+
+.inlineEditor {
+  grid-column: 1 / -1;
+  padding: var(--ds-space-sm) 0 var(--ds-space-xs) 2rem;
 }
 
 .moves {
