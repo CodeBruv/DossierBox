@@ -37,6 +37,19 @@
 
 .page {
   min-width: 0;
+  padding: var(--ds-space-sm);
+  border: 1px solid var(--ds-color-border-default);
+  border-radius: var(--ds-border-radius-sm);
+  background: var(--ds-color-background);
+}
+
+.pageIndicator {
+  margin: 0 auto var(--ds-space-xs);
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-text-sm);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: center;
 }
 
 .sheet {
