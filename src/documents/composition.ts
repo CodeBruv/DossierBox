@@ -33,6 +33,7 @@
  * without a database, a request, or a browser.
  */
 
+import { contentOrderFromArrangement, normalizeArrangement } from "./arrangement";
 import type {
   DossierAchievement,
   DossierCredential,
@@ -124,6 +125,8 @@ export type ComposedDocument = {
   type: DocumentTypeKey;
   header: ComposedHeader;
   sections: ComposedSection[];
+  /** Ordered heterogeneous document items, including reusable page-break items. */
+  arrangement?: readonly string[];
 };
 
 /**
@@ -323,7 +326,7 @@ export type DocumentConfiguration = {
    * `orderSections`.
    */
   sectionOrder?: readonly string[];
-  /** Section keys that begin on a fresh page in the user's arrangement. */
+  /** Legacy boundary values read only to normalize older documents. */
   pageBreaks?: readonly string[];
   /** Validated, document-owned edits applied after Dossier composition. */
   contentOverrides?: DocumentContentOverrides;
@@ -386,13 +389,21 @@ export function composeStructuredDocument({
     throw new Error("Selected Evidence must have stable identifiers.");
   }
 
+  const knownContent = orderSections(documentType, []);
+  const arrangement = normalizeArrangement(
+    configuration.sectionOrder ?? [],
+    knownContent,
+    configuration.pageBreaks ?? [],
+  );
   const hidden = new Set(configuration.hiddenSections ?? []);
   const composed = {
     type: documentType,
     header: { ...content.header, contacts: [...content.header.contacts] },
-    sections: orderSections(documentType, configuration.sectionOrder ?? []).flatMap((key) =>
-      hidden.has(key) ? [] : content.sections[key] ? [content.sections[key]] : [],
-    ),
+    arrangement,
+    sections: contentOrderFromArrangement(arrangement).flatMap((key) => {
+      const section = content.sections[key as ComposedSectionKey];
+      return hidden.has(key) ? [] : section ? [section] : [];
+    }),
   } satisfies ComposedDocument;
 
   return applyDocumentContentOverrides(composed, configuration.contentOverrides);
