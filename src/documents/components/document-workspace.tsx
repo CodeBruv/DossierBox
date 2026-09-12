@@ -70,6 +70,11 @@ export function DocumentWorkspace({
     return section ? [{ key: section.key, heading: section.heading, type: "content" }] : [];
   });
   const [contentOverrides, setContentOverrides] = useState<DocumentContentOverrides>(initialOverrides as DocumentContentOverrides);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const applyArrangement = (order: readonly string[], hidden: readonly string[]) => {
+    setSectionOrder(order);
+    setHiddenSections(hidden);
+  };
   const [previewOpen, setPreviewOpen] = useState(false);
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const previewTriggerRef = useRef<HTMLButtonElement>(null);
@@ -96,6 +101,13 @@ export function DocumentWorkspace({
   const closePreview = () => {
     setPreviewOpen(false);
     previewTriggerRef.current?.focus();
+  };
+  const deletePageBreak = (key: string) => {
+    if (!isPageBreakId(key) || key === "page-break:default") return;
+    const nextOrder = sectionOrder.filter((item) => item !== key);
+    const nextHidden = hiddenSections.filter((item) => item !== key);
+    applyArrangement(nextOrder, nextHidden);
+    setEditingKey((current) => current === key ? null : current);
   };
   const style = resolvePresentationStyle(styleId, documentType);
   const composed = composeEvidenceBoundDocument(documentType, snapshot, selectedEvidence, { hiddenSections, sectionOrder, contentOverrides });
@@ -157,13 +169,16 @@ export function DocumentWorkspace({
                 <p className={settings.hint}>Choose what appears and arrange the order. Your Dossier stays unchanged.</p>
                 <SectionArrangement
                   hiddenSections={hiddenSections}
-                  onConfigurationChange={(order, hidden) => { setSectionOrder(order); setHiddenSections(hidden); }}
+                  editingKey={editingKey}
+                  onDelete={deletePageBreak}
+                  onEdit={(key) => setEditingKey((current) => current === key ? null : key)}
+                  onConfigurationChange={applyArrangement}
+                  renderEditor={(key) => {
+                    const section = composed.sections.find((candidate) => candidate.key === key);
+                    return section ? <SectionEditor section={section} overrides={contentOverrides} onChange={setContentOverrides} /> : null;
+                  }}
                   sections={arrangementSections}
                 />
-                <div className={settings.field}>
-                  <p className={settings.label}>Document content</p>
-                  {composed.sections.map((section) => <SectionEditor key={section.key} section={section} overrides={contentOverrides} onChange={setContentOverrides} />)}
-                </div>
               </details>
             ) : null}
 
