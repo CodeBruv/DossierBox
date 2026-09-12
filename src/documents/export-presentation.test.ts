@@ -9,6 +9,7 @@ const document: ComposedDocument = {
     { key: "experience", heading: "Experience", layout: "entries", entries: [{ title: "Senior Engineer", subtitle: "Acme", meta: "Jan 2020 · Current", detail: { kind: "bullets", lines: ["Built resilient systems"] }, url: "https://example.com" }] },
     { key: "skills", heading: "Skills", layout: "inline", items: ["TypeScript", "Unicode · safe"] },
   ],
+  arrangement: ["experience", "page-break:skills", "skills"],
 };
 
 describe("authoritative presentation-v1 compiler", () => {
@@ -21,7 +22,7 @@ describe("authoritative presentation-v1 compiler", () => {
     expect(first.typography.boldFont).toContain("open-sans-latin-ext-700-normal.woff");
     expect(first.paper.widthPoints).toBeCloseTo(612);
     expect(first.blocks.some((block) => block.kind === "link")).toBe(true);
-    expect(first.blocks.map((block) => block.kind)).toEqual(["text", "text", "text", "text", "text", "text", "text", "bullet", "link", "text", "text", "text"]);
+    expect(first.blocks.map((block) => block.kind)).toEqual(["text", "text", "text", "text", "text", "text", "text", "bullet", "link", "page-break", "text", "text", "text"]);
   });
 
   it("fails closed for unknown contracts, styles, and incompatible pairings", () => {
@@ -30,12 +31,11 @@ describe("authoritative presentation-v1 compiler", () => {
     expect(() => compilePresentationModel({ document: { ...document, type: "professional_resume" }, presentationContractVersion: "presentation-v1", presentationStyleId: "constructor" })).toThrowError(PresentationCompilationError);
   });
 
-  it("emits an explicit page boundary for configured sections", () => {
+  it("emits an explicit page boundary for an arrangement Page Break item", () => {
     const model = compilePresentationModel({
       document,
       presentationContractVersion: PRESENTATION_CONTRACT_VERSION,
       presentationStyleId: "compact",
-      pageBreaks: ["skills"],
     });
     expect(model.blocks.map((block) => block.kind)).toContain("page-break");
   });
