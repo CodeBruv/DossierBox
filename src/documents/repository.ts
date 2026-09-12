@@ -198,7 +198,7 @@ export async function createDocument(
         title: documentTitle(type),
         status: "draft",
         template: input.presentationStyle ?? defaultPresentationStyleFor(type),
-        hiddenSections: input.hiddenSections ?? [],
+        hiddenSections: input.hiddenSections ?? [DEFAULT_PAGE_BREAK_ID],
         sectionOrder: input.sectionOrder?.length ? input.sectionOrder : [DEFAULT_PAGE_BREAK_ID],
         pageBreaks: [],
         contentOverrides: input.contentOverrides ?? {},
@@ -253,6 +253,7 @@ export async function getOrCreateOwnedMemberDocument(userId: string, memberId: s
         title: catalogueDocumentTypeLabel(member.member.documentType),
         status: "draft",
         template: defaultPresentationStyleFor(member.member.documentType),
+        hiddenSections: [DEFAULT_PAGE_BREAK_ID],
         sectionOrder: [DEFAULT_PAGE_BREAK_ID],
       })
       .returning();
