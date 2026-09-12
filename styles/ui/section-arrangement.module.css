@@ -27,7 +27,7 @@
 
 .row {
   display: grid;
-  grid-template-columns: auto 1fr auto auto auto;
+  grid-template-columns: auto 1fr auto;
   min-height: 3rem;
   align-items: center;
   gap: var(--ds-space-2xs);
@@ -65,20 +65,6 @@
 
 .row:active .grip {
   cursor: grabbing;
-}
-
-.visibility {
-  display: flex;
-  min-width: 0;
-  min-height: 2.75rem;
-  align-items: center;
-  gap: var(--ds-space-xs);
-  cursor: pointer;
-}
-
-.visibility:has(input:focus-visible) {
-  outline: var(--ds-focus-ring);
-  outline-offset: 0.125rem;
 }
 
 .heading {
