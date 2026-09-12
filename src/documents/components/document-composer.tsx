@@ -39,7 +39,7 @@ export function DocumentComposer({ type, applicationId, snapshot, createAction }
   const [sectionOrder, setSectionOrder] = useState<readonly string[]>(() =>
     [...initialSections.map((section) => section.key), DEFAULT_PAGE_BREAK_ID],
   );
-  const [hiddenSections, setHiddenSections] = useState<readonly string[]>([]);
+  const [hiddenSections, setHiddenSections] = useState<readonly string[]>([DEFAULT_PAGE_BREAK_ID]);
 
   const composed = composeDocument(type, snapshot, { hiddenSections, sectionOrder });
   const selectedPresentationStyle = resolvePresentationStyle(presentationStyle, type);
