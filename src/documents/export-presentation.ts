@@ -1,4 +1,5 @@
 import type { ComposedDocument, ComposedEntry, ComposedSection } from "./composition";
+import { isPageBreakId } from "./arrangement";
 import {
   isPresentationStyleId,
   presentationStyleSuitsType,
@@ -40,7 +41,6 @@ export function compilePresentationModel(input: {
   document: ComposedDocument;
   presentationContractVersion: unknown;
   presentationStyleId: unknown;
-  pageBreaks?: readonly string[];
 }): PresentationModel {
   if (input.presentationContractVersion !== PRESENTATION_CONTRACT_VERSION) {
     throw new PresentationCompilationError("unsupported-contract");
@@ -63,12 +63,22 @@ export function compilePresentationModel(input: {
   addText(input.document.header.headline, "headline");
   input.document.header.contacts.forEach((contact) => addText(contact, "contact"));
 
-  const pageBreaks = new Set(input.pageBreaks ?? []);
-  input.document.sections.forEach((section, index) => {
-    if (index > 0 && pageBreaks.has(section.key)) blocks.push({ kind: "page-break" });
-    addText(`${style.numberedSections ? `${index + 1}. ` : ""}${section.heading}`, "heading", { bold: true });
+  const sections = new Map(input.document.sections.map((section) => [section.key, section]));
+  let contentCount = 0;
+  let pendingBreak = false;
+  for (const key of input.document.arrangement ?? input.document.sections.map((section) => section.key)) {
+    if (isPageBreakId(key)) {
+      if (contentCount > 0) pendingBreak = true;
+      continue;
+    }
+    const section = sections.get(key as ComposedSection["key"]);
+    if (!section) continue;
+    if (pendingBreak && blocks.length > 0) blocks.push({ kind: "page-break" });
+    pendingBreak = false;
+    addText(`${style.numberedSections ? `${contentCount + 1}. ` : ""}${section.heading}`, "heading", { bold: true });
     appendSection(blocks, section, style.entryLayout);
-  });
+    contentCount += 1;
+  }
 
   return {
     contractVersion: PRESENTATION_CONTRACT_VERSION,
