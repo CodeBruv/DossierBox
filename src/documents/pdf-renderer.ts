@@ -2,6 +2,7 @@ import PDFDocument from "pdfkit";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { PresentationModel } from "./export-presentation";
+import { paginatePresentation } from "./presentation-pagination";
 
 const FONT_ROOT = join(process.cwd(), "node_modules", "@fontsource", "open-sans", "files");
 const MAX_BLOCKS = 10_000;
@@ -11,6 +12,7 @@ export async function renderPresentationPdf(model: PresentationModel): Promise<B
   const regular = join(FONT_ROOT, model.typography.regularFont);
   const bold = join(FONT_ROOT, model.typography.boldFont);
   if (!existsSync(regular) || !existsSync(bold)) throw new PdfRenderError("font-unavailable");
+  const pages = paginatePresentation(model);
 
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
@@ -18,7 +20,7 @@ export async function renderPresentationPdf(model: PresentationModel): Promise<B
       size: [model.paper.widthPoints, model.paper.heightPoints],
       margins: model.margins,
       info: { Title: "DossierBox document", Producer: "DossierBox PDF renderer", CreationDate: new Date(0) },
-      autoFirstPage: true,
+      autoFirstPage: false,
       compress: true,
     });
     pdf.on("data", (chunk: Buffer) => chunks.push(chunk));
@@ -27,39 +29,29 @@ export async function renderPresentationPdf(model: PresentationModel): Promise<B
 
     pdf.registerFont("regular", regular);
     pdf.registerFont("bold", bold);
-    pdf.fillColor(model.colors.ink);
-    let hasContentOnPage = false;
-    for (const [index, block] of model.blocks.entries()) {
-      if (block.kind === "page-break") {
-        // A natural PDFKit wrap may already have placed the next content on a
-        // fresh page. Do not add another empty page in that case.
-        if (hasContentOnPage) pdf.addPage();
-        hasContentOnPage = false;
-        continue;
+    for (const page of pages) {
+      pdf.addPage({ size: [model.paper.widthPoints, model.paper.heightPoints], margins: model.margins });
+      for (const block of page.blocks) {
+        pdf.font(block.bold ? "bold" : "regular").fontSize(block.fontSize).fillColor(block.color);
+        block.lines.forEach((line, index) => {
+          const bulletIndent = line.bullet ? block.fontSize * 1.25 : 0;
+          if (line.bullet) {
+            pdf.font("bold").text("•", model.margins.left, block.top + index * block.lineHeight, {
+              width: block.fontSize,
+              height: block.lineHeight,
+              lineBreak: false,
+            });
+            pdf.font(block.bold ? "bold" : "regular");
+          }
+          pdf.text(line.text, model.margins.left + bulletIndent, block.top + index * block.lineHeight, {
+            width: model.paper.widthPoints - model.margins.left - model.margins.right - bulletIndent,
+            height: block.lineHeight,
+            lineBreak: false,
+            underline: block.source.kind === "link",
+            link: block.source.kind === "link" ? block.source.url : undefined,
+          });
+        });
       }
-      const isHeading = block.kind === "text" && block.role === "heading";
-      const next = model.blocks[index + 1];
-      // Keep a section heading with at least its first content block. PDFKit will
-      // still flow long content naturally, but a heading at the bottom of a page
-      // is moved before it is drawn.
-      if (isHeading && next && pdf.y > pdf.page.height - pdf.page.margins.bottom - model.typography.headingSize * 3 && hasContentOnPage) {
-        pdf.addPage();
-        hasContentOnPage = false;
-      }
-      if (block.kind === "link") {
-        pdf.font("regular").fontSize(model.typography.bodySize).fillColor(model.colors.accent).text(block.text, { link: block.url, underline: true, paragraphGap: model.spacing.paragraphAfter });
-        pdf.fillColor(model.colors.ink);
-        continue;
-      }
-      if (block.kind === "bullet") {
-        pdf.font("regular").fontSize(model.typography.bodySize).fillColor(model.colors.ink).text(`• ${block.text}`, { paragraphGap: model.spacing.paragraphAfter, lineGap: model.typography.bodySize * (model.typography.lineHeight - 1) });
-        continue;
-      }
-      const isName = block.role === "name";
-      pdf.font(block.bold || isHeading || isName ? "bold" : "regular").fontSize(isName ? model.typography.nameSize : isHeading ? model.typography.headingSize : model.typography.bodySize).fillColor(isName ? model.colors.accent : block.role === "meta" ? model.colors.muted : model.colors.ink);
-      pdf.text(block.text, { paragraphGap: isHeading ? model.spacing.sectionAfter : block.role === "body" ? model.spacing.paragraphAfter : 2, lineGap: model.typography.bodySize * (model.typography.lineHeight - 1) });
-      if (isHeading) pdf.moveDown(model.spacing.sectionBefore / model.typography.bodySize);
-      hasContentOnPage = true;
     }
     pdf.end();
   });
