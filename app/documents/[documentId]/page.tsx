@@ -160,19 +160,24 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
             </div>
           </div>
         ) : draftRead ? (
-          <DocumentWorkspace
-            documentId={document.id}
-            documentType={document.type}
-            hiddenSections={document.hiddenSections}
-            pageBreaks={document.pageBreaks}
-            contentOverrides={document.contentOverrides}
-            presentationStyle={presentationStyle.id}
-            saveAction={updateDocumentAction}
-            sectionOrder={document.sectionOrder}
-            selectedEvidence={draftRead.selectedEvidence}
-            snapshot={draftRead.snapshot}
-            title={document.title}
-          />
+          <>
+            <DocumentWorkspace
+              documentId={document.id}
+              documentType={document.type}
+              hiddenSections={document.hiddenSections}
+              pageBreaks={document.pageBreaks}
+              contentOverrides={document.contentOverrides}
+              presentationStyle={presentationStyle.id}
+              saveAction={updateDocumentAction}
+              sectionOrder={document.sectionOrder}
+              selectedEvidence={draftRead.selectedEvidence}
+              snapshot={draftRead.snapshot}
+              title={document.title}
+            />
+            <div className={styles.narrow} data-print-skip>
+              <a className={styles.primaryButton} href={`/api/documents/${document.id}/export`}>Export PDF</a>
+            </div>
+          </>
         ) : (
           <div className={styles.workspacePreview}>
             <DocumentPreview document={composed!} presentationStyle={presentationStyle} />
