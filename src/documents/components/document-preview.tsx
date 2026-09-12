@@ -53,7 +53,7 @@ function pageGroups(document: ComposedDocument) {
   const groups: ComposedSection[][] = [[]];
   let pendingBreak = false;
   for (const key of document.arrangement ?? document.sections.map((section) => section.key)) {
-    if (key.startsWith("page-break:") ) {
+    if (isPageBreakId(key)) {
       if (groups[0].length > 0) pendingBreak = true;
       continue;
     }
@@ -82,9 +82,11 @@ export function DocumentPreview({
    * Paper width is derived rather than stored, so `paper` stays the single place
    * that decides page size for both this view and, later, the PDF page box.
    */
+  const paper = presentationStylePaperMetrics(presentationStyle);
   const sheetStyle = {
     ...presentationStyle.variables,
-    "--doc-paper-width": presentationStylePaperMetrics(presentationStyle).width,
+    "--doc-paper-width": paper.width,
+    "--doc-paper-height": paper.height,
   } as CSSProperties;
 
   return (
