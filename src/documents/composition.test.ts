@@ -7,6 +7,7 @@ import {
 import { profileSectionKeys } from "@/profile/types";
 import { experienceTypeOptions } from "@/profile/vocabularies";
 import type { DocumentType } from "./schema";
+import { DEFAULT_PAGE_BREAK_ID } from "./arrangement";
 import {
   applyDocumentContentOverrides,
   composableSections,
@@ -781,6 +782,36 @@ describe("structured composition boundary", () => {
     });
 
     expect(result.sections.map((section) => section.key)).toEqual(["experience"]);
+  });
+
+  it("removes a hidden Page Break from the effective arrangement", () => {
+    const result = composeStructuredDocument({
+      ...input(),
+      configuration: {
+        sectionOrder: ["summary", DEFAULT_PAGE_BREAK_ID, "experience"],
+        hiddenSections: [DEFAULT_PAGE_BREAK_ID],
+      },
+    });
+
+    const arrangement = result.arrangement ?? [];
+    expect(arrangement).not.toContain(DEFAULT_PAGE_BREAK_ID);
+    expect(arrangement.slice(0, 2)).toEqual(["summary", "experience"]);
+    expect(result.sections.map((section) => section.key).slice(0, 2)).toEqual(["summary", "experience"]);
+  });
+
+  it("keeps visible cloned Page Breaks independent and ordered", () => {
+    const result = composeStructuredDocument({
+      ...input(),
+      configuration: {
+        sectionOrder: ["summary", "page-break:copy-1", "experience", "page-break:copy-2"],
+        hiddenSections: ["page-break:copy-2"],
+      },
+    });
+
+    expect(result.arrangement).toContain("page-break:copy-1");
+    expect(result.arrangement).not.toContain("page-break:copy-2");
+    const arrangement = result.arrangement ?? [];
+    expect(arrangement.indexOf("page-break:copy-1")).toBeLessThan(arrangement.indexOf("experience"));
   });
 
   it("rejects a specification for a different document type", () => {
