@@ -40,6 +40,26 @@ describe("authoritative presentation-v1 compiler", () => {
     expect(model.blocks.map((block) => block.kind)).toContain("page-break");
   });
 
+  it("does not emit a trailing page boundary", () => {
+    const model = compilePresentationModel({
+      document: { ...document, arrangement: ["experience", "page-break:trailing"] },
+      presentationContractVersion: PRESENTATION_CONTRACT_VERSION,
+      presentationStyleId: "compact",
+    });
+
+    expect(model.blocks.map((block) => block.kind)).not.toContain("page-break");
+  });
+
+  it("does not let a hidden Page Break affect an already composed document", () => {
+    const model = compilePresentationModel({
+      document: { ...document, arrangement: ["experience", "skills"] },
+      presentationContractVersion: PRESENTATION_CONTRACT_VERSION,
+      presentationStyleId: "compact",
+    });
+
+    expect(model.blocks.map((block) => block.kind)).not.toContain("page-break");
+  });
+
   it("normalizes text without changing semantic block ordering", () => {
     const model = compilePresentationModel({ document: { ...document, header: { ...document.header, name: "  A\tB  " } }, presentationContractVersion: "presentation-v1", presentationStyleId: "compact" });
     expect(model.blocks[0]).toMatchObject({ kind: "text", text: "A B", role: "name" });
