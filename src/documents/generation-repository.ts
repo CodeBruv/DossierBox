@@ -811,6 +811,7 @@ export async function acceptGeneratedContentVersion(input: {
         type: source.artifact.documentType as "professional_cv" | "professional_resume" | "academic_cv",
         title: input.title?.trim() || `${source.artifact.documentType} draft`,
         status: "draft",
+        sectionOrder: ["page-break:default"],
         pageBreaks: [],
         contentOverrides: {},
       }).returning();
