@@ -10,6 +10,7 @@ import {
 import { applicationIntents, applications } from "@/applications/schema";
 import { db } from "@/auth/database";
 import { composeDocument, type ComposedDocument } from "./composition";
+import { DEFAULT_PAGE_BREAK_ID } from "./arrangement";
 import { documentTypeLabel as catalogueDocumentTypeLabel } from "./catalogue";
 import { defaultPresentationStyleFor } from "./presentation";
 import { getDossierSnapshot } from "@/profile/repository";
@@ -198,8 +199,8 @@ export async function createDocument(
         status: "draft",
         template: input.presentationStyle ?? defaultPresentationStyleFor(type),
         hiddenSections: input.hiddenSections ?? [],
-        sectionOrder: input.sectionOrder ?? [],
-        pageBreaks: input.pageBreaks ?? [],
+        sectionOrder: input.sectionOrder?.length ? input.sectionOrder : [DEFAULT_PAGE_BREAK_ID],
+        pageBreaks: [],
         contentOverrides: input.contentOverrides ?? {},
         // This is a derivative compatibility snapshot, never an independently edited authority.
         objective,
@@ -252,6 +253,7 @@ export async function getOrCreateOwnedMemberDocument(userId: string, memberId: s
         title: catalogueDocumentTypeLabel(member.member.documentType),
         status: "draft",
         template: defaultPresentationStyleFor(member.member.documentType),
+        sectionOrder: [DEFAULT_PAGE_BREAK_ID],
       })
       .returning();
     if (!created) throw new Error("Document could not be created.");
