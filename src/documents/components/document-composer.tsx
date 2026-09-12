@@ -9,6 +9,7 @@ import {
   type ComposedSectionKey,
 } from "@/documents/composition";
 import { DocumentPreview } from "@/documents/components/document-preview";
+import { DEFAULT_PAGE_BREAK_ID, isPageBreakId } from "@/documents/arrangement";
 import { SectionArrangement } from "@/documents/components/section-arrangement";
 import {
   compatiblePresentationStyles,
@@ -36,7 +37,7 @@ export function DocumentComposer({ type, applicationId, snapshot, createAction }
   );
   const initialSections = composableSections(type, snapshot);
   const [sectionOrder, setSectionOrder] = useState<readonly string[]>(() =>
-    initialSections.map((section) => section.key),
+    [...initialSections.map((section) => section.key), DEFAULT_PAGE_BREAK_ID],
   );
   const [hiddenSections, setHiddenSections] = useState<readonly string[]>([]);
 
@@ -113,7 +114,10 @@ export function DocumentComposer({ type, applicationId, snapshot, createAction }
                 setSectionOrder(nextOrder);
                 setHiddenSections(nextHidden);
               }}
-              sections={initialSections}
+              sections={[
+                ...initialSections,
+                { key: DEFAULT_PAGE_BREAK_ID, heading: "Page Break", type: "pageBreak" },
+              ]}
             />
           </fieldset>
         ) : null}
