@@ -814,6 +814,8 @@ export async function acceptGeneratedContentVersion(input: {
         sectionOrder: ["page-break:default"],
         pageBreaks: [],
         contentOverrides: {},
+        typographyFamily: "open-sans",
+        typographySize: "11",
       }).returning();
       if (!created) throw new Error("Document could not be created.");
       document = created;
@@ -832,6 +834,8 @@ export async function acceptGeneratedContentVersion(input: {
       ...input.configuration,
       presentationContractVersion: "presentation-v1" as const,
       presentationStyle: input.configuration?.presentationStyle ?? document.template,
+      typographyFamily: input.configuration?.typographyFamily ?? document.typographyFamily,
+      typographySize: input.configuration?.typographySize ?? document.typographySize,
       hiddenSections: input.configuration?.hiddenSections ?? document.hiddenSections,
       sectionOrder: input.configuration?.sectionOrder ?? document.sectionOrder,
       pageBreaks: input.configuration?.pageBreaks ?? document.pageBreaks,
