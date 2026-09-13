@@ -3,6 +3,8 @@ import { isPageBreakId } from "./arrangement";
 import {
   isPresentationStyleId,
   presentationStyleSuitsType,
+  resolveDocumentTypography,
+  type DocumentTypography,
   presentationStyles,
   type PresentationStyleId,
 } from "./presentation";
@@ -25,7 +27,7 @@ export type PresentationModel = {
   readonly documentType: DocumentTypeKey;
   readonly paper: { readonly widthPoints: number; readonly heightPoints: number };
   readonly margins: { readonly top: number; readonly right: number; readonly bottom: number; readonly left: number };
-  readonly typography: { readonly family: "Open Sans"; readonly regularFont: "open-sans-latin-ext-400-normal.woff"; readonly boldFont: "open-sans-latin-ext-700-normal.woff"; readonly bodySize: number; readonly headingSize: number; readonly nameSize: number; readonly lineHeight: number };
+  readonly typography: { readonly family: DocumentTypography["family"]; readonly regularFont: string; readonly boldFont: string; readonly bodySize: number; readonly headingSize: number; readonly nameSize: number; readonly lineHeight: number };
   readonly colors: { readonly ink: string; readonly muted: string; readonly accent: string; readonly rule: string };
   readonly spacing: { readonly sectionBefore: number; readonly sectionAfter: number; readonly entryAfter: number; readonly paragraphAfter: number };
   readonly numbering: { readonly sections: boolean };
@@ -41,6 +43,7 @@ export function compilePresentationModel(input: {
   document: ComposedDocument;
   presentationContractVersion: unknown;
   presentationStyleId: unknown;
+  typography?: unknown;
 }): PresentationModel {
   if (input.presentationContractVersion !== PRESENTATION_CONTRACT_VERSION) {
     throw new PresentationCompilationError("unsupported-contract");
@@ -91,15 +94,19 @@ export function compilePresentationModel(input: {
       : a4
         ? { top: mm(16), right: mm(17), bottom: mm(16), left: mm(17) }
         : { top: mm(15), right: mm(15), bottom: mm(15), left: mm(15) },
-    typography: {
-      family: "Open Sans",
-      regularFont: "open-sans-latin-ext-400-normal.woff",
-      boldFont: "open-sans-latin-ext-700-normal.woff",
-      bodySize: input.presentationStyleId === "classic" ? 11 : 10.5,
-      headingSize: input.presentationStyleId === "compact" ? 10.5 : 11,
-      nameSize: input.presentationStyleId === "compact" ? 18 : 17,
-      lineHeight: input.presentationStyleId === "international" ? 1.4 : input.presentationStyleId === "compact" ? 1.32 : 1.34,
-    },
+    typography: (() => {
+      const typography = resolveDocumentTypography(input.typography);
+      const scale = typography.size / 11;
+      return {
+        family: typography.family,
+        regularFont: typography.family === "instrument-sans" ? "instrument-sans-latin-ext-wght-normal.woff2" : "open-sans-latin-ext-400-normal.woff",
+        boldFont: typography.family === "instrument-sans" ? "instrument-sans-latin-ext-wght-normal.woff2" : "open-sans-latin-ext-700-normal.woff",
+        bodySize: (input.presentationStyleId === "classic" ? 11 : 10.5) * scale,
+        headingSize: (input.presentationStyleId === "compact" ? 10.5 : 11) * scale,
+        nameSize: (input.presentationStyleId === "compact" ? 18 : 17) * scale,
+        lineHeight: input.presentationStyleId === "international" ? 1.4 : input.presentationStyleId === "compact" ? 1.32 : 1.34,
+      };
+    })(),
     colors: input.presentationStyleId === "compact"
       ? { ink: "#0f172a", muted: "#45556c", accent: "#1f3864", rule: "#1f3864" }
       : input.presentationStyleId === "international"
