@@ -97,6 +97,37 @@ export type PresentationStyleId = (typeof presentationStyleIds)[number];
  */
 export type DocumentEntryLayout = "stacked" | "split";
 
+export const documentFontFamilies = ["open-sans", "instrument-sans"] as const;
+export type DocumentFontFamily = (typeof documentFontFamilies)[number];
+export const documentFontSizes = [10, 11, 12] as const;
+export type DocumentFontSize = (typeof documentFontSizes)[number];
+export type DocumentTypography = {
+  readonly family: DocumentFontFamily;
+  readonly size: DocumentFontSize;
+};
+
+export const defaultDocumentTypography: DocumentTypography = {
+  family: "open-sans",
+  size: 11,
+};
+
+export function isDocumentFontFamily(value: unknown): value is DocumentFontFamily {
+  return typeof value === "string" && documentFontFamilies.includes(value as DocumentFontFamily);
+}
+
+export function isDocumentFontSize(value: unknown): value is DocumentFontSize {
+  return typeof value === "number" && documentFontSizes.includes(value as DocumentFontSize);
+}
+
+export function resolveDocumentTypography(value: unknown): DocumentTypography {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return defaultDocumentTypography;
+  const candidate = value as { family?: unknown; size?: unknown };
+  return {
+    family: isDocumentFontFamily(candidate.family) ? candidate.family : defaultDocumentTypography.family,
+    size: isDocumentFontSize(candidate.size) ? candidate.size : defaultDocumentTypography.size,
+  };
+}
+
 export type PresentationStyle = {
   id: PresentationStyleId;
   /** Shown when choosing. Describes the look, never the file it came from. */
