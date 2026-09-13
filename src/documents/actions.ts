@@ -6,7 +6,7 @@ import { requireProfileUser } from "@/profile/authorization";
 import { isAvailableDocumentType, isDocumentSectionKey } from "./catalogue";
 import { isPageBreakId } from "./arrangement";
 import { parseDocumentContentOverrides, type DocumentContentOverrides } from "./composition";
-import { isPresentationStyleId } from "./presentation";
+import { isDocumentFontFamily, isDocumentFontSize, isPresentationStyleId } from "./presentation";
 import { createDocument, deleteOwnedDocument, updateDocumentConfiguration } from "./repository";
 import { getDocumentPreparation, prepareDocumentWorkspace, runApprovedDocumentGeneration } from "./preparation";
 import { acceptGeneratedContent } from "./acceptance";
@@ -155,6 +155,13 @@ export async function updateDocumentAction(formData: FormData) {
   // Page breaks are now compiled from the heterogeneous arrangement itself. Retain the
   // legacy column as empty so old persistence shapes remain valid without reactivating breaks.
   const pageBreaks: string[] = [];
+  const rawTypographyFamily = formData.get("typographyFamily");
+  const rawTypographySize = formData.get("typographySize");
+  if (!isDocumentFontFamily(rawTypographyFamily) || !isDocumentFontSize(Number(rawTypographySize))) {
+    redirect(`/documents/${documentId}?error=invalid-typography`);
+  }
+  const typographyFamily = rawTypographyFamily;
+  const typographySize = String(Number(rawTypographySize));
   const rawOverrides = formData.get("contentOverrides");
   const parsedOverrides = rawOverrides === null ? {} : parseDocumentContentOverrides(rawOverrides);
   if (parsedOverrides === null) redirect(`/documents/${documentId}?error=invalid-content-overrides`);
@@ -166,6 +173,8 @@ export async function updateDocumentAction(formData: FormData) {
     const saved = await updateDocumentConfiguration(user.id, documentId, {
       title,
       presentationStyle: rawPresentationStyle,
+      typographyFamily,
+      typographySize,
       hiddenSections,
       sectionOrder,
       pageBreaks,
