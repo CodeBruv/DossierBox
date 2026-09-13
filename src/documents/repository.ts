@@ -142,6 +142,8 @@ export type DocumentCreationInput = {
   /** An already-persisted Application is the normal creation boundary. */
   applicationId?: string;
   presentationStyle?: string;
+  typographyFamily?: string;
+  typographySize?: string;
   /** Compatibility snapshot only; normalized Application Intent remains authoritative. */
   objective?: ApplicationObjective | null;
   hiddenSections?: string[];
@@ -198,6 +200,8 @@ export async function createDocument(
         title: documentTitle(type),
         status: "draft",
         template: input.presentationStyle ?? defaultPresentationStyleFor(type),
+        typographyFamily: input.typographyFamily ?? "open-sans",
+        typographySize: input.typographySize ?? "11",
         hiddenSections: input.hiddenSections ?? [DEFAULT_PAGE_BREAK_ID],
         sectionOrder: input.sectionOrder?.length ? input.sectionOrder : [DEFAULT_PAGE_BREAK_ID],
         pageBreaks: [],
@@ -253,6 +257,8 @@ export async function getOrCreateOwnedMemberDocument(userId: string, memberId: s
         title: catalogueDocumentTypeLabel(member.member.documentType),
         status: "draft",
         template: defaultPresentationStyleFor(member.member.documentType),
+        typographyFamily: "open-sans",
+        typographySize: "11",
         hiddenSections: [DEFAULT_PAGE_BREAK_ID],
         sectionOrder: [DEFAULT_PAGE_BREAK_ID],
       })
@@ -276,6 +282,8 @@ function isDocumentType(value: string): value is DocumentType {
 export type DocumentConfigurationPatch = {
   title: string;
   presentationStyle: string;
+  typographyFamily: string;
+  typographySize: string;
   hiddenSections: string[];
   sectionOrder: string[];
   pageBreaks: string[];
@@ -310,6 +318,8 @@ export async function updateDocumentConfiguration(
     .set({
       title: patch.title,
       template: patch.presentationStyle,
+      typographyFamily: patch.typographyFamily,
+      typographySize: patch.typographySize,
       hiddenSections: patch.hiddenSections,
       sectionOrder: patch.sectionOrder,
       pageBreaks: patch.pageBreaks,
