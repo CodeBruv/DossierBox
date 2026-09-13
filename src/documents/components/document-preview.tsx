@@ -17,18 +17,21 @@ import styles from "@/styles/ui/document-preview.module.css";
 export type DocumentPreviewProps = {
   document: ComposedDocument;
   presentationStyle: PresentationStyle;
+  typography?: { family: "open-sans" | "instrument-sans"; size: number };
 };
 
-export function DocumentPreview({ document, presentationStyle }: DocumentPreviewProps) {
+export function DocumentPreview({ document, presentationStyle, typography }: DocumentPreviewProps) {
   const model = compilePresentationModel({
     document,
     presentationContractVersion: PRESENTATION_CONTRACT_VERSION,
     presentationStyleId: presentationStyle.id,
+    typography,
   });
   const pages = paginatePresentation(model);
   const sheetStyle = {
     "--doc-paper-width-points": model.paper.widthPoints,
     "--doc-paper-height-points": model.paper.heightPoints,
+    "--doc-family": model.typography.family === "instrument-sans" ? "'Instrument Sans', sans-serif" : "'Open Sans', sans-serif",
   } as CSSProperties;
 
   return (
@@ -40,7 +43,7 @@ export function DocumentPreview({ document, presentationStyle }: DocumentPreview
           key={pageIndex}
         >
           <div className={styles.pageIndicator}>Page {pageIndex + 1} of {pages.length}</div>
-          <article className={`${styles.sheet} document-frame`} style={sheetStyle}>
+          <article className={`${styles.sheet} document-frame document-font`} style={sheetStyle}>
             {page.blocks.map((block, blockIndex) => {
               const blockStyle = {
                 top: `${block.top}pt`,
