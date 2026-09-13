@@ -36,6 +36,8 @@ describe("accepted document listing thumbnails", () => {
     provenance: {},
     configuration: {
       presentationStyle: "compact",
+      typographyFamily: "open-sans",
+      typographySize: "11",
       hiddenSections: [],
       sectionOrder: [],
       presentationContractVersion: "presentation-v1",
