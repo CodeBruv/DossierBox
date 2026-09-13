@@ -5,12 +5,14 @@ import type { PresentationModel } from "./export-presentation";
 import { paginatePresentation } from "./presentation-pagination";
 
 const FONT_ROOT = join(process.cwd(), "node_modules", "@fontsource", "open-sans", "files");
+const INSTRUMENT_FONT_ROOT = join(process.cwd(), "node_modules", "@fontsource-variable", "instrument-sans", "files");
 const MAX_BLOCKS = 10_000;
 
 export async function renderPresentationPdf(model: PresentationModel): Promise<Buffer> {
   if (model.blocks.length > MAX_BLOCKS) throw new PdfRenderError("resource-limit");
-  const regular = join(FONT_ROOT, model.typography.regularFont);
-  const bold = join(FONT_ROOT, model.typography.boldFont);
+  const fontRoot = model.typography.family === "instrument-sans" ? INSTRUMENT_FONT_ROOT : FONT_ROOT;
+  const regular = join(fontRoot, model.typography.regularFont);
+  const bold = join(fontRoot, model.typography.boldFont);
   if (!existsSync(regular) || !existsSync(bold)) throw new PdfRenderError("font-unavailable");
   const pages = paginatePresentation(model);
 
