@@ -216,7 +216,7 @@ export function parseDocumentContentOverrides(value: unknown): DocumentContentOv
       if (!isPlainRecord(candidate) || !isDocumentContentKey(key) || !optionalText(candidate.heading)) return null;
       if (!onlyKeys(candidate, ["heading", "body", "entries", "items", "groups"])) return null;
       const override: Record<string, unknown> = {};
-      if (candidate.heading !== undefined) override.heading = candidate.heading;
+      if (candidate.heading !== undefined) override.heading = normalizeTextValue(candidate.heading as string);
       if (candidate.body !== undefined) {
         const body = parseDetail(candidate.body);
         if (!body) return null;
@@ -230,13 +230,13 @@ export function parseDocumentContentOverrides(value: unknown): DocumentContentOv
       }
       if (candidate.items !== undefined) {
         if (!stringArray(candidate.items, MAX_OVERRIDE_ENTRIES)) return null;
-        override.items = candidate.items as string[];
+        override.items = (candidate.items as string[]).flatMap(normalizeLines);
       }
       if (candidate.groups !== undefined) {
         if (!Array.isArray(candidate.groups) || candidate.groups.length > MAX_OVERRIDE_ENTRIES) return null;
         const groups = candidate.groups.map((group) => isPlainRecord(group) && onlyKeys(group, ["label", "items"]) &&
           boundedText(group.label) && stringArray(group.items, MAX_OVERRIDE_ENTRIES)
-          ? { label: group.label as string, items: group.items as string[] } : null);
+          ? { label: normalizeTextValue(group.label as string), items: (group.items as string[]).flatMap(normalizeLines) } : null);
         if (groups.some((group) => group === null)) return null;
         override.groups = groups as { label: string; items: string[] }[];
       }
@@ -252,7 +252,12 @@ export function parseDocumentContentOverrides(value: unknown): DocumentContentOv
 function parseDetail(value: unknown): ComposedDetail | null {
   if (!isPlainRecord(value) || !onlyKeys(value, ["kind", "lines"]) ||
     (value.kind !== "paragraphs" && value.kind !== "bullets") || !stringArray(value.lines, MAX_OVERRIDE_ENTRIES)) return null;
-  return { kind: value.kind, lines: value.lines as string[] };
+  const lines = (value.lines as string[]).flatMap((line) => normalizeLines(line));
+  if (value.kind === "bullets") {
+    const stripped = lines.map((line) => line.replace(BULLET_MARKER, "").trim()).filter(Boolean);
+    return stripped.length ? { kind: "bullets", lines: stripped } : null;
+  }
+  return lines.length ? { kind: "paragraphs", lines } : null;
 }
 
 function parseEntry(value: unknown): ComposedEntry | null {
@@ -260,11 +265,11 @@ function parseEntry(value: unknown): ComposedEntry | null {
     !boundedText(value.title) || !nullableText(value.subtitle) || !nullableText(value.meta) ||
     !nullableText(value.url) || (value.detail !== null && value.detail !== undefined && !parseDetail(value.detail))) return null;
   return {
-    title: value.title as string,
-    subtitle: (value.subtitle ?? null) as string | null,
-    meta: (value.meta ?? null) as string | null,
+    title: normalizeTextValue(value.title as string),
+    subtitle: value.subtitle == null ? null : normalizeTextValue(value.subtitle as string) || null,
+    meta: value.meta == null ? null : normalizeTextValue(value.meta as string) || null,
     detail: value.detail ? parseDetail(value.detail) : null,
-    url: (value.url ?? null) as string | null,
+    url: value.url == null ? null : (value.url as string).trim() || null,
   };
 }
 
@@ -277,6 +282,10 @@ function boundedText(value: unknown): value is string { return typeof value === 
 function optionalText(value: unknown) { return value === undefined || boundedText(value); }
 function nullableText(value: unknown) { return value === null || value === undefined || boundedText(value); }
 function stringArray(value: unknown, max: number): value is string[] { return Array.isArray(value) && value.length <= max && value.every(boundedText); }
+function normalizeLines(value: string): string[] {
+  return value.replace(/\r\n?/g, "\n").split("\n").map((line) => line.trim()).filter(Boolean);
+}
+function normalizeTextValue(value: string): string { return value.replace(/\s+/g, " ").trim(); }
 
 export type DocumentCompositionInput = {
   documentType: DocumentTypeKey;
