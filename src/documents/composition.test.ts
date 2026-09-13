@@ -590,6 +590,11 @@ describe("the user's own description text", () => {
     return entriesOf(document, "projects")[0]?.detail ?? null;
   }
 
+  it("normalizes repeated and whitespace-only override lines", () => {
+    const parsed = parseDocumentContentOverrides({ sections: { summary: { body: { kind: "bullets", lines: ["  - First  ", "\n\n", " * Second  "] } } } });
+    expect(parsed).toEqual({ sections: { summary: { body: { kind: "bullets", lines: ["First", "Second"] } } } });
+  });
+
   it("keeps prose as paragraphs, one per line written", () => {
     expect(detailFor("First thought.\nSecond thought.")).toEqual({
       kind: "paragraphs",
