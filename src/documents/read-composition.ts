@@ -17,13 +17,16 @@ import {
   type ContentProvenance,
 } from "./content-compiler";
 import {
+  isDocumentFontFamily,
+  isDocumentFontSize,
   isPresentationStyleId,
   presentationStyleSuitsType,
   resolvePresentationStyle,
+  type DocumentTypography,
   type PresentationStyle,
 } from "./presentation";
 import { listValidPackageEvidenceSelections } from "@/applications/evidence-selection-repository";
-import { listApplicationEvidence, listOwnedEvidenceByIds } from "@/applications/evidence-repository";
+import { listApplicationEvidence, getOwnedEvidence } from "@/applications/evidence-repository";
 import { getDossierSnapshot } from "@/profile/repository";
 import { getOwnedDocumentPackageMember, getOwnedDocumentReadSource } from "./repository";
 import { listDocumentSpecifications } from "./specification-repository";
@@ -37,6 +40,7 @@ export type VersionBackedDocumentRead = {
   readonly version: number;
   readonly composed: ComposedDocument;
   readonly presentationStyle: PresentationStyle;
+  readonly typography: DocumentTypography;
   readonly configuration: DocumentConfiguration;
   readonly presentationContractVersion: "presentation-v1";
   readonly createdAt: Date;
@@ -141,12 +145,8 @@ export async function readOwnedCurrentDraftComposition(
     const authorizedSelections = validSelections.filter((candidate) =>
       specification.evidenceIds.includes(candidate.evidenceId),
     );
-    const evidenceById = new Map(
-      (await listOwnedEvidenceByIds(userId, authorizedSelections.map((selection) => selection.evidenceId)))
-        .map((evidence) => [evidence.id, evidence]),
-    );
     for (const selection of authorizedSelections) {
-      const evidence = evidenceById.get(selection.evidenceId);
+      const evidence = await getOwnedEvidence(userId, selection.evidenceId);
       if (!evidence || evidence.lifecycle !== "active") return { kind: "incomplete", document: document.document, reason: "stale-evidence", ...contextIds };
       selectedEvidence.push({ evidenceId: evidence.id, sourceType: evidence.sourceType, sourceRecordId: evidence.sourceRecordId });
     }
@@ -197,6 +197,7 @@ export function composeAcceptedVersionThumbnail(
       configuration: configuration.composition,
     }),
     presentationStyle: resolvePresentationStyle(configuration.presentationStyle, documentType),
+    typography: configuration.typography,
   };
 }
 
@@ -244,6 +245,7 @@ export async function readOwnedDocumentComposition(
       configuration.presentationStyle,
       source.document.type,
     ),
+    typography: configuration.typography,
     configuration: configuration.composition,
     presentationContractVersion: configuration.presentationContractVersion,
     createdAt: source.version.createdAt,
@@ -294,6 +296,7 @@ function readSelectedEvidence(value: unknown): readonly SelectedEvidence[] | nul
 function readConfiguration(value: unknown, documentType: DocumentType): {
   presentationStyle: string;
   presentationContractVersion: "presentation-v1";
+  typography: DocumentTypography;
   composition: DocumentConfiguration;
 } | null {
   if (!isRecord(value)) return null;
@@ -305,10 +308,13 @@ function readConfiguration(value: unknown, documentType: DocumentType): {
     : value.presentationContractVersion === "presentation-v1" ? "presentation-v1" : null;
   if (!presentationContractVersion) return null;
   const presentationStyle = value.presentationStyle;
+  const typographyFamily = value.typographyFamily === undefined ? "open-sans" : value.typographyFamily;
+  const typographySize = value.typographySize === undefined ? "11" : value.typographySize;
   if (
     !isPresentationStyleId(presentationStyle) ||
     !presentationStyleSuitsType(presentationStyle, documentType)
   ) return null;
+  if (!isDocumentFontFamily(typographyFamily) || !isDocumentFontSize(Number(typographySize))) return null;
   if (!stringArray(value.hiddenSections) || !stringArray(value.sectionOrder)) return null;
   if (value.pageBreaks !== undefined && !stringArray(value.pageBreaks)) return null;
   const contentOverrides = value.contentOverrides === undefined ? {} : parseDocumentContentOverrides(value.contentOverrides);
@@ -316,6 +322,7 @@ function readConfiguration(value: unknown, documentType: DocumentType): {
   return {
     presentationStyle,
     presentationContractVersion,
+    typography: { family: typographyFamily, size: Number(typographySize) as import("./presentation").DocumentFontSize },
     composition: {
       hiddenSections: value.hiddenSections,
       sectionOrder: value.sectionOrder,
