@@ -54,6 +54,8 @@ export const documents = pgTable(
      * an explicit compatibility migration.
      */
     template: text("template").notNull().default("classic"),
+    typographyFamily: text("typographyFamily").notNull().default("open-sans"),
+    typographySize: text("typographySize").notNull().default("11"),
     /**
      * Sections the user chose to leave out of this document.
      *
