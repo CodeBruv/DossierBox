@@ -70,6 +70,12 @@ describe("authoritative presentation-v1 compiler", () => {
     expect(model.blocks.map((block) => block.kind)).not.toContain("page-break");
   });
 
+  it("applies supported typography choices to the canonical model", () => {
+    const model = compilePresentationModel({ document, presentationContractVersion: PRESENTATION_CONTRACT_VERSION, presentationStyleId: "compact", typography: { family: "instrument-sans", size: 12 } });
+    expect(model.typography.family).toBe("instrument-sans");
+    expect(model.typography.bodySize).toBeGreaterThan(10.5);
+  });
+
   it("normalizes text without changing semantic block ordering", () => {
     const model = compilePresentationModel({ document: { ...document, header: { ...document.header, name: "  A\tB  " } }, presentationContractVersion: "presentation-v1", presentationStyleId: "compact" });
     expect(model.blocks[0]).toMatchObject({ kind: "text", text: "A B", role: "name" });
