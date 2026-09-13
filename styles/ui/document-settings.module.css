@@ -139,6 +139,19 @@
   font-size: var(--ds-text-sm);
 }
 
+.typographyControls {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr;
+  gap: var(--ds-space-2xs);
+  align-items: center;
+  min-width: 0;
+}
+
+.typographyControls strong {
+  font-size: var(--ds-text-sm);
+  white-space: nowrap;
+}
+
 /* ---- Section visibility and order -------------------------------------- */
 
 /*
