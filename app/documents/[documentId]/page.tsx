@@ -168,6 +168,8 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
               pageBreaks={document.pageBreaks}
               contentOverrides={document.contentOverrides}
               presentationStyle={presentationStyle.id}
+              typographyFamily={document.typographyFamily}
+              typographySize={document.typographySize}
               saveAction={updateDocumentAction}
               sectionOrder={document.sectionOrder}
               selectedEvidence={draftRead.selectedEvidence}
@@ -180,7 +182,11 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
           </>
         ) : (
           <div className={styles.workspacePreview}>
-            <DocumentPreview document={composed!} presentationStyle={presentationStyle} />
+            <DocumentPreview
+              document={composed!}
+              presentationStyle={presentationStyle}
+              typography={versionRead?.typography}
+            />
           </div>
         )}
 
