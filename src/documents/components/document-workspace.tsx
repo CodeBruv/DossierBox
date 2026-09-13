@@ -17,7 +17,10 @@ import { SectionArrangement } from "@/documents/components/section-arrangement";
 import { isPageBreakId, normalizeArrangement } from "@/documents/arrangement";
 import {
   compatiblePresentationStyles,
+  documentFontFamilies,
+  documentFontSizes,
   resolvePresentationStyle,
+  resolveDocumentTypography,
   type PresentationStyleId,
 } from "@/documents/presentation";
 import type { DocumentType } from "@/documents/schema";
@@ -34,6 +37,8 @@ type DocumentWorkspaceProps = {
   sectionOrder: readonly string[];
   pageBreaks: readonly string[];
   contentOverrides: Record<string, unknown>;
+  typographyFamily?: string;
+  typographySize?: string;
   selectedEvidence: readonly SelectedEvidence[];
   snapshot: DossierSnapshot;
   saveAction: FormHTMLAttributes<HTMLFormElement>["action"];
@@ -52,6 +57,8 @@ export function DocumentWorkspace({
   sectionOrder: initialOrder,
   pageBreaks: initialPageBreaks,
   contentOverrides: initialOverrides,
+  typographyFamily: initialTypographyFamily,
+  typographySize: initialTypographySize,
   selectedEvidence,
   snapshot,
   saveAction,
@@ -70,6 +77,9 @@ export function DocumentWorkspace({
     return section ? [{ key: section.key, heading: section.heading, type: "content" }] : [];
   });
   const [contentOverrides, setContentOverrides] = useState<DocumentContentOverrides>(initialOverrides as DocumentContentOverrides);
+  const initialTypography = resolveDocumentTypography({ family: initialTypographyFamily, size: Number(initialTypographySize) });
+  const [typographyFamily, setTypographyFamily] = useState(initialTypography.family);
+  const [typographySize, setTypographySize] = useState(initialTypography.size);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const applyArrangement = (order: readonly string[], hidden: readonly string[]) => {
     setSectionOrder(order);
@@ -136,7 +146,7 @@ export function DocumentWorkspace({
             <span id="document-preview-heading">Live preview · {style.label}</span>
             {previewOpen ? <button aria-label="Close document preview" className={styles.previewClose} onClick={closePreview} ref={previewCloseRef} type="button">Close preview</button> : null}
           </div>
-          {hasContent ? <DocumentPreview document={composed} presentationStyle={style} /> : <div className={styles.emptyNotice}><h2>This document has no visible content.</h2><p>Choose a different section set or add more information to your saved Dossier before customizing this document.</p></div>}
+          {hasContent ? <DocumentPreview document={composed} presentationStyle={style} typography={{ family: typographyFamily, size: typographySize }} /> : <div className={styles.emptyNotice}><h2>This document has no visible content.</h2><p>Choose a different section set or add more information to your saved Dossier before customizing this document.</p></div>}
         </div>
 
         <aside aria-label="Document customization" className={`${styles.workspaceControls} ${customizeOpen ? styles.workspaceControlsOpen : ""}`} data-print-skip>
@@ -144,6 +154,8 @@ export function DocumentWorkspace({
             <input name="documentId" type="hidden" value={documentId} />
             <input name="template" type="hidden" value={styleId} />
             <input name="contentOverrides" type="hidden" value={JSON.stringify(contentOverrides)} />
+            <input name="typographyFamily" type="hidden" value={typographyFamily} />
+            <input name="typographySize" type="hidden" value={typographySize} />
 
             <div className={settings.field}>
               <label className={settings.label} htmlFor="workspace-title">Document name</label>
@@ -162,6 +174,15 @@ export function DocumentWorkspace({
                 ))}
               </div>
             </details>
+            <div className={settings.typographyControls}>
+              <strong>Typography</strong>
+              <select aria-label="Font family" className={settings.input} value={typographyFamily} onChange={(event) => setTypographyFamily(event.target.value as typeof typographyFamily)}>
+                {documentFontFamilies.map((family) => <option key={family} value={family}>{family === "open-sans" ? "Open Sans" : "Instrument Sans"}</option>)}
+              </select>
+              <select aria-label="Font size" className={settings.input} value={typographySize} onChange={(event) => setTypographySize(Number(event.target.value) as typeof typographySize)}>
+                {documentFontSizes.map((size) => <option key={size} value={size}>{size} pt</option>)}
+              </select>
+            </div>
 
             {sections.length > 0 ? (
               <details className={styles.workspaceGroup} open>
@@ -243,7 +264,7 @@ function SectionEditor({
           <textarea
             className={settings.textarea}
             rows={5}
-            onChange={(event) => update({ body: { kind: "paragraphs", lines: event.target.value.split(/\r?\n/).filter(Boolean) } })}
+            onChange={(event) => update({ body: { kind: "paragraphs", lines: event.target.value.replace(/\r\n?/g, "\n").split("\n").map((line) => line.trim()).filter(Boolean) } })}
             value={current && "body" in current && current.body ? detailText(current.body) : detailText(section.body)}
           />
         </label>
@@ -258,7 +279,7 @@ function SectionEditor({
               <label className={settings.field}><span className={settings.hint}>Title</span><input className={settings.input} value={entry.title} onChange={(event) => updateEntry(index, { title: event.target.value })} /></label>
               <label className={settings.field}><span className={settings.hint}>Subtitle</span><input className={settings.input} value={entry.subtitle ?? ""} onChange={(event) => updateEntry(index, { subtitle: event.target.value || null })} /></label>
               <label className={settings.field}><span className={settings.hint}>Meta</span><input className={settings.input} value={entry.meta ?? ""} onChange={(event) => updateEntry(index, { meta: event.target.value || null })} /></label>
-              <label className={settings.field}><span className={settings.hint}>Details</span><textarea className={settings.textarea} rows={3} value={entry.detail?.lines.join("\n") ?? ""} onChange={(event) => updateEntry(index, { detail: event.target.value ? { kind: "paragraphs", lines: event.target.value.split(/\r?\n/).filter(Boolean) } : null })} /></label>
+              <label className={settings.field}><span className={settings.hint}>Details</span><textarea className={settings.textarea} rows={3} value={entry.detail?.lines.join("\n") ?? ""} onChange={(event) => updateEntry(index, { detail: event.target.value ? { kind: "paragraphs", lines: event.target.value.replace(/\r\n?/g, "\n").split("\n").map((line) => line.trim()).filter(Boolean) } : null })} /></label>
               <label className={settings.field}><span className={settings.hint}>URL</span><input className={settings.input} inputMode="url" type="url" value={entry.url ?? ""} onChange={(event) => updateEntry(index, { url: event.target.value || null })} /></label>
             </fieldset>
           ))}
@@ -266,7 +287,7 @@ function SectionEditor({
       ) : null}
 
       {section.layout === "inline" ? (
-        <label className={settings.field}><span className={settings.hint}>Items (one per line)</span><textarea className={settings.textarea} rows={4} onChange={(event) => update({ items: event.target.value.split(/\r?\n/).filter(Boolean) })} value={current && "items" in current && current.items ? current.items.join("\n") : section.items.join("\n")} /></label>
+        <label className={settings.field}><span className={settings.hint}>Items (one per line)</span><textarea className={settings.textarea} rows={4} onChange={(event) => update({ items: event.target.value.replace(/\r\n?/g, "\n").split("\n").map((line) => line.trim()).filter(Boolean) })} value={current && "items" in current && current.items ? current.items.join("\n") : section.items.join("\n")} /></label>
       ) : null}
 
       {section.layout === "grouped" ? (
