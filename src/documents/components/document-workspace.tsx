@@ -21,6 +21,7 @@ import {
   documentFontSizes,
   resolvePresentationStyle,
   resolveDocumentTypography,
+  type DocumentFontSize,
   type PresentationStyleId,
 } from "@/documents/presentation";
 import type { DocumentType } from "@/documents/schema";
@@ -179,9 +180,6 @@ export function DocumentWorkspace({
               <select aria-label="Font family" className={settings.input} value={typographyFamily} onChange={(event) => setTypographyFamily(event.target.value as typeof typographyFamily)}>
                 {documentFontFamilies.map((family) => <option key={family} value={family}>{family === "open-sans" ? "Open Sans" : "Instrument Sans"}</option>)}
               </select>
-              <select aria-label="Font size" className={settings.input} value={typographySize} onChange={(event) => setTypographySize(Number(event.target.value) as typeof typographySize)}>
-                {documentFontSizes.map((size) => <option key={size} value={size}>{size} pt</option>)}
-              </select>
             </div>
 
             {sections.length > 0 ? (
@@ -196,7 +194,7 @@ export function DocumentWorkspace({
                   onConfigurationChange={applyArrangement}
                   renderEditor={(key) => {
                     const section = composed.sections.find((candidate) => candidate.key === key);
-                    return section ? <SectionEditor section={section} overrides={contentOverrides} onChange={setContentOverrides} /> : null;
+                    return section ? <SectionEditor defaultFontSize={typographySize} section={section} overrides={contentOverrides} onChange={setContentOverrides} /> : null;
                   }}
                   sections={arrangementSections}
                 />
@@ -215,10 +213,12 @@ export function DocumentWorkspace({
 }
 
 function SectionEditor({
+  defaultFontSize,
   section,
   overrides,
   onChange,
 }: {
+  defaultFontSize: DocumentFontSize;
   section: ComposedSection;
   overrides: DocumentContentOverrides;
   onChange: React.Dispatch<React.SetStateAction<DocumentContentOverrides>>;
@@ -248,6 +248,17 @@ function SectionEditor({
   return (
     <fieldset className={settings.field}>
       <legend className={settings.label}>{section.heading}</legend>
+      <label className={settings.typographyControls}>
+        <span className={settings.hint}>Font Size</span>
+        <select
+          aria-label={`${section.heading} font size`}
+          className={settings.input}
+          value={current && "fontSize" in current && current.fontSize !== undefined ? current.fontSize : section.fontSize ?? defaultFontSize}
+          onChange={(event) => update({ fontSize: Number(event.target.value) })}
+        >
+          {documentFontSizes.map((size) => <option key={size} value={size}>{size} pt</option>)}
+        </select>
+      </label>
       <label className={settings.field}>
         <span className={settings.hint}>Heading</span>
         <input
