@@ -101,15 +101,16 @@ export type ComposedEntry = {
 
 export type ComposedSection =
   /** A single block of the user's own prose. */
-  | { key: ComposedSectionKey; heading: string; layout: "prose"; body: ComposedDetail }
+  | { key: ComposedSectionKey; heading: string; fontSize?: 10 | 11 | 12; layout: "prose"; body: ComposedDetail }
   /** A dated list — experience, education, credentials and similar. */
-  | { key: ComposedSectionKey; heading: string; layout: "entries"; entries: ComposedEntry[] }
+  | { key: ComposedSectionKey; heading: string; fontSize?: 10 | 11 | 12; layout: "entries"; entries: ComposedEntry[] }
   /** A compact run of short values, printed on as few lines as possible. */
-  | { key: ComposedSectionKey; heading: string; layout: "inline"; items: string[] }
+  | { key: ComposedSectionKey; heading: string; fontSize?: 10 | 11 | 12; layout: "inline"; items: string[] }
   /** Short values kept under their own labels, for skills. */
   | {
       key: ComposedSectionKey;
       heading: string;
+      fontSize?: 10 | 11 | 12;
       layout: "grouped";
       groups: { label: string; items: string[] }[];
     };
@@ -171,10 +172,10 @@ export type StructuredDocumentContent = {
  * workspace form from turning an entry section into arbitrary, renderer-specific data.
  */
 export type DocumentSectionOverride =
-  | { heading?: string; body?: ComposedDetail }
-  | { heading?: string; entries?: ComposedEntry[] }
-  | { heading?: string; items?: string[] }
-  | { heading?: string; groups?: { label: string; items: string[] }[] };
+  | { heading?: string; fontSize?: 10 | 11 | 12; body?: ComposedDetail }
+  | { heading?: string; fontSize?: 10 | 11 | 12; entries?: ComposedEntry[] }
+  | { heading?: string; fontSize?: 10 | 11 | 12; items?: string[] }
+  | { heading?: string; fontSize?: 10 | 11 | 12; groups?: { label: string; items: string[] }[] };
 
 export type DocumentContentOverrides = {
   header?: Partial<Pick<ComposedHeader, "name" | "headline">>;
@@ -214,9 +215,11 @@ export function parseDocumentContentOverrides(value: unknown): DocumentContentOv
     const sections: Partial<Record<ComposedSectionKey, DocumentSectionOverride>> = {};
     for (const [key, candidate] of Object.entries(value.sections)) {
       if (!isPlainRecord(candidate) || !isDocumentContentKey(key) || !optionalText(candidate.heading)) return null;
-      if (!onlyKeys(candidate, ["heading", "body", "entries", "items", "groups"])) return null;
+      if (!onlyKeys(candidate, ["heading", "fontSize", "body", "entries", "items", "groups"])) return null;
       const override: Record<string, unknown> = {};
       if (candidate.heading !== undefined) override.heading = normalizeTextValue(candidate.heading as string);
+      if (candidate.fontSize !== undefined && ![10, 11, 12].includes(candidate.fontSize as number)) return null;
+      if (candidate.fontSize !== undefined) override.fontSize = candidate.fontSize;
       if (candidate.body !== undefined) {
         const body = parseDetail(candidate.body);
         if (!body) return null;
@@ -241,7 +244,7 @@ export function parseDocumentContentOverrides(value: unknown): DocumentContentOv
         override.groups = groups as { label: string; items: string[] }[];
       }
       const expected = key === "summary" ? "body" : key === "skills" ? "groups" : key === "languages" ? "items" : "entries";
-      if (Object.keys(override).some((property) => property !== "heading" && property !== expected)) return null;
+      if (Object.keys(override).some((property) => property !== "heading" && property !== "fontSize" && property !== expected)) return null;
       sections[key] = override as DocumentSectionOverride;
     }
     result.sections = sections;
@@ -361,13 +364,13 @@ export function applyDocumentContentOverrides(
     if (!override) return section;
     switch (section.layout) {
       case "prose":
-        return { ...section, heading: override.heading ?? section.heading, body: "body" in override && override.body !== undefined ? { ...override.body, lines: [...override.body.lines] } : section.body };
+        return { ...section, heading: override.heading ?? section.heading, ...(override.fontSize ? { fontSize: override.fontSize } : {}), body: "body" in override && override.body !== undefined ? { ...override.body, lines: [...override.body.lines] } : section.body };
       case "entries":
-        return { ...section, heading: override.heading ?? section.heading, entries: "entries" in override && override.entries !== undefined ? override.entries.map((entry) => ({ ...entry, detail: entry.detail ? { ...entry.detail, lines: [...entry.detail.lines] } : null })) : section.entries };
+        return { ...section, heading: override.heading ?? section.heading, ...(override.fontSize ? { fontSize: override.fontSize } : {}), entries: "entries" in override && override.entries !== undefined ? override.entries.map((entry) => ({ ...entry, detail: entry.detail ? { ...entry.detail, lines: [...entry.detail.lines] } : null })) : section.entries };
       case "inline":
-        return { ...section, heading: override.heading ?? section.heading, items: "items" in override && override.items !== undefined ? [...override.items] : section.items };
+        return { ...section, heading: override.heading ?? section.heading, ...(override.fontSize ? { fontSize: override.fontSize } : {}), items: "items" in override && override.items !== undefined ? [...override.items] : section.items };
       case "grouped":
-        return { ...section, heading: override.heading ?? section.heading, groups: "groups" in override && override.groups !== undefined ? override.groups.map((group) => ({ ...group, items: [...group.items] })) : section.groups };
+        return { ...section, heading: override.heading ?? section.heading, ...(override.fontSize ? { fontSize: override.fontSize } : {}), groups: "groups" in override && override.groups !== undefined ? override.groups.map((group) => ({ ...group, items: [...group.items] })) : section.groups };
     }
   });
   return {
