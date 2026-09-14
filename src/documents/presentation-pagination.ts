@@ -91,7 +91,9 @@ export function paginatePresentation(model: PresentationModel): readonly Paginat
 function blockMetrics(model: PresentationModel, block: Exclude<PresentationBlock, { kind: "page-break" }>) {
   const isHeading = block.kind === "text" && block.role === "heading";
   const isName = block.kind === "text" && block.role === "name";
-  const fontSize = isName ? model.typography.nameSize : isHeading ? model.typography.headingSize : model.typography.bodySize;
+  const fontSize = isName
+    ? model.typography.nameSize
+    : block.sectionFontSize ?? (isHeading ? model.typography.headingSize : model.typography.bodySize);
   const lineHeight = fontSize * model.typography.lineHeight;
   const gapAfter = isHeading
     ? model.spacing.sectionBefore + model.spacing.sectionAfter
