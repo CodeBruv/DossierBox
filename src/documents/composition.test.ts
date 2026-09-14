@@ -214,7 +214,7 @@ describe("document content overrides", () => {
     const overrides = {
       header: { name: "Edited name" },
       sections: {
-        summary: { body: { kind: "paragraphs", lines: ["Edited summary"] } },
+        summary: { fontSize: 10, body: { kind: "paragraphs", lines: ["Edited summary"] } },
         experience: { entries: [{ title: "Edited role", subtitle: "Edited company", meta: "2025", detail: null, url: null }] },
       },
     };
@@ -222,6 +222,7 @@ describe("document content overrides", () => {
     expect(parseDocumentContentOverrides(JSON.stringify(overrides))).toEqual(overrides);
     expect(parseDocumentContentOverrides({ sections: { summary: { entries: [] } } })).toBeNull();
     expect(parseDocumentContentOverrides({ sections: { skills: { items: [] } } })).toBeNull();
+    expect(parseDocumentContentOverrides({ sections: { summary: { fontSize: 9 } } })).toBeNull();
     expect(parseDocumentContentOverrides({ sections: { unknown: { heading: "No" } } })).toBeNull();
   });
 
@@ -240,7 +241,7 @@ describe("document content overrides", () => {
     const edited = applyDocumentContentOverrides(source, {
       header: { name: "Edited" },
       sections: {
-        summary: { body: { kind: "paragraphs", lines: ["Changed"] } },
+        summary: { fontSize: 10, body: { kind: "paragraphs", lines: ["Changed"] } },
         experience: { entries: [{ title: "Edited role", subtitle: "Edited org", meta: "2025", detail: null, url: "https://example.com" }] },
         skills: { groups: [{ label: "Tools", items: ["Vitest"] }] },
         languages: { items: ["French"] },
@@ -248,7 +249,7 @@ describe("document content overrides", () => {
     });
     expect(edited.header.name).toBe("Edited");
     expect(edited.sections).toMatchObject([
-      { key: "summary", body: { lines: ["Changed"] } },
+      { key: "summary", fontSize: 10, body: { lines: ["Changed"] } },
       { key: "experience", entries: [{ title: "Edited role", url: "https://example.com" }] },
       { key: "skills", groups: [{ label: "Tools", items: ["Vitest"] }] },
       { key: "languages", items: ["French"] },
