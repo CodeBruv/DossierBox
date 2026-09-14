@@ -13,11 +13,11 @@ import type { DocumentTypeKey } from "./catalogue";
 export const PRESENTATION_CONTRACT_VERSION = "presentation-v1" as const;
 export type PresentationContractVersion = typeof PRESENTATION_CONTRACT_VERSION;
 
-type PresentationTextBlock = { readonly kind: "text"; readonly text: string; readonly role: "name" | "headline" | "contact" | "heading" | "body" | "meta" | "label"; readonly bold?: boolean; readonly italic?: boolean };
+type PresentationTextBlock = { readonly kind: "text"; readonly text: string; readonly role: "name" | "headline" | "contact" | "heading" | "body" | "meta" | "label"; readonly bold?: boolean; readonly italic?: boolean; readonly sectionFontSize?: number };
 export type PresentationBlock =
   | PresentationTextBlock
-  | { readonly kind: "bullet"; readonly text: string }
-  | { readonly kind: "link"; readonly text: string; readonly url: string }
+  | { readonly kind: "bullet"; readonly text: string; readonly sectionFontSize?: number }
+  | { readonly kind: "link"; readonly text: string; readonly url: string; readonly sectionFontSize?: number }
   | { readonly kind: "page-break" };
 
 export type PresentationModel = {
@@ -58,7 +58,7 @@ export function compilePresentationModel(input: {
   const style = presentationStyles[input.presentationStyleId];
   const a4 = style.paper === "a4";
   const blocks: PresentationBlock[] = [];
-  const addText = (text: string | null | undefined, role: PresentationTextBlock["role"], options: Pick<PresentationTextBlock, "bold" | "italic"> = {}) => {
+  const addText = (text: string | null | undefined, role: PresentationTextBlock["role"], options: Pick<PresentationTextBlock, "bold" | "italic" | "sectionFontSize"> = {}) => {
     if (text?.trim()) blocks.push({ kind: "text", text: normalizeText(text), role, ...options });
   };
 
@@ -78,8 +78,9 @@ export function compilePresentationModel(input: {
     if (!section) continue;
     if (pendingBreak && blocks.length > 0) blocks.push({ kind: "page-break" });
     pendingBreak = false;
-    addText(`${style.numberedSections ? `${contentCount + 1}. ` : ""}${section.heading}`, "heading", { bold: true });
-    appendSection(blocks, section, style.entryLayout);
+    const sectionFontSize = section.fontSize;
+    addText(`${style.numberedSections ? `${contentCount + 1}. ` : ""}${section.heading}`, "heading", { bold: true, sectionFontSize });
+    appendSection(blocks, section, style.entryLayout, sectionFontSize);
     contentCount += 1;
   }
 
@@ -123,27 +124,27 @@ export function compilePresentationModel(input: {
   };
 }
 
-function appendSection(blocks: PresentationBlock[], section: ComposedSection, layout: "stacked" | "split") {
-  if (section.layout === "prose") appendDetail(blocks, section.body);
-  if (section.layout === "inline") section.items.forEach((item, index) => blocks.push({ kind: "text", text: normalizeText(index ? ` · ${item}` : item), role: "body" }));
+function appendSection(blocks: PresentationBlock[], section: ComposedSection, layout: "stacked" | "split", sectionFontSize?: number) {
+  if (section.layout === "prose") appendDetail(blocks, section.body, sectionFontSize);
+  if (section.layout === "inline") section.items.forEach((item, index) => blocks.push({ kind: "text", text: normalizeText(index ? ` · ${item}` : item), role: "body", sectionFontSize }));
   if (section.layout === "grouped") section.groups.forEach((group) => {
-    blocks.push({ kind: "text", text: `${normalizeText(group.label)}: ${group.items.map(normalizeText).join(", ")}`, role: "body" });
+    blocks.push({ kind: "text", text: `${normalizeText(group.label)}: ${group.items.map(normalizeText).join(", ")}`, role: "body", sectionFontSize });
   });
-  if (section.layout === "entries") section.entries.forEach((entry) => appendEntry(blocks, entry, layout));
+  if (section.layout === "entries") section.entries.forEach((entry) => appendEntry(blocks, entry, layout, sectionFontSize));
 }
 
-function appendDetail(blocks: PresentationBlock[], detail: { kind: "paragraphs" | "bullets"; lines: string[] }) {
-  detail.lines.forEach((line) => blocks.push(detail.kind === "bullets" ? { kind: "bullet", text: normalizeText(line) } : { kind: "text", text: normalizeText(line), role: "body" }));
+function appendDetail(blocks: PresentationBlock[], detail: { kind: "paragraphs" | "bullets"; lines: string[] }, sectionFontSize?: number) {
+  detail.lines.forEach((line) => blocks.push(detail.kind === "bullets" ? { kind: "bullet", text: normalizeText(line), sectionFontSize } : { kind: "text", text: normalizeText(line), role: "body", sectionFontSize }));
 }
 
-function appendEntry(blocks: PresentationBlock[], entry: ComposedEntry, layout: "stacked" | "split") {
-  blocks.push({ kind: "text", text: normalizeText(entry.title), role: "body", bold: true });
-  if (layout === "split" && entry.meta) blocks.push({ kind: "text", text: normalizeText(entry.meta), role: "meta" });
-  if (entry.subtitle) blocks.push({ kind: "text", text: normalizeText(entry.subtitle), role: "body" });
-  if (layout === "stacked" && entry.meta) blocks.push({ kind: "text", text: normalizeText(entry.meta), role: "meta", italic: true });
-  if (entry.detail) appendDetail(blocks, entry.detail);
-  if (entry.url && /^https?:\/\//i.test(entry.url)) blocks.push({ kind: "link", text: normalizeText(entry.url), url: entry.url });
-  else if (entry.url) blocks.push({ kind: "text", text: normalizeText(entry.url), role: "meta" });
+function appendEntry(blocks: PresentationBlock[], entry: ComposedEntry, layout: "stacked" | "split", sectionFontSize?: number) {
+  blocks.push({ kind: "text", text: normalizeText(entry.title), role: "body", bold: true, sectionFontSize });
+  if (layout === "split" && entry.meta) blocks.push({ kind: "text", text: normalizeText(entry.meta), role: "meta", sectionFontSize });
+  if (entry.subtitle) blocks.push({ kind: "text", text: normalizeText(entry.subtitle), role: "body", sectionFontSize });
+  if (layout === "stacked" && entry.meta) blocks.push({ kind: "text", text: normalizeText(entry.meta), role: "meta", italic: true, sectionFontSize });
+  if (entry.detail) appendDetail(blocks, entry.detail, sectionFontSize);
+  if (entry.url && /^https?:\/\//i.test(entry.url)) blocks.push({ kind: "link", text: normalizeText(entry.url), url: entry.url, sectionFontSize });
+  else if (entry.url) blocks.push({ kind: "text", text: normalizeText(entry.url), role: "meta", sectionFontSize });
 }
 
 function normalizeText(value: string) {
