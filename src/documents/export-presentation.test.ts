@@ -76,6 +76,21 @@ describe("authoritative presentation-v1 compiler", () => {
     expect(model.typography.bodySize).toBeGreaterThan(10.5);
   });
 
+  it("keeps section typography on each section block", () => {
+    const model = compilePresentationModel({
+      document: {
+        ...document,
+        sections: document.sections.map((section) => section.key === "experience" ? { ...section, fontSize: 10 as const } : { ...section, fontSize: 12 as const }),
+      },
+      presentationContractVersion: PRESENTATION_CONTRACT_VERSION,
+      presentationStyleId: "compact",
+    });
+
+    expect(model.blocks.find((block) => block.kind === "text" && block.role === "heading" && block.text === "Experience")).toMatchObject({ sectionFontSize: 10 });
+    expect(model.blocks.find((block) => block.kind === "bullet")).toMatchObject({ sectionFontSize: 10 });
+    expect(model.blocks.find((block) => block.kind === "text" && block.role === "heading" && block.text === "Skills")).toMatchObject({ sectionFontSize: 12 });
+  });
+
   it("normalizes text without changing semantic block ordering", () => {
     const model = compilePresentationModel({ document: { ...document, header: { ...document.header, name: "  A\tB  " } }, presentationContractVersion: "presentation-v1", presentationStyleId: "compact" });
     expect(model.blocks[0]).toMatchObject({ kind: "text", text: "A B", role: "name" });
