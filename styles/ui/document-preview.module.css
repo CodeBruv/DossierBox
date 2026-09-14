@@ -103,7 +103,7 @@
 .line,
 .bulletLine {
   display: block;
-  height: inherit;
+  height: auto;
   white-space: nowrap;
 }
 
