@@ -141,7 +141,7 @@
 
 .typographyControls {
   display: grid;
-  grid-template-columns: auto 1fr 1fr;
+  grid-template-columns: auto 1fr;
   gap: var(--ds-space-2xs);
   align-items: center;
   min-width: 0;
