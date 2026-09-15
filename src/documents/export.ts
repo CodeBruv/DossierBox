@@ -1,7 +1,7 @@
 import "server-only";
 
-import { compilePresentationModel, PresentationCompilationError, type PresentationContractVersion } from "./export-presentation";
-import { renderPresentationPdf, PdfRenderError } from "./pdf-renderer";
+import { compilePhysicalPresentation, PresentationCompilationError } from "./export-presentation";
+import { renderPhysicalPresentationPdf, PdfRenderError } from "./pdf-renderer";
 import * as documentReads from "./read-composition";
 import { PRESENTATION_CONTRACT_VERSION } from "./export-presentation";
 
@@ -36,8 +36,8 @@ export async function exportOwnedDocumentVersion(input: ExportOwnedDocumentInput
     if (draft.kind !== "draft") return { kind: "accepted-version-required" };
 
     try {
-      const model = compilePresentationModel({ document: draft.composed, presentationContractVersion: PRESENTATION_CONTRACT_VERSION, presentationStyleId: draft.presentationStyle.id, typography: { family: draft.document.typographyFamily, size: Number(draft.document.typographySize) } });
-      const bytes = await renderPresentationPdf(model);
+      const physical = compilePhysicalPresentation({ document: draft.composed, presentationContractVersion: PRESENTATION_CONTRACT_VERSION, presentationStyleId: draft.presentationStyle.id, typography: { family: draft.document.typographyFamily, size: Number(draft.document.typographySize) } });
+      const bytes = await renderPhysicalPresentationPdf(physical);
       return { kind: "pdf", bytes, filename: safeFilename(draft.document.title), contentType: "application/pdf" };
     } catch (error) {
       if (error instanceof PresentationCompilationError || error instanceof PdfRenderError) return { kind: "unsupported-presentation" };
@@ -52,8 +52,8 @@ export async function exportOwnedDocumentVersion(input: ExportOwnedDocumentInput
   if (read.kind !== "version") return { kind: "accepted-version-required" };
 
   try {
-    const model = compilePresentationModel({ document: read.composed, presentationContractVersion: read.presentationContractVersion, presentationStyleId: read.presentationStyle.id, typography: read.typography });
-    const bytes = await renderPresentationPdf(model);
+    const physical = compilePhysicalPresentation({ document: read.composed, presentationContractVersion: read.presentationContractVersion, presentationStyleId: read.presentationStyle.id, typography: read.typography });
+    const bytes = await renderPhysicalPresentationPdf(physical);
     return { kind: "pdf", bytes, filename: safeFilename(read.document.title, read.version), contentType: "application/pdf", version: read.version };
   } catch (error) {
     if (error instanceof PresentationCompilationError || error instanceof PdfRenderError) return { kind: "unsupported-presentation" };
