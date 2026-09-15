@@ -9,8 +9,7 @@
 
 import type { CSSProperties } from "react";
 import type { ComposedDocument } from "../composition";
-import { compilePresentationModel, PRESENTATION_CONTRACT_VERSION } from "../export-presentation";
-import { paginatePresentation } from "../presentation-pagination";
+import { compilePhysicalPresentation, PRESENTATION_CONTRACT_VERSION } from "../export-presentation";
 import type { PresentationStyle } from "../presentation";
 import styles from "@/styles/ui/document-preview.module.css";
 
@@ -21,13 +20,12 @@ export type DocumentPreviewProps = {
 };
 
 export function DocumentPreview({ document, presentationStyle, typography }: DocumentPreviewProps) {
-  const model = compilePresentationModel({
+  const { model, pages } = compilePhysicalPresentation({
     document,
     presentationContractVersion: PRESENTATION_CONTRACT_VERSION,
     presentationStyleId: presentationStyle.id,
     typography,
   });
-  const pages = paginatePresentation(model);
   const sheetStyle = {
     "--doc-paper-width-points": model.paper.widthPoints,
     "--doc-paper-height-points": model.paper.heightPoints,
