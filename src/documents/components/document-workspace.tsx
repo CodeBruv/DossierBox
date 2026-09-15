@@ -175,12 +175,21 @@ export function DocumentWorkspace({
                 ))}
               </div>
             </details>
-            <div className={settings.typographyControls}>
-              <strong>Typography</strong>
-              <select aria-label="Font family" className={settings.input} value={typographyFamily} onChange={(event) => setTypographyFamily(event.target.value as typeof typographyFamily)}>
-                {documentFontFamilies.map((family) => <option key={family} value={family}>{family === "open-sans" ? "Open Sans" : "Instrument Sans"}</option>)}
-              </select>
-            </div>
+            <fieldset className={settings.fieldset}>
+              <legend className={settings.label}>Typography</legend>
+              <label className={settings.typographyControls}>
+                <span className={settings.hint}>Font family</span>
+                <select aria-label="Font family" className={settings.input} value={typographyFamily} onChange={(event) => setTypographyFamily(event.target.value as typeof typographyFamily)}>
+                  {documentFontFamilies.map((family) => <option key={family} value={family}>{family === "open-sans" ? "Open Sans" : "Instrument Sans"}</option>)}
+                </select>
+              </label>
+              <label className={settings.typographyControls}>
+                <span className={settings.hint}>Base size</span>
+                <select aria-label="Document base font size" className={settings.input} value={typographySize} onChange={(event) => setTypographySize(Number(event.target.value) as typeof typographySize)}>
+                  {documentFontSizes.map((size) => <option key={size} value={size}>{size} pt</option>)}
+                </select>
+              </label>
+            </fieldset>
 
             {sections.length > 0 ? (
               <details className={styles.workspaceGroup} open>
