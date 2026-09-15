@@ -97,9 +97,16 @@ export type PresentationStyleId = (typeof presentationStyleIds)[number];
  */
 export type DocumentEntryLayout = "stacked" | "split";
 
+/**
+ * Fonts are deliberately limited to faces that are bundled for both browser and PDFKit.
+ * Listing a system-only face here would make the preview and exported document reflow
+ * differently on another machine.
+ */
 export const documentFontFamilies = ["open-sans", "instrument-sans"] as const;
 export type DocumentFontFamily = (typeof documentFontFamilies)[number];
-export const documentFontSizes = [10, 11, 12] as const;
+
+/** A compact professional CV scale, including half-point controls for fine tuning. */
+export const documentFontSizes = [9, 9.5, 10, 10.5, 11, 11.5, 12, 13, 14] as const;
 export type DocumentFontSize = (typeof documentFontSizes)[number];
 export type DocumentTypography = {
   readonly family: DocumentFontFamily;
