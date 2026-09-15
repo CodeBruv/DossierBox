@@ -1,5 +1,6 @@
 import type { ComposedDocument, ComposedEntry, ComposedSection } from "./composition";
 import { isPageBreakId } from "./arrangement";
+import { paginatePresentation, type PaginatedPresentationPage } from "./presentation-pagination";
 import {
   isPresentationStyleId,
   presentationStyleSuitsType,
@@ -35,6 +36,11 @@ export type PresentationModel = {
   readonly blocks: readonly PresentationBlock[];
 };
 
+export type PhysicalPresentation = {
+  readonly model: PresentationModel;
+  readonly pages: readonly PaginatedPresentationPage[];
+};
+
 const pointsPerMillimetre = 72 / 25.4;
 const mm = (value: number) => value * pointsPerMillimetre;
 const inch = (value: number) => value * 72;
@@ -64,7 +70,9 @@ export function compilePresentationModel(input: {
 
   addText(input.document.header.name, "name", { bold: true });
   addText(input.document.header.headline, "headline");
-  input.document.header.contacts.forEach((contact) => addText(contact, "contact"));
+  // Contact values are one semantic line in a CV masthead. Keeping them as one block
+  // prevents renderer-level paragraph spacing from manufacturing vertical gaps.
+  addText(input.document.header.contacts.map(normalizeText).filter(Boolean).join(" · "), "contact");
 
   const sections = new Map(input.document.sections.map((section) => [section.key, section]));
   let contentCount = 0;
@@ -124,9 +132,17 @@ export function compilePresentationModel(input: {
   };
 }
 
+/** Compile once and materialize the authoritative physical pages consumed by every renderer. */
+export function compilePhysicalPresentation(input: Parameters<typeof compilePresentationModel>[0]): PhysicalPresentation {
+  const model = compilePresentationModel(input);
+  return { model, pages: paginatePresentation(model) };
+}
+
 function appendSection(blocks: PresentationBlock[], section: ComposedSection, layout: "stacked" | "split", sectionFontSize?: number) {
   if (section.layout === "prose") appendDetail(blocks, section.body, sectionFontSize);
-  if (section.layout === "inline") section.items.forEach((item, index) => blocks.push({ kind: "text", text: normalizeText(index ? ` · ${item}` : item), role: "body", sectionFontSize }));
+  // Inline content is a single semantic run, not one paragraph per item. Flattening each
+  // item into its own block produced leading separators and large, accidental gaps.
+  if (section.layout === "inline" && section.items.length > 0) blocks.push({ kind: "text", text: section.items.map(normalizeText).filter(Boolean).join(" · "), role: "body", sectionFontSize });
   if (section.layout === "grouped") section.groups.forEach((group) => {
     blocks.push({ kind: "text", text: `${normalizeText(group.label)}: ${group.items.map(normalizeText).join(", ")}`, role: "body", sectionFontSize });
   });
