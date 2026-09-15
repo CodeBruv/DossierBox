@@ -222,7 +222,8 @@ describe("document content overrides", () => {
     expect(parseDocumentContentOverrides(JSON.stringify(overrides))).toEqual(overrides);
     expect(parseDocumentContentOverrides({ sections: { summary: { entries: [] } } })).toBeNull();
     expect(parseDocumentContentOverrides({ sections: { skills: { items: [] } } })).toBeNull();
-    expect(parseDocumentContentOverrides({ sections: { summary: { fontSize: 9 } } })).toBeNull();
+    expect(parseDocumentContentOverrides({ sections: { summary: { fontSize: 9 } } })).not.toBeNull();
+    expect(parseDocumentContentOverrides({ sections: { summary: { fontSize: 8.5 } } })).toBeNull();
     expect(parseDocumentContentOverrides({ sections: { unknown: { heading: "No" } } })).toBeNull();
   });
 
