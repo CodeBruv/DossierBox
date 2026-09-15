@@ -101,16 +101,16 @@ export type ComposedEntry = {
 
 export type ComposedSection =
   /** A single block of the user's own prose. */
-  | { key: ComposedSectionKey; heading: string; fontSize?: 10 | 11 | 12; layout: "prose"; body: ComposedDetail }
+  | { key: ComposedSectionKey; heading: string; fontSize?: import("./presentation").DocumentFontSize; layout: "prose"; body: ComposedDetail }
   /** A dated list — experience, education, credentials and similar. */
-  | { key: ComposedSectionKey; heading: string; fontSize?: 10 | 11 | 12; layout: "entries"; entries: ComposedEntry[] }
+  | { key: ComposedSectionKey; heading: string; fontSize?: import("./presentation").DocumentFontSize; layout: "entries"; entries: ComposedEntry[] }
   /** A compact run of short values, printed on as few lines as possible. */
-  | { key: ComposedSectionKey; heading: string; fontSize?: 10 | 11 | 12; layout: "inline"; items: string[] }
+  | { key: ComposedSectionKey; heading: string; fontSize?: import("./presentation").DocumentFontSize; layout: "inline"; items: string[] }
   /** Short values kept under their own labels, for skills. */
   | {
       key: ComposedSectionKey;
       heading: string;
-      fontSize?: 10 | 11 | 12;
+      fontSize?: import("./presentation").DocumentFontSize;
       layout: "grouped";
       groups: { label: string; items: string[] }[];
     };
@@ -172,10 +172,10 @@ export type StructuredDocumentContent = {
  * workspace form from turning an entry section into arbitrary, renderer-specific data.
  */
 export type DocumentSectionOverride =
-  | { heading?: string; fontSize?: 10 | 11 | 12; body?: ComposedDetail }
-  | { heading?: string; fontSize?: 10 | 11 | 12; entries?: ComposedEntry[] }
-  | { heading?: string; fontSize?: 10 | 11 | 12; items?: string[] }
-  | { heading?: string; fontSize?: 10 | 11 | 12; groups?: { label: string; items: string[] }[] };
+  | { heading?: string; fontSize?: import("./presentation").DocumentFontSize; body?: ComposedDetail }
+  | { heading?: string; fontSize?: import("./presentation").DocumentFontSize; entries?: ComposedEntry[] }
+  | { heading?: string; fontSize?: import("./presentation").DocumentFontSize; items?: string[] }
+  | { heading?: string; fontSize?: import("./presentation").DocumentFontSize; groups?: { label: string; items: string[] }[] };
 
 export type DocumentContentOverrides = {
   header?: Partial<Pick<ComposedHeader, "name" | "headline">>;
@@ -218,7 +218,7 @@ export function parseDocumentContentOverrides(value: unknown): DocumentContentOv
       if (!onlyKeys(candidate, ["heading", "fontSize", "body", "entries", "items", "groups"])) return null;
       const override: Record<string, unknown> = {};
       if (candidate.heading !== undefined) override.heading = normalizeTextValue(candidate.heading as string);
-      if (candidate.fontSize !== undefined && ![10, 11, 12].includes(candidate.fontSize as number)) return null;
+      if (candidate.fontSize !== undefined && ![9, 9.5, 10, 10.5, 11, 11.5, 12, 13, 14].includes(candidate.fontSize as number)) return null;
       if (candidate.fontSize !== undefined) override.fontSize = candidate.fontSize;
       if (candidate.body !== undefined) {
         const body = parseDetail(candidate.body);
