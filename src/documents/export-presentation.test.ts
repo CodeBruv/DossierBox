@@ -22,7 +22,8 @@ describe("authoritative presentation-v1 compiler", () => {
     expect(first.typography.boldFont).toContain("open-sans-latin-ext-700-normal.woff");
     expect(first.paper.widthPoints).toBeCloseTo(612);
     expect(first.blocks.some((block) => block.kind === "link")).toBe(true);
-    expect(first.blocks.map((block) => block.kind)).toEqual(["text", "text", "text", "text", "text", "text", "text", "bullet", "link", "page-break", "text", "text", "text"]);
+    expect(first.blocks.map((block) => block.kind)).toEqual(["text", "text", "text", "text", "text", "text", "text", "bullet", "link", "page-break", "text", "text"]);
+    expect(first.blocks.at(-1)).toMatchObject({ kind: "text", text: "TypeScript · Unicode · safe", role: "body" });
   });
 
   it("fails closed for unknown contracts, styles, and incompatible pairings", () => {
