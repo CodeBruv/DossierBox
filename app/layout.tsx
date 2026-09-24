@@ -4,8 +4,18 @@
  * Composes the global CSS, site header, and site footer into a consistent
  * shell. Private account routes perform their own server-side authorization.
  */
-import "@fontsource-variable/instrument-sans/wght.css";
-import "@fontsource-variable/instrument-sans/wght-italic.css";
+/*
+ * Instrument Sans is loaded from the *static* Fontsource faces rather than the variable build.
+ * The browser and PDFKit must resolve the same physical files: the variable WOFF2 cannot be
+ * subset by PDFKit's fontkit, so the exported document would collapse to `.notdef` glyphs while
+ * the on-screen preview looked correct. Shipping one static family for both keeps them identical.
+ */
+import "@fontsource/instrument-sans/400.css";
+import "@fontsource/instrument-sans/500.css";
+import "@fontsource/instrument-sans/600.css";
+import "@fontsource/instrument-sans/700.css";
+import "@fontsource/instrument-sans/400-italic.css";
+import "@fontsource/instrument-sans/700-italic.css";
 import "./globals.css";
 import "@/styles/print.css";
 import { SiteHeader, SiteFooter, ThemeProvider } from "@/ui";

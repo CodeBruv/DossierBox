@@ -5,7 +5,11 @@ import type { PhysicalPresentation, PresentationModel } from "./export-presentat
 import { paginatePresentation } from "./presentation-pagination";
 
 const FONT_ROOT = join(process.cwd(), "node_modules", "@fontsource", "open-sans", "files");
-const INSTRUMENT_FONT_ROOT = join(process.cwd(), "node_modules", "@fontsource-variable", "instrument-sans", "files");
+/*
+ * Static Fontsource faces. The variable build is not used: fontkit cannot subset its WOFF2, so
+ * embedding it produces a PDF in which every glyph collapses to `.notdef` (see export-presentation).
+ */
+const INSTRUMENT_FONT_ROOT = join(process.cwd(), "node_modules", "@fontsource", "instrument-sans", "files");
 const MAX_BLOCKS = 10_000;
 
 /**

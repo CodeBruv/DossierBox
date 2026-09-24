@@ -18,8 +18,8 @@ describe("authoritative presentation-v1 compiler", () => {
     const second = compilePresentationModel({ document, presentationContractVersion: PRESENTATION_CONTRACT_VERSION, presentationStyleId: "compact" });
     expect(second).toEqual(first);
     expect(first.contractVersion).toBe("presentation-v1");
-    expect(first.typography.regularFont).toContain("open-sans-latin-ext-400-normal.woff");
-    expect(first.typography.boldFont).toContain("open-sans-latin-ext-700-normal.woff");
+    expect(first.typography.regularFont).toContain("open-sans-latin-400-normal.woff");
+    expect(first.typography.boldFont).toContain("open-sans-latin-700-normal.woff");
     expect(first.paper.widthPoints).toBeCloseTo(612);
     expect(first.blocks.some((block) => block.kind === "link")).toBe(true);
     expect(first.blocks.map((block) => block.kind)).toEqual(["text", "text", "text", "text", "text", "text", "text", "bullet", "link", "page-break", "text", "text"]);

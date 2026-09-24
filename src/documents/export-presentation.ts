@@ -108,8 +108,23 @@ export function compilePresentationModel(input: {
       const scale = typography.size / 11;
       return {
         family: typography.family,
-        regularFont: typography.family === "instrument-sans" ? "instrument-sans-latin-ext-wght-normal.woff2" : "open-sans-latin-ext-400-normal.woff",
-        boldFont: typography.family === "instrument-sans" ? "instrument-sans-latin-ext-wght-normal.woff2" : "open-sans-latin-ext-700-normal.woff",
+        /*
+         * The PDF renderer embeds one physical file per face, unlike the browser, which stacks
+         * the `latin-ext` supplement with `latin` through CSS. Fontsource's `latin-ext` file is a
+         * *supplement*: it carries accented and extended glyphs but not the Basic Latin letters,
+         * so laying a document out through it maps every letter to `.notdef` and the exported
+         * page comes out as a solid block of ink with no readable text. The `latin` file is the
+         * one that contains A–Z and a–z, so the renderer must be handed that one.
+         *
+         * Instrument Sans is pinned to the *static* Fontsource faces, not the variable build.
+         * PDFKit subsets through fontkit, and fontkit cannot embed the variable WOFF2 here: it
+         * throws `RangeError` mid-subset and, because the stream is already open, the bytes it
+         * has emitted are flushed without a glyph dictionary — every character then renders as
+         * `.notdef`. The static 400/700 WOFF files subset cleanly and carry the `·` and `•`
+         * separators the composed document uses.
+         */
+        regularFont: typography.family === "instrument-sans" ? "instrument-sans-latin-400-normal.woff" : "open-sans-latin-400-normal.woff",
+        boldFont: typography.family === "instrument-sans" ? "instrument-sans-latin-700-normal.woff" : "open-sans-latin-700-normal.woff",
         bodySize: (input.presentationStyleId === "classic" ? 11 : 10.5) * scale,
         headingSize: (input.presentationStyleId === "compact" ? 10.5 : 11) * scale,
         nameSize: (input.presentationStyleId === "compact" ? 18 : 17) * scale,
